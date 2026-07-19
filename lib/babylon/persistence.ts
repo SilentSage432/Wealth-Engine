@@ -2,6 +2,7 @@ import {
   DISCRETIONARY_BUDGET_ID,
   EMPTY_STATE,
   STORAGE_KEY,
+  USERNAME_STORAGE_KEY,
 } from "@/lib/babylon/constants";
 import type {
   AllocationEvent,
@@ -233,10 +234,7 @@ export function normalizePersistedState(raw: unknown): PersistedState {
     debts,
     allocations,
     budgetTargets,
-    displayName:
-      typeof raw.displayName === "string" && raw.displayName.trim()
-        ? raw.displayName.trim()
-        : "Steward",
+    displayName: typeof raw.displayName === "string" ? raw.displayName : "",
   };
 }
 
@@ -272,9 +270,7 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
   }
 
   const displayName =
-    typeof raw.displayName === "string" && raw.displayName.trim()
-      ? raw.displayName.trim()
-      : "Steward";
+    typeof raw.displayName === "string" ? raw.displayName : "";
 
   return {
     version: 1,
@@ -323,6 +319,38 @@ export function savePersistedState(state: PersistedState): void {
 export function clearPersistedState(): void {
   if (typeof window === "undefined") return;
   window.localStorage.removeItem(STORAGE_KEY);
+}
+
+/**
+ * Load steward username. Prefers dedicated `babylon_username`; soft-migrates from
+ * an optional vault `displayName` when the dedicated key is absent.
+ */
+export function loadUsername(vaultDisplayName?: string): string {
+  if (typeof window === "undefined") return "";
+
+  try {
+    const raw = window.localStorage.getItem(USERNAME_STORAGE_KEY);
+    if (raw !== null) return raw;
+
+    if (typeof vaultDisplayName === "string") {
+      saveUsername(vaultDisplayName);
+      return vaultDisplayName;
+    }
+
+    return "";
+  } catch {
+    return "";
+  }
+}
+
+export function saveUsername(username: string): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(USERNAME_STORAGE_KEY, username);
+}
+
+export function clearUsername(): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(USERNAME_STORAGE_KEY);
 }
 
 export function isEmptyLedger(state: PersistedState): boolean {

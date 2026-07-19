@@ -41,4 +41,5 @@ Key: `wealth-engine-babylon-v2`
 Shape: `{ incomes, expenses, debts, allocations, budgetTargets, displayName }`  
 Expenses require `dueDate` (ISO) and optionally `budgetCategoryId` (links to a BudgetTarget).  
 Cold start: empty ledger arrays + empty `budgetTargets` (steward configures their own blueprint).  
+Profile name: dedicated `babylon_username` preference (may be empty); greeting falls back to “Steward” visually only.  
 Portable backup shape: `LedgerBackup` (`version: 1`, `exportedAt`, plus full persisted arrays including `budgetTargets`).

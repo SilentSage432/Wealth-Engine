@@ -4,6 +4,12 @@ import type { ComponentType } from "react";
 
 export const STORAGE_KEY = "wealth-engine-babylon-v2";
 
+/** Dedicated preference key for the steward profile name (independent of ledger vault). */
+export const USERNAME_STORAGE_KEY = "babylon_username";
+
+/** Visual-only greeting fallback when the profile input is empty. */
+export const GREETING_NAME_FALLBACK = "Steward";
+
 export const WEALTH_RATE = 0.1;
 export const DEBT_RATE = 0.2;
 export const EXPENDITURE_RATE = 0.7;
@@ -60,5 +66,5 @@ export const EMPTY_STATE: PersistedState = {
   debts: [],
   allocations: [],
   budgetTargets: [],
-  displayName: "Steward",
+  displayName: "",
 };

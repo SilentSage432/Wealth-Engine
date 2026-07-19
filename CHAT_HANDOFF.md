@@ -27,9 +27,9 @@ Persisted in `localStorage` (`wealth-engine-babylon-v2`) as:
 - `debts[]` — `totalDebt`, `remainingDebt`, `monthlyAllocation` (required on create)
 - `allocations[]` — historical events for charts
 - `budgetTargets[]` — steward-configured planned caps for Necessary Expenditures buckets (starts empty)
-- `displayName`
+- `displayName` — mirrored into vault for backup compatibility; canonical UI preference is `babylon_username`
 
-Hydration: load from localStorage when present; otherwise empty ledger + empty budget blueprint. No demo seed.
+Hydration: load ledger from localStorage when present; username from `babylon_username` (soft-migrates from vault `displayName` once). Empty ledger + empty budget blueprint. No demo seed.
 Legacy expenses without `dueDate` soft-migrate to use `date`. Desire expenses without `budgetCategoryId` map to the legacy discretionary id when present.
 
 ## Mutations (hook exports)

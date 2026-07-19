@@ -51,10 +51,10 @@ export function WealthEngineDashboard() {
       <div className="lg:pl-72">
         <CommandBar
           greeting={engine.greeting}
-          displayName={engine.displayName}
+          username={engine.username}
           localizedDate={engine.localizedDate}
           localizedTime={engine.localizedTime}
-          onDisplayNameChange={engine.setDisplayName}
+          onUsernameChange={engine.setUsername}
           onOpenSidebar={() => engine.setSidebarOpen(true)}
           onManageCategories={engine.openBlueprint}
           onRecordTribute={() => engine.openTribute("income")}

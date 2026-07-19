@@ -3,13 +3,14 @@
 import { CalendarDays, Menu, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { GREETING_NAME_FALLBACK } from "@/lib/babylon/constants";
 
 interface CommandBarProps {
   greeting: string;
-  displayName: string;
+  username: string;
   localizedDate: string;
   localizedTime: string;
-  onDisplayNameChange: (value: string) => void;
+  onUsernameChange: (value: string) => void;
   onOpenSidebar: () => void;
   onManageCategories: () => void;
   onRecordTribute: () => void;
@@ -17,14 +18,16 @@ interface CommandBarProps {
 
 export function CommandBar({
   greeting,
-  displayName,
+  username,
   localizedDate,
   localizedTime,
-  onDisplayNameChange,
+  onUsernameChange,
   onOpenSidebar,
   onManageCategories,
   onRecordTribute,
 }: CommandBarProps) {
+  const greetingName = username.trim() || GREETING_NAME_FALLBACK;
+
   return (
     <header className="sticky top-0 z-30 border-b border-slate-800/60 bg-slate-950/80 backdrop-blur-xl">
       <div className="flex flex-col gap-4 px-4 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
@@ -44,7 +47,7 @@ export function CommandBar({
             <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold text-slate-50 sm:text-3xl">
               {greeting},{" "}
               <span className="bg-gradient-to-r from-emerald-300 to-amber-300 bg-clip-text text-transparent">
-                {displayName}
+                {greetingName}
               </span>
             </h1>
             <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-slate-400">
@@ -62,10 +65,12 @@ export function CommandBar({
 
         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <Input
-            value={displayName}
-            onChange={(e) => onDisplayNameChange(e.target.value || "Steward")}
+            value={username}
+            onChange={(e) => onUsernameChange(e.target.value)}
+            onBlur={(e) => onUsernameChange(e.target.value)}
+            placeholder={GREETING_NAME_FALLBACK}
             className="h-9 w-32 border-slate-800 bg-slate-900/50 text-xs sm:w-40"
-            aria-label="Display name"
+            aria-label="Profile name"
           />
           <Button
             variant="outline"

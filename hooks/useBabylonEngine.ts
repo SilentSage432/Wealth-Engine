@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   BABYLON_WISDOM,
   DONUT_COLORS,
-  EMPTY_STATE,
+  GREETING_NAME_FALLBACK,
 } from "@/lib/babylon/constants";
 import {
   allocateIncome,
@@ -21,8 +21,11 @@ import {
 import {
   buildLedgerBackup,
   clearPersistedState,
+  clearUsername,
   loadPersistedState,
+  loadUsername,
   savePersistedState,
+  saveUsername,
   validateLedgerBackup,
 } from "@/lib/babylon/persistence";
 import { generateId } from "@/lib/utils";
@@ -49,7 +52,8 @@ export function useBabylonEngine() {
   const [debts, setDebts] = useState<DebtEntry[]>([]);
   const [allocations, setAllocations] = useState<AllocationEvent[]>([]);
   const [budgetTargets, setBudgetTargets] = useState<BudgetTarget[]>([]);
-  const [displayName, setDisplayName] = useState("Steward");
+  /** Profile name input value — may be empty; greeting uses a visual fallback. */
+  const [username, setUsernameState] = useState("");
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeNav, setActiveNav] = useState<NavSection>("overview");
@@ -67,7 +71,7 @@ export function useBabylonEngine() {
     setDebts(stored.debts);
     setAllocations(stored.allocations);
     setBudgetTargets(stored.budgetTargets);
-    setDisplayName(stored.displayName);
+    setUsernameState(loadUsername(stored.displayName));
     setHydrated(true);
   }, []);
 
@@ -79,7 +83,7 @@ export function useBabylonEngine() {
       debts,
       allocations,
       budgetTargets,
-      displayName,
+      displayName: username,
     };
     savePersistedState(payload);
   }, [
@@ -89,8 +93,13 @@ export function useBabylonEngine() {
     debts,
     allocations,
     budgetTargets,
-    displayName,
+    username,
   ]);
+
+  const setUsername = useCallback((value: string) => {
+    setUsernameState(value);
+    saveUsername(value);
+  }, []);
 
   useEffect(() => {
     const timer = window.setInterval(() => setClock(new Date()), 1000);
@@ -487,12 +496,13 @@ export function useBabylonEngine() {
 
   const clearAllData = useCallback(() => {
     clearPersistedState();
+    clearUsername();
     setIncomes([]);
     setExpenses([]);
     setDebts([]);
     setAllocations([]);
     setBudgetTargets([]);
-    setDisplayName(EMPTY_STATE.displayName);
+    setUsernameState("");
     setTributeOpen(false);
     setTributeMode("income");
     setBlueprintOpen(false);
@@ -507,7 +517,7 @@ export function useBabylonEngine() {
       debts,
       allocations,
       budgetTargets,
-      displayName,
+      displayName: username,
     });
     const blob = new Blob([JSON.stringify(backup, null, 2)], {
       type: "application/json",
@@ -521,7 +531,7 @@ export function useBabylonEngine() {
     anchor.click();
     anchor.remove();
     URL.revokeObjectURL(url);
-  }, [incomes, expenses, debts, allocations, budgetTargets, displayName]);
+  }, [incomes, expenses, debts, allocations, budgetTargets, username]);
 
   const importBackup = useCallback((raw: unknown): string | null => {
     const backup = validateLedgerBackup(raw);
@@ -539,12 +549,13 @@ export function useBabylonEngine() {
     };
 
     savePersistedState(next);
+    saveUsername(backup.displayName);
     setIncomes(next.incomes);
     setExpenses(next.expenses);
     setDebts(next.debts);
     setAllocations(next.allocations);
     setBudgetTargets(next.budgetTargets);
-    setDisplayName(next.displayName);
+    setUsernameState(backup.displayName);
     setTributeOpen(false);
     setTributeMode("income");
     setBlueprintOpen(false);
@@ -582,8 +593,10 @@ export function useBabylonEngine() {
     debts,
     allocations,
     budgetTargets,
-    displayName,
-    setDisplayName,
+    username,
+    setUsername,
+    /** Visual greeting name — never locks the input value. */
+    greetingName: username.trim() || GREETING_NAME_FALLBACK,
     sidebarOpen,
     setSidebarOpen,
     activeNav,

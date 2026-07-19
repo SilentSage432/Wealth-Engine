@@ -1,5 +1,18 @@
 # Development Journal
 
+## 2026-07-19 — Profile username input (emptyable + dedicated persistence)
+
+### What changed
+- Fixed header name input that forced `|| "Steward"` on every keystroke, blocking backspace/clear.
+- Canonical preference: `username` via `babylon_username` localStorage (`loadUsername` / `saveUsername` / `clearUsername`); vault `displayName` kept in sync for backups and soft-migration.
+- Greeting renders `{username.trim() || "Steward"}` as visual-only fallback; input value may be `""`.
+- Exported `setUsername` persists on change (and command-bar blur re-saves).
+
+### Ownership
+- Preference key + helpers: `lib/babylon/constants.ts`, `lib/babylon/persistence.ts`
+- State: `hooks/useBabylonEngine.ts`
+- Presentation: `components/babylon/command-bar.tsx`
+
 ## 2026-07-19 — Reset Ledger Workspace (confirmed purge)
 
 ### What changed
