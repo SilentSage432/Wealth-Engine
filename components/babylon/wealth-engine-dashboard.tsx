@@ -10,7 +10,9 @@ import { QuickStats } from "@/components/babylon/quick-stats";
 import { VaultLoading } from "@/components/babylon/vault-loading";
 import { WisdomBox } from "@/components/babylon/wisdom-box";
 import { BudgetBlueprint } from "@/components/dashboard/BudgetBlueprint";
+import { RecentActivityStrip } from "@/components/dashboard/RecentActivityStrip";
 import { TributeEnginesPanel } from "@/components/dashboard/TributeEnginesPanel";
+import { MonthlyCloseModal } from "@/components/modals/MonthlyCloseModal";
 import { RecordTransactionModal } from "@/components/modals/RecordTransactionModal";
 import { useBabylonEngine } from "@/hooks/useBabylonEngine";
 import { cn } from "@/lib/utils";
@@ -53,9 +55,11 @@ export function WealthEngineDashboard() {
           username={engine.username}
           localizedDate={engine.localizedDate}
           localizedTime={engine.localizedTime}
+          monthAlreadyClosed={engine.monthlyCloseSummary.alreadyClosed}
           onUsernameChange={engine.setUsername}
           onOpenSidebar={() => engine.setSidebarOpen(true)}
           onRecordTribute={() => engine.openTribute("income")}
+          onOpenMonthlyClose={() => engine.setMonthlyCloseOpen(true)}
         />
 
         <main className="mx-auto w-full max-w-screen-2xl space-y-5 px-3 py-5 sm:space-y-6 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
@@ -91,6 +95,7 @@ export function WealthEngineDashboard() {
                     expenditurePool={engine.currentMonthExpenditurePool}
                     onUpdateTargetFull={engine.updateBudgetTargetFull}
                     onDeleteTarget={engine.deleteBudgetTarget}
+                    onAutoScaleCaps={engine.autoScaleBudgetCaps}
                   />
                   <AnalyticsHub
                     chartData={engine.chartData}
@@ -99,6 +104,7 @@ export function WealthEngineDashboard() {
                     currentMonthDesire={engine.currentMonthDesire}
                     currentMonthRemaining={engine.currentMonthRemaining}
                   />
+                  <RecentActivityStrip events={engine.recentActivity} />
                 </>
               )}
 
@@ -133,6 +139,7 @@ export function WealthEngineDashboard() {
                 expenditurePool={engine.currentMonthExpenditurePool}
                 onUpdateTargetFull={engine.updateBudgetTargetFull}
                 onDeleteTarget={engine.deleteBudgetTarget}
+                onAutoScaleCaps={engine.autoScaleBudgetCaps}
               />
               <LedgerMatrices
                 incomes={engine.incomes}
@@ -146,6 +153,7 @@ export function WealthEngineDashboard() {
                 onDeleteIncome={engine.deleteIncome}
                 onDeleteExpense={engine.deleteExpense}
                 onDeleteDebt={engine.deleteDebt}
+                onToggleExpenseSettled={engine.toggleExpenseSettled}
               />
             </>
           )}
@@ -171,6 +179,15 @@ export function WealthEngineDashboard() {
         onRecordExpense={engine.addExpense}
         onRecordDebt={engine.addDebt}
         onAddBudgetTarget={engine.addBudgetTarget}
+      />
+
+      <MonthlyCloseModal
+        open={engine.monthlyCloseOpen}
+        summary={engine.monthlyCloseSummary}
+        hasActiveDebt={engine.hasActiveDebt}
+        emergencyShield={engine.emergencyShield}
+        onOpenChange={engine.setMonthlyCloseOpen}
+        onCloseMonth={engine.closeMonth}
       />
     </div>
   );

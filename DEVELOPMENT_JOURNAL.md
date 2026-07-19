@@ -1,5 +1,19 @@
 # Development Journal
 
+## 2026-07-19 — Phase 2 Depth complete (settled, activity, auto-scale, monthly close)
+
+### What changed
+- **Expense settled status:** `ExpenseEntry.isSettled`; legacy soft-migrates to `true`; new expenses start unsettled; `toggleExpenseSettled`; ledger checkmark with muted/line-through styling; due-soon only for unsettled rows.
+- **Recent Activity Strip:** persisted `activityLog` (newest-first, capped); Command Deck shows last 5 mutations with icons + relative time.
+- **Auto-Scale Allocations:** `scaleBudgetCapsToPool` + Blueprint action proportionally fits caps to the current-month 70% pool (penny drift on largest bucket).
+- **Monthly Close Ritual:** 3-step modal — period summary, surplus → Debt/Wealth or emergency shield, archive + settle month expenses + `lastClosedMonthKey` seal. Persists `periodArchives`, `emergencyShield`.
+
+### Ownership
+- Types / migrate: `types/babylon.ts`, `lib/babylon/persistence.ts`, `lib/babylon/constants.ts`
+- Math: `lib/babylon/engine.ts` (`scaleBudgetCapsToPool`, `splitSurplusToDebtWealth`)
+- Mutations: `hooks/useBabylonEngine.ts`
+- UI: `RecentActivityStrip`, `MonthlyCloseModal`, `BudgetBlueprint`, `ledger-matrices`, `command-bar`, dashboard
+
 ## 2026-07-19 — P2 Workflow Clarity
 
 ### What changed

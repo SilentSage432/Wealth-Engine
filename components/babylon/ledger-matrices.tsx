@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus, Trash2 } from "lucide-react";
+import { Check, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -42,6 +42,7 @@ interface LedgerMatricesProps {
   onDeleteIncome: (id: string) => void;
   onDeleteExpense: (id: string) => void;
   onDeleteDebt: (id: string) => void;
+  onToggleExpenseSettled: (id: string) => void;
 }
 
 export function LedgerMatrices({
@@ -56,6 +57,7 @@ export function LedgerMatrices({
   onDeleteIncome,
   onDeleteExpense,
   onDeleteDebt,
+  onToggleExpenseSettled,
 }: LedgerMatricesProps) {
   const categoryLabel = (id: string | undefined) => {
     if (!id) return "Uncategorized";
@@ -214,7 +216,7 @@ export function LedgerMatrices({
                   <p className="text-xs uppercase tracking-wider text-emerald-500/80">
                     Core Needs
                   </p>
-                  <p className="mt-1 font-[family-name:var(--font-display)] text-2xl font-semibold text-emerald-300 tabular-nums">
+                  <p className="mt-1 font-[family-name:var(--font-display)] text-2xl font-semibold tabular-nums text-emerald-300">
                     {formatCurrency(needSpend)}
                   </p>
                   <p className="mt-1 text-xs text-slate-500">
@@ -227,7 +229,7 @@ export function LedgerMatrices({
                   <p className="text-xs uppercase tracking-wider text-amber-500/80">
                     Discretionary Desires
                   </p>
-                  <p className="mt-1 font-[family-name:var(--font-display)] text-2xl font-semibold text-amber-300 tabular-nums">
+                  <p className="mt-1 font-[family-name:var(--font-display)] text-2xl font-semibold tabular-nums text-amber-300">
                     {formatCurrency(desireSpend)}
                   </p>
                   <p className="mt-1 text-xs text-slate-500">
@@ -238,9 +240,10 @@ export function LedgerMatrices({
 
               <div className="w-full overflow-x-auto scrollbar-thin">
                 {expenses.length === 0 ? (
-                  <Table className="min-w-[40rem]">
+                  <Table className="min-w-[44rem]">
                     <TableHeader>
                       <TableRow>
+                        <TableHead className="w-12">Paid</TableHead>
                         <TableHead>Name</TableHead>
                         <TableHead>Category</TableHead>
                         <TableHead>Amount</TableHead>
@@ -252,7 +255,7 @@ export function LedgerMatrices({
                     <TableBody>
                       <TableRow>
                         <TableCell
-                          colSpan={6}
+                          colSpan={7}
                           className="py-10 text-center text-sm text-slate-500"
                         >
                           No tribute recorded yet. Use &apos;Record Tribute&apos;
@@ -262,9 +265,10 @@ export function LedgerMatrices({
                     </TableBody>
                   </Table>
                 ) : (
-                  <Table className="min-w-[40rem]">
+                  <Table className="min-w-[44rem]">
                     <TableHeader>
                       <TableRow>
+                        <TableHead className="w-12">Paid</TableHead>
                         <TableHead>Name</TableHead>
                         <TableHead>Category</TableHead>
                         <TableHead>Amount</TableHead>
@@ -275,20 +279,54 @@ export function LedgerMatrices({
                     </TableHeader>
                     <TableBody>
                       {expenses.map((row) => {
-                        const dueSoon = isDueWithinWeek(row.dueDate);
+                        const dueSoon =
+                          !row.isSettled && isDueWithinWeek(row.dueDate);
                         const bucket = categoryLabel(row.budgetCategoryId);
                         return (
-                          <TableRow key={row.id}>
-                            <TableCell className="font-medium text-slate-100">
+                          <TableRow
+                            key={row.id}
+                            className={cn(row.isSettled && "opacity-55")}
+                          >
+                            <TableCell>
+                              <button
+                                type="button"
+                                onClick={() => onToggleExpenseSettled(row.id)}
+                                aria-label={
+                                  row.isSettled
+                                    ? `Mark ${row.name} as pending`
+                                    : `Mark ${row.name} as settled`
+                                }
+                                aria-pressed={row.isSettled}
+                                className={cn(
+                                  "flex h-10 w-10 items-center justify-center rounded-md border transition-colors md:h-8 md:w-8",
+                                  row.isSettled
+                                    ? "border-emerald-500/50 bg-emerald-500/15 text-emerald-400"
+                                    : "border-slate-700 bg-slate-950/50 text-slate-500 hover:border-slate-500 hover:text-slate-300"
+                                )}
+                              >
+                                <Check className="h-3.5 w-3.5" />
+                              </button>
+                            </TableCell>
+                            <TableCell
+                              className={cn(
+                                "font-medium text-slate-100",
+                                row.isSettled && "text-slate-400 line-through"
+                              )}
+                            >
                               <span className="inline-flex flex-wrap items-center gap-2">
                                 {row.name}
                                 {dueSoon && (
-                                  <span className="text-[11px] font-medium text-amber-400">
+                                  <span className="text-[11px] font-medium text-amber-400 no-underline">
                                     Due soon
                                   </span>
                                 )}
+                                {row.isSettled && (
+                                  <span className="text-[11px] font-medium text-emerald-500/80 no-underline">
+                                    Settled
+                                  </span>
+                                )}
                               </span>
-                              <p className="mt-0.5 text-[11px] font-normal text-slate-500">
+                              <p className="mt-0.5 text-[11px] font-normal text-slate-500 no-underline">
                                 {bucket}
                               </p>
                             </TableCell>
@@ -304,7 +342,12 @@ export function LedgerMatrices({
                                 {row.category === "need" ? "Need" : "Desire"}
                               </span>
                             </TableCell>
-                            <TableCell className="tabular-nums">
+                            <TableCell
+                              className={cn(
+                                "tabular-nums",
+                                row.isSettled && "line-through text-slate-500"
+                              )}
+                            >
                               {formatCurrency(row.amount)}
                             </TableCell>
                             <TableCell className="text-slate-400">

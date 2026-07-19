@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarDays, Menu, Plus } from "lucide-react";
+import { CalendarCheck, CalendarDays, Menu, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { GREETING_NAME_FALLBACK } from "@/lib/babylon/constants";
@@ -10,9 +10,11 @@ interface CommandBarProps {
   username: string;
   localizedDate: string;
   localizedTime: string;
+  monthAlreadyClosed?: boolean;
   onUsernameChange: (value: string) => void;
   onOpenSidebar: () => void;
   onRecordTribute: () => void;
+  onOpenMonthlyClose?: () => void;
 }
 
 export function CommandBar({
@@ -20,9 +22,11 @@ export function CommandBar({
   username,
   localizedDate,
   localizedTime,
+  monthAlreadyClosed = false,
   onUsernameChange,
   onOpenSidebar,
   onRecordTribute,
+  onOpenMonthlyClose,
 }: CommandBarProps) {
   const greetingName = username.trim() || GREETING_NAME_FALLBACK;
 
@@ -71,6 +75,18 @@ export function CommandBar({
             className="h-11 min-h-11 w-full max-w-none border-slate-800 bg-slate-900/50 text-base sm:w-36 sm:max-w-[10rem] md:h-9 md:min-h-9 md:text-xs lg:w-40"
             aria-label="Profile name"
           />
+          {onOpenMonthlyClose && (
+            <Button
+              variant="outline"
+              size="lg"
+              className="min-h-11 w-full flex-1 sm:w-auto sm:flex-none"
+              onClick={onOpenMonthlyClose}
+              disabled={monthAlreadyClosed}
+            >
+              <CalendarCheck className="h-4 w-4" />
+              {monthAlreadyClosed ? "Month Sealed" : "Close Month"}
+            </Button>
+          )}
           <Button
             variant="amber"
             size="lg"

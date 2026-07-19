@@ -11,8 +11,8 @@
 - Shell: `app/layout.tsx`, `app/globals.css`, `app/manifest.ts`
 - PWA: `public/sw.js`, `components/layout/ServiceWorkerRegistrar.tsx`, `public/icons/*`
 - Primitives: `components/ui/*`
-- Feature UI: `components/babylon/*`, `components/dashboard/BudgetBlueprint.tsx`, `components/dashboard/TributeEnginesPanel.tsx`, `components/modals/RecordTransactionModal.tsx`
-- Helpers: `lib/utils.ts` (`cn`, currency formatters, `generateId`)
+- Feature UI: `components/babylon/*`, `components/dashboard/BudgetBlueprint.tsx`, `components/dashboard/TributeEnginesPanel.tsx`, `components/dashboard/RecentActivityStrip.tsx`, `components/modals/RecordTransactionModal.tsx`, `components/modals/MonthlyCloseModal.tsx`
+- Helpers: `lib/utils.ts` (`cn`, currency formatters, `generateId`, `formatRelativeTime`)
 
 ## Run locally
 ```bash
@@ -24,57 +24,58 @@ Open [http://localhost:3000](http://localhost:3000).
 ## State model
 Persisted in `localStorage` (`wealth-engine-babylon-v2`) as:
 - `incomes[]` — with precomputed `wealthShare` / `debtShare` / `expenditureShare`
-- `expenses[]` — `need` | `desire`, mandatory `dueDate`, optional `budgetCategoryId`
+- `expenses[]` — `need` | `desire`, mandatory `dueDate`, optional `budgetCategoryId`, `isSettled`
 - `debts[]` — `totalDebt`, `remainingDebt`, `monthlyAllocation` (required on create)
-- `allocations[]` — historical events for charts
+- `allocations[]` — historical events for charts (includes synthetic period-close rows)
 - `budgetTargets[]` — steward-configured planned caps for Necessary Expenditures buckets (starts empty)
+- `activityLog[]` — mutation feed for Recent Activity (newest first, capped)
+- `emergencyShield` — reservoir from Monthly Close surplus
+- `periodArchives[]` — sealed month snapshots
+- `lastClosedMonthKey` — YYYY-MM of the last sealed period (or null)
 - `displayName` — mirrored into vault for backup compatibility; canonical UI preference is `babylon_username`
 
 Hydration: load ledger from localStorage when present; username from `babylon_username` (soft-migrates from vault `displayName` once). Empty ledger + empty budget blueprint. No demo seed.
-Legacy expenses without `dueDate` soft-migrate to use `date`. Desire expenses without `budgetCategoryId` map to the legacy discretionary id when present.
+Legacy expenses without `dueDate` soft-migrate to use `date`. Desire expenses without `budgetCategoryId` map to the legacy discretionary id when present. Expenses without `isSettled` soft-migrate to `true`.
 
 ## Mutations (hook exports)
-- `addIncome` — ID + 10/20/70 allocation (+ debt waterfall when active)
-- `addExpense` — ID + Need/Desire + due date + required `budgetCategoryId`
+- `addIncome` — ID + 10/20/70 allocation (+ debt waterfall when active); appends activity log
+- `addExpense` — ID + Need/Desire + due date + required `budgetCategoryId`; new rows start `isSettled: false`
 - `addDebt` — ID + creditor tracking with mandatory monthly allocation
-- `addBudgetTarget` — ID + custom category name / planned cap / essential flag; returns new id or `null`; optional `{ closeModal: false }` for inline Expense-tab create
-- `updateBudgetTarget` — adjust a category planned amount (persisted)
-- `updateBudgetTargetFull` — edit name / cap / essential flag
-- `deleteBudgetTarget(id, reassignToId?)` — remove bucket; reassign linked expenses to another category or leave Uncategorized
-- `clearAllData` — wipe localStorage and reset in-memory ledger (including empty blueprint); exposed via sidebar AlertDialog confirmation
-- `exportBackup` — download versioned `LedgerBackup` JSON
-- `importBackup` — strict schema validation, overwrite vault, force state reset
+- `addBudgetTarget` — ID + custom category; returns new id or `null`; optional `{ closeModal: false }` for inline create
+- `updateBudgetTarget` / `updateBudgetTargetFull` — adjust caps / name / essential flag
+- `deleteBudgetTarget(id, reassignToId?)` — remove bucket; reassign or uncategorize orphans
+- `toggleExpenseSettled(id)` — flip paid/settled; due-soon ignores settled rows
+- `autoScaleBudgetCaps()` — proportionally fit planned caps to `currentMonthExpenditurePool`
+- `closeMonth(disposition)` — archive period, dispose 70% surplus (`debt_wealth` | `emergency_shield`), settle month expenses, seal `lastClosedMonthKey`
+- `clearAllData` — wipe vault + reset workspace
+- `exportBackup` / `importBackup` — versioned vault including activity log, shield, and period archives
 
 ## Derived budget metrics
-- `budgetVariances` — current-month Planned vs. Actual per target (`buildBudgetVariances`)
-- `budgetPlannedTotal` / `budgetActualTotal` — rollups for the blueprint header
-- Amber tone when category used % ≥ 85 (`BUDGET_WARNING_PCT`)
+- `budgetVariances` / `budgetPlannedTotal` / `budgetActualTotal`
 - Over-plan banner when planned total exceeds `currentMonthExpenditurePool`
+- `recentActivity` — last 5 `activityLog` events
+- `monthlyCloseSummary` — closing-month income/spend/10/20/70 rollup
+- `emergencyShield` — reservoir from monthly-close surplus disposition
 
 ## Command Deck utilities
-- **Affordability Anchor** — discretionary amount → % of remaining Desires pool (`currentMonthRemaining`) + labor hours from `effectiveHourlyRate(incomes)`
-- **Budget Blueprint** — steward-defined buckets; pencil opens Modify Budget Bucket (edit / delete + orphan reassignment)
-- **Record Tribute** — universal entry modal; Expense tab supports inline category create + explicit transaction date; mutation failures surface inline alerts
-- **Ledger Matrices** — detailed flat ledgers live only under Ledger Matrices nav (not on overview)
+- **Affordability Anchor** — Desires pool % + primary labor hours
+- **Budget Blueprint** — Auto-Scale Allocations; pencil edit / delete + orphan reassignment
+- **Recent Activity Strip** — lightweight last-5 mutation feed
+- **Record Tribute** — universal entry modal
+- **Monthly Close Ritual** — command-bar "Close Month" → 3-step modal
+- **Ledger Matrices** — detailed ledgers under Ledger Matrices nav; settled checkmarks on expenses
 
 ## Known behaviors
 - Recording income runs `allocateIncome()` and optionally `applyDebtAllocation()`.
-- Deleting an income reverses its `debtShare` via `reverseDebtAllocation` (remainingDebt clamped ≤ totalDebt) and removes its allocation event.
-- Golden Triad Necessary Expenditures card is **current-month** pool/spend; wealth/debt cards remain lifetime archive metrics.
-- `desiresPoolRemaining` is the discretionary slice of the 70% pool (after needs reservation), not the full unspent allowance.
-- Affordability labor hours use **primary** recurring income only.
-- Incomes carry `IncomeStreamKind` (`primary` | `side_hustle` | `passive` | `other`); legacy rows soft-migrate to `primary`.
-- Empty ledgers show a single guidance row; empty charts show placeholder copy (no synthetic Recharts data).
-- Expenses due within the next 7 days show an amber “Due soon” tag in the ledger.
-- Changing a budget cap, adding/editing/deleting a category, or recording an expense immediately refreshes variances (single hook owner).
-- Expense tribute requires a selected budget category (create inline on Expense tab or via Budget Category tab); category dropdown reads live `budgetTargets`.
-- Viewport shell uses a mobile drawer (<1024px) and locked desktop sidebar; ledger tables scroll horizontally on narrow screens.
-- Overview Command Deck does not embed full Ledger Matrices — use Ledger Matrices nav for detailed record lists.
+- Deleting an income reverses its `debtShare` via `reverseDebtAllocation` (remainingDebt clamped ≤ totalDebt).
+- Golden Triad Necessary Expenditures card is **current-month** pool/spend.
+- Unsettled expenses due within 7 days show "Due soon"; legacy expenses without `isSettled` migrate to settled.
+- Monthly close may be sealed once per calendar month key; historical ledgers remain for charts.
+- Overview does not embed full Ledger Matrices.
 
-## Next candidates
+## Next candidates (Phase 3)
+- Auth + cloud sync
+- Multi-currency / shared household vaults
+- Accessibility audit (keyboard + screen reader)
 - Debt payment waterfall visualization
 - Recurring income scheduling automation
-- Optional multi-profile vaults
-- Paid/settled toggle for expenses (due-soon currently treats all ledger expenses as open)
-- Auto-scale budget caps from current-month 70% pool
-- Recent activity strip on overview (lightweight, not full ledgers)

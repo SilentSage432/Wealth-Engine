@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Scale, Trash2 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -53,6 +53,7 @@ interface BudgetBlueprintProps {
     updatedData: Partial<Omit<BudgetTarget, "id">>
   ) => boolean;
   onDeleteTarget: (id: string, reassignToId?: string | null) => void;
+  onAutoScaleCaps?: () => boolean;
 }
 
 export function BudgetBlueprint({
@@ -63,6 +64,7 @@ export function BudgetBlueprint({
   expenditurePool,
   onUpdateTargetFull,
   onDeleteTarget,
+  onAutoScaleCaps,
 }: BudgetBlueprintProps) {
   const [editing, setEditing] = useState<BudgetCategoryVariance | null>(null);
   const [draftName, setDraftName] = useState("");
@@ -70,6 +72,7 @@ export function BudgetBlueprint({
   const [draftEssential, setDraftEssential] = useState(true);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [reassignToId, setReassignToId] = useState<string>("");
+  const [scaleFeedback, setScaleFeedback] = useState<string | null>(null);
 
   useEffect(() => {
     if (!editing) return;
@@ -124,6 +127,23 @@ export function BudgetBlueprint({
     closeEditor();
   };
 
+  const canAutoScale =
+    Boolean(onAutoScaleCaps) &&
+    budgetTargets.length > 0 &&
+    expenditurePool > 0 &&
+    plannedTotal > 0 &&
+    Math.abs(plannedTotal - expenditurePool) > 0.009;
+
+  const handleAutoScale = () => {
+    if (!onAutoScaleCaps) return;
+    const ok = onAutoScaleCaps();
+    setScaleFeedback(
+      ok
+        ? "Caps scaled proportionally to this month's 70% pool."
+        : "Could not auto-scale — need positive caps and a funded 70% pool."
+    );
+  };
+
   return (
     <section className="animate-fade-up">
       <Card className="border-slate-800/80">
@@ -137,32 +157,55 @@ export function BudgetBlueprint({
               actual vs. planned for the current month
             </CardDescription>
           </div>
-          <div className="shrink-0 space-y-0.5 text-left text-xs text-slate-500 sm:text-right">
-            <p>
-              Planned{" "}
-              <span className="tabular-nums text-slate-300">
-                {formatCurrency(plannedTotal)}
-              </span>
-              {" · "}
-              Spent{" "}
-              <span className="tabular-nums text-slate-300">
-                {formatCurrency(actualTotal)}
-              </span>
-            </p>
-            <p>
-              <span className="tabular-nums text-emerald-400/90">
-                {formatCurrency(remainingTotal)}
-              </span>{" "}
-              remaining across caps
-              {poolPressure !== null && (
-                <span className="ml-1 text-slate-600">
-                  · {poolPressure}% of 70% pool
+          <div className="flex shrink-0 flex-col items-stretch gap-2 sm:items-end">
+            <div className="space-y-0.5 text-left text-xs text-slate-500 sm:text-right">
+              <p>
+                Planned{" "}
+                <span className="tabular-nums text-slate-300">
+                  {formatCurrency(plannedTotal)}
                 </span>
-              )}
-            </p>
+                {" · "}
+                Spent{" "}
+                <span className="tabular-nums text-slate-300">
+                  {formatCurrency(actualTotal)}
+                </span>
+              </p>
+              <p>
+                <span className="tabular-nums text-emerald-400/90">
+                  {formatCurrency(remainingTotal)}
+                </span>{" "}
+                remaining across caps
+                {poolPressure !== null && (
+                  <span className="ml-1 text-slate-600">
+                    · {poolPressure}% of 70% pool
+                  </span>
+                )}
+              </p>
+            </div>
+            {onAutoScaleCaps && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="min-h-10"
+                disabled={!canAutoScale}
+                onClick={handleAutoScale}
+              >
+                <Scale className="h-3.5 w-3.5" />
+                Auto-Scale Allocations
+              </Button>
+            )}
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
+          {scaleFeedback && (
+            <p
+              role="status"
+              className="rounded-md border border-slate-700 bg-slate-950/50 px-3 py-2 text-xs text-slate-300"
+            >
+              {scaleFeedback}
+            </p>
+          )}
           {isOverPlanned && (
             <div
               role="alert"

@@ -86,4 +86,8 @@ export const EMPTY_STATE: PersistedState = {
   allocations: [],
   budgetTargets: [],
   displayName: "",
+  activityLog: [],
+  emergencyShield: 0,
+  periodArchives: [],
+  lastClosedMonthKey: null,
 };

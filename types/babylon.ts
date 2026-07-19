@@ -68,6 +68,64 @@ export interface ExpenseEntry {
   dueDate: string;
   /** Links spend to a BudgetTarget within the 70% expenditure boundary. */
   budgetCategoryId?: string;
+  /**
+   * Whether the bill is paid/settled.
+   * Legacy payloads without the field soft-migrate to `true`.
+   */
+  isSettled: boolean;
+}
+
+/** Surplus disposition chosen during the Monthly Close Ritual. */
+export type SurplusDisposition = "debt_wealth" | "emergency_shield";
+
+/** Lightweight Command Deck activity feed item. */
+export type ActivityKind =
+  | "income"
+  | "expense"
+  | "budget"
+  | "settle"
+  | "close";
+
+export interface ActivityEvent {
+  id: string;
+  kind: ActivityKind;
+  title: string;
+  subtitle?: string;
+  amount?: number;
+  /** Present for income rows — drives stream-specific icons. */
+  streamKind?: IncomeStreamKind;
+  /** ISO datetime when the mutation occurred. */
+  createdAt: string;
+}
+
+/** Archived snapshot produced by the Monthly Close Ritual. */
+export interface PeriodArchive {
+  id: string;
+  monthKey: string;
+  closedAt: string;
+  totalIncome: number;
+  totalSpent: number;
+  wealthAllocated: number;
+  debtAllocated: number;
+  expenditurePool: number;
+  expenditureRemaining: number;
+  surplusDisposition: SurplusDisposition;
+  surplusAmount: number;
+}
+
+/** Step-1 summary for the closing calendar month. */
+export interface MonthlyCloseSummary {
+  monthKey: string;
+  monthLabel: string;
+  totalIncome: number;
+  totalSpent: number;
+  wealthAllocated: number;
+  debtAllocated: number;
+  expenditurePool: number;
+  expenditureRemaining: number;
+  /** Positive = surplus in 70% pool; negative = overspend. */
+  surplusOrDeficit: number;
+  alreadyClosed: boolean;
 }
 
 export interface DebtEntry {
@@ -97,6 +155,14 @@ export interface PersistedState {
   allocations: AllocationEvent[];
   budgetTargets: BudgetTarget[];
   displayName: string;
+  /** Chronological mutation feed for the Command Deck (newest first). */
+  activityLog: ActivityEvent[];
+  /** Emergency shield reservoir built from Monthly Close surplus. */
+  emergencyShield: number;
+  /** Historical month-close archives. */
+  periodArchives: PeriodArchive[];
+  /** Last calendar month key successfully closed (YYYY-MM). */
+  lastClosedMonthKey: string | null;
 }
 
 export interface ChartMonthPoint {
@@ -146,6 +212,10 @@ export interface LedgerBackup {
   allocations: AllocationEvent[];
   budgetTargets: BudgetTarget[];
   displayName: string;
+  activityLog?: ActivityEvent[];
+  emergencyShield?: number;
+  periodArchives?: PeriodArchive[];
+  lastClosedMonthKey?: string | null;
 }
 
 export interface AffordabilitySnapshot {

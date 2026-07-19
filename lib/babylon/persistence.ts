@@ -6,6 +6,8 @@ import {
 } from "@/lib/babylon/constants";
 import type {
   AllocationEvent,
+  ActivityEvent,
+  ActivityKind,
   BudgetTarget,
   DebtEntry,
   ExpenseEntry,
@@ -14,7 +16,9 @@ import type {
   IncomeInterval,
   IncomeStreamKind,
   LedgerBackup,
+  PeriodArchive,
   PersistedState,
+  SurplusDisposition,
 } from "@/types/babylon";
 
 const INCOME_INTERVALS: ReadonlySet<string> = new Set([
@@ -119,6 +123,10 @@ function parseExpenseEntry(value: unknown): ExpenseEntry | null {
         ? DISCRETIONARY_BUDGET_ID
         : undefined;
 
+  // Legacy rows without isSettled soft-migrate to settled (paid).
+  const isSettled =
+    typeof value.isSettled === "boolean" ? value.isSettled : true;
+
   return {
     id: value.id,
     name: value.name.trim(),
@@ -126,6 +134,7 @@ function parseExpenseEntry(value: unknown): ExpenseEntry | null {
     amount: value.amount,
     date: value.date,
     dueDate,
+    isSettled,
     ...(budgetCategoryId ? { budgetCategoryId } : {}),
   };
 }
@@ -198,6 +207,92 @@ function parseAllocationEvent(value: unknown): AllocationEvent | null {
   };
 }
 
+const ACTIVITY_KINDS: ReadonlySet<string> = new Set([
+  "income",
+  "expense",
+  "budget",
+  "settle",
+  "close",
+]);
+
+const SURPLUS_DISPOSITIONS: ReadonlySet<string> = new Set([
+  "debt_wealth",
+  "emergency_shield",
+]);
+
+function parseActivityEvent(value: unknown): ActivityEvent | null {
+  if (!isRecord(value)) return null;
+  if (!isNonEmptyString(value.id)) return null;
+  if (typeof value.kind !== "string" || !ACTIVITY_KINDS.has(value.kind)) {
+    return null;
+  }
+  if (!isNonEmptyString(value.title)) return null;
+  if (typeof value.createdAt !== "string" || !value.createdAt.trim()) {
+    return null;
+  }
+
+  const event: ActivityEvent = {
+    id: value.id,
+    kind: value.kind as ActivityKind,
+    title: value.title.trim(),
+    createdAt: value.createdAt,
+  };
+
+  if (typeof value.subtitle === "string" && value.subtitle.trim()) {
+    event.subtitle = value.subtitle.trim();
+  }
+  if (isFiniteNumber(value.amount)) {
+    event.amount = value.amount;
+  }
+  if (
+    typeof value.streamKind === "string" &&
+    INCOME_STREAM_KINDS.has(value.streamKind)
+  ) {
+    event.streamKind = value.streamKind as IncomeStreamKind;
+  }
+
+  return event;
+}
+
+function parsePeriodArchive(value: unknown): PeriodArchive | null {
+  if (!isRecord(value)) return null;
+  if (!isNonEmptyString(value.id)) return null;
+  if (
+    typeof value.monthKey !== "string" ||
+    !/^\d{4}-\d{2}$/.test(value.monthKey)
+  ) {
+    return null;
+  }
+  if (typeof value.closedAt !== "string" || !value.closedAt.trim()) return null;
+  if (!isFiniteNumber(value.totalIncome)) return null;
+  if (!isFiniteNumber(value.totalSpent)) return null;
+  if (!isFiniteNumber(value.wealthAllocated)) return null;
+  if (!isFiniteNumber(value.debtAllocated)) return null;
+  if (!isFiniteNumber(value.expenditurePool)) return null;
+  if (!isFiniteNumber(value.expenditureRemaining)) return null;
+  if (
+    typeof value.surplusDisposition !== "string" ||
+    !SURPLUS_DISPOSITIONS.has(value.surplusDisposition)
+  ) {
+    return null;
+  }
+  if (!isFiniteNumber(value.surplusAmount)) return null;
+
+  return {
+    id: value.id,
+    monthKey: value.monthKey,
+    closedAt: value.closedAt,
+    totalIncome: value.totalIncome,
+    totalSpent: value.totalSpent,
+    wealthAllocated: value.wealthAllocated,
+    debtAllocated: value.debtAllocated,
+    expenditurePool: value.expenditurePool,
+    expenditureRemaining: value.expenditureRemaining,
+    surplusDisposition: value.surplusDisposition as SurplusDisposition,
+    surplusAmount: value.surplusAmount,
+  };
+}
+
 function parseArray<T>(
   value: unknown,
   parser: (item: unknown) => T | null
@@ -243,6 +338,29 @@ export function normalizePersistedState(raw: unknown): PersistedState {
         .filter((t): t is BudgetTarget => t !== null)
     : [];
 
+  const activityLog = Array.isArray(raw.activityLog)
+    ? raw.activityLog
+        .map(parseActivityEvent)
+        .filter((e): e is ActivityEvent => e !== null)
+    : [];
+
+  const periodArchives = Array.isArray(raw.periodArchives)
+    ? raw.periodArchives
+        .map(parsePeriodArchive)
+        .filter((e): e is PeriodArchive => e !== null)
+    : [];
+
+  const emergencyShield =
+    isFiniteNumber(raw.emergencyShield) && raw.emergencyShield >= 0
+      ? raw.emergencyShield
+      : 0;
+
+  const lastClosedMonthKey =
+    typeof raw.lastClosedMonthKey === "string" &&
+    /^\d{4}-\d{2}$/.test(raw.lastClosedMonthKey)
+      ? raw.lastClosedMonthKey
+      : null;
+
   return {
     incomes,
     expenses,
@@ -250,6 +368,10 @@ export function normalizePersistedState(raw: unknown): PersistedState {
     allocations,
     budgetTargets,
     displayName: typeof raw.displayName === "string" ? raw.displayName : "",
+    activityLog,
+    emergencyShield,
+    periodArchives,
+    lastClosedMonthKey,
   };
 }
 
@@ -284,6 +406,39 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
     budgetTargets = parsed;
   }
 
+  let activityLog: ActivityEvent[] = [];
+  if (raw.activityLog !== undefined) {
+    const parsed = parseArray(raw.activityLog, parseActivityEvent);
+    if (!parsed) return null;
+    activityLog = parsed;
+  }
+
+  let periodArchives: PeriodArchive[] = [];
+  if (raw.periodArchives !== undefined) {
+    const parsed = parseArray(raw.periodArchives, parsePeriodArchive);
+    if (!parsed) return null;
+    periodArchives = parsed;
+  }
+
+  const emergencyShield =
+    raw.emergencyShield === undefined
+      ? 0
+      : isFiniteNumber(raw.emergencyShield) && raw.emergencyShield >= 0
+        ? raw.emergencyShield
+        : null;
+  if (emergencyShield === null) return null;
+
+  let lastClosedMonthKey: string | null = null;
+  if (raw.lastClosedMonthKey !== undefined && raw.lastClosedMonthKey !== null) {
+    if (
+      typeof raw.lastClosedMonthKey !== "string" ||
+      !/^\d{4}-\d{2}$/.test(raw.lastClosedMonthKey)
+    ) {
+      return null;
+    }
+    lastClosedMonthKey = raw.lastClosedMonthKey;
+  }
+
   const displayName =
     typeof raw.displayName === "string" ? raw.displayName : "";
 
@@ -296,6 +451,10 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
     allocations,
     budgetTargets,
     displayName,
+    activityLog,
+    emergencyShield,
+    periodArchives,
+    lastClosedMonthKey,
   };
 }
 
@@ -309,6 +468,10 @@ export function buildLedgerBackup(state: PersistedState): LedgerBackup {
     allocations: state.allocations,
     budgetTargets: state.budgetTargets,
     displayName: state.displayName,
+    activityLog: state.activityLog,
+    emergencyShield: state.emergencyShield,
+    periodArchives: state.periodArchives,
+    lastClosedMonthKey: state.lastClosedMonthKey,
   };
 }
 

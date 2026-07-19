@@ -15,7 +15,7 @@ A premium, single-page budgeting platform that teaches and enforces Babylonian w
 - [x] Wisdom marquee
 - [x] Graceful empty states for charts + tables
 
-## Phase 2 — Depth
+## Phase 2 — Depth (Complete)
 - [x] Ledger export / import
 - [x] Affordability Anchor (Desires pool % + labor hours)
 - [x] Expense due dates + due-soon indicator
@@ -28,24 +28,26 @@ A premium, single-page budgeting platform that teaches and enforces Babylonian w
 - [x] P0 trust math (reverse debt on income delete, current-month Triad expenditure, desires pool + primary rate)
 - [x] Income stream kinds + Tribute Engines scoreboard
 - [x] P2 Workflow Clarity (inline category create, expense date, mutation feedback, over-plan banner, orphan reassignment, overview ledger declutter)
-- [ ] Monthly close ritual (period summary)
-- [ ] Accessibility audit (keyboard + screen reader)
-- [ ] Expense paid/settled toggle
-- [ ] Auto-scale budget caps from current-month expenditure pool
-- [ ] Recent activity strip on overview (non-matrix)
+- [x] Expense paid/settled toggle (`isSettled` + `toggleExpenseSettled`)
+- [x] Recent activity strip on overview
+- [x] Auto-scale budget caps from current-month expenditure pool
+- [x] Monthly close ritual (summary → surplus disposition → archive & roll forward)
+
 ## Phase 3 — Platform
 - [ ] Auth + cloud sync
 - [ ] Multi-currency
 - [ ] Shared household vaults
 - [ ] Institutional knowledge composition (read-only Observatory views)
+- [ ] Accessibility audit (keyboard + screen reader)
 
 ## Architectural ownership
 | Concern | Owner |
 |--------|--------|
 | Allocation math | `lib/babylon/engine.ts` |
-| Budget variance math | `lib/babylon/engine.ts` (`buildBudgetVariances`) |
+| Budget variance math | `lib/babylon/engine.ts` (`buildBudgetVariances`, `scaleBudgetCapsToPool`) |
+| Period close / surplus | `hooks/useBabylonEngine.ts` (`closeMonth`, `splitSurplusToDebtWealth`) |
 | Ledger state + persistence | `hooks/useBabylonEngine.ts` |
 | Type contracts | `types/babylon.ts` |
-| Presentation | `components/babylon/*`, `components/dashboard/*` |
+| Presentation | `components/babylon/*`, `components/dashboard/*`, `components/modals/*` |
 | UI primitives | `components/ui/*` |
 | Brand / shell | `app/layout.tsx`, `app/globals.css` |

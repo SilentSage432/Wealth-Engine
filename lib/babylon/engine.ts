@@ -66,6 +66,66 @@ export function isDueWithinWeek(
   return Number.isFinite(days) && days >= 0 && days <= 7;
 }
 
+/**
+ * Proportionally scale planned caps so their sum equals the 70% expenditure pool.
+ * Remainder pennies land on the largest category so the total matches exactly.
+ */
+export function scaleBudgetCapsToPool(
+  targets: BudgetTarget[],
+  pool: number
+): BudgetTarget[] | null {
+  if (targets.length === 0) return null;
+  if (!Number.isFinite(pool) || pool < 0) return null;
+
+  const plannedTotal = roundMoney(
+    targets.reduce((sum, t) => sum + Math.max(0, t.plannedAmount), 0)
+  );
+  if (plannedTotal <= 0) return null;
+
+  const factor = pool / plannedTotal;
+  const scaled = targets.map((t) => ({
+    ...t,
+    plannedAmount: roundMoney(Math.max(0, t.plannedAmount) * factor),
+  }));
+
+  const scaledSum = roundMoney(
+    scaled.reduce((sum, t) => sum + t.plannedAmount, 0)
+  );
+  const drift = roundMoney(pool - scaledSum);
+  if (drift !== 0 && scaled.length > 0) {
+    let largestIdx = 0;
+    for (let i = 1; i < scaled.length; i += 1) {
+      if (scaled[i].plannedAmount > scaled[largestIdx].plannedAmount) {
+        largestIdx = i;
+      }
+    }
+    scaled[largestIdx] = {
+      ...scaled[largestIdx],
+      plannedAmount: roundMoney(
+        Math.max(0, scaled[largestIdx].plannedAmount + drift)
+      ),
+    };
+  }
+
+  return scaled;
+}
+
+/**
+ * Split living-allowance surplus into the 10/20 Debt/Wealth multiplier.
+ * With active debt: 1/3 wealth, 2/3 debt. Without debt: 100% wealth.
+ */
+export function splitSurplusToDebtWealth(
+  surplus: number,
+  hasActiveDebt: boolean
+): { wealth: number; debt: number } {
+  const amount = roundMoney(Math.max(0, surplus));
+  if (amount <= 0) return { wealth: 0, debt: 0 };
+  if (!hasActiveDebt) return { wealth: amount, debt: 0 };
+  const wealth = roundMoney(amount / 3);
+  const debt = roundMoney(amount - wealth);
+  return { wealth, debt };
+}
+
 /** Normalize a recurring income amount to a monthly equivalent. One-time excluded. */
 export function monthlyIncomeEquivalent(
   amount: number,

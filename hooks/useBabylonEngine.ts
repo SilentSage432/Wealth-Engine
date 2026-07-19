@@ -13,10 +13,13 @@ import {
   buildChartData,
   buildTributeEngineSnapshot,
   computeDesiresPoolRemaining,
+  formatMonthLabel,
   monthKeyFromDate,
   primaryHourlyRate,
   reverseDebtAllocation,
   roundMoney,
+  scaleBudgetCapsToPool,
+  splitSurplusToDebtWealth,
   todayIso,
   totalOriginalDebt,
   totalRemainingDebt,
@@ -33,6 +36,7 @@ import {
 } from "@/lib/babylon/persistence";
 import { generateId } from "@/lib/utils";
 import type {
+  ActivityEvent,
   AllocationEvent,
   BudgetTarget,
   DebtEntry,
@@ -43,11 +47,15 @@ import type {
   ExpenseInput,
   IncomeEntry,
   IncomeInput,
+  MonthlyCloseSummary,
   NavSection,
+  PeriodArchive,
   PersistedState,
+  SurplusDisposition,
   TributeMode,
 } from "@/types/babylon";
 
+const ACTIVITY_LOG_LIMIT = 40;
 export function useBabylonEngine() {
   const [hydrated, setHydrated] = useState(false);
   const [incomes, setIncomes] = useState<IncomeEntry[]>([]);
@@ -55,6 +63,12 @@ export function useBabylonEngine() {
   const [debts, setDebts] = useState<DebtEntry[]>([]);
   const [allocations, setAllocations] = useState<AllocationEvent[]>([]);
   const [budgetTargets, setBudgetTargets] = useState<BudgetTarget[]>([]);
+  const [activityLog, setActivityLog] = useState<ActivityEvent[]>([]);
+  const [emergencyShield, setEmergencyShield] = useState(0);
+  const [periodArchives, setPeriodArchives] = useState<PeriodArchive[]>([]);
+  const [lastClosedMonthKey, setLastClosedMonthKey] = useState<string | null>(
+    null
+  );
   /** Profile name input value — may be empty; greeting uses a visual fallback. */
   const [username, setUsernameState] = useState("");
 
@@ -65,6 +79,23 @@ export function useBabylonEngine() {
 
   const [tributeOpen, setTributeOpen] = useState(false);
   const [tributeMode, setTributeMode] = useState<TributeMode>("income");
+  const [monthlyCloseOpen, setMonthlyCloseOpen] = useState(false);
+
+  const pushActivity = useCallback(
+    (event: Omit<ActivityEvent, "id" | "createdAt"> & { createdAt?: string }) => {
+      const entry: ActivityEvent = {
+        id: generateId(),
+        createdAt: event.createdAt ?? new Date().toISOString(),
+        kind: event.kind,
+        title: event.title,
+        ...(event.subtitle ? { subtitle: event.subtitle } : {}),
+        ...(event.amount !== undefined ? { amount: event.amount } : {}),
+        ...(event.streamKind ? { streamKind: event.streamKind } : {}),
+      };
+      setActivityLog((prev) => [entry, ...prev].slice(0, ACTIVITY_LOG_LIMIT));
+    },
+    []
+  );
 
   useEffect(() => {
     const stored = loadPersistedState();
@@ -73,6 +104,10 @@ export function useBabylonEngine() {
     setDebts(stored.debts);
     setAllocations(stored.allocations);
     setBudgetTargets(stored.budgetTargets);
+    setActivityLog(stored.activityLog);
+    setEmergencyShield(stored.emergencyShield);
+    setPeriodArchives(stored.periodArchives);
+    setLastClosedMonthKey(stored.lastClosedMonthKey);
     setUsernameState(loadUsername(stored.displayName));
     setHydrated(true);
   }, []);
@@ -86,6 +121,10 @@ export function useBabylonEngine() {
       allocations,
       budgetTargets,
       displayName: username,
+      activityLog,
+      emergencyShield,
+      periodArchives,
+      lastClosedMonthKey,
     };
     savePersistedState(payload);
   }, [
@@ -96,6 +135,10 @@ export function useBabylonEngine() {
     allocations,
     budgetTargets,
     username,
+    activityLog,
+    emergencyShield,
+    periodArchives,
+    lastClosedMonthKey,
   ]);
 
   const setUsername = useCallback((value: string) => {
@@ -314,6 +357,49 @@ export function useBabylonEngine() {
     [incomes, currentMonthKey]
   );
 
+  const recentActivity = useMemo(
+    () => activityLog.slice(0, 5),
+    [activityLog]
+  );
+
+  const monthlyCloseSummary = useMemo((): MonthlyCloseSummary => {
+    const monthAllocations = allocations.filter(
+      (a) => a.monthKey === currentMonthKey
+    );
+    const wealthAllocated = roundMoney(
+      monthAllocations.reduce((sum, a) => sum + a.wealth, 0)
+    );
+    const debtAllocatedMonth = roundMoney(
+      monthAllocations.reduce((sum, a) => sum + a.debt, 0)
+    );
+    const totalIncomeMonth = roundMoney(
+      monthAllocations.reduce((sum, a) => sum + a.gross, 0)
+    );
+    const surplusOrDeficit = roundMoney(
+      currentMonthExpenditurePool - currentMonthSpent
+    );
+
+    return {
+      monthKey: currentMonthKey,
+      monthLabel: formatMonthLabel(currentMonthKey),
+      totalIncome: totalIncomeMonth,
+      totalSpent: currentMonthSpent,
+      wealthAllocated,
+      debtAllocated: debtAllocatedMonth,
+      expenditurePool: currentMonthExpenditurePool,
+      expenditureRemaining: currentMonthRemaining,
+      surplusOrDeficit,
+      alreadyClosed: lastClosedMonthKey === currentMonthKey,
+    };
+  }, [
+    allocations,
+    currentMonthKey,
+    currentMonthExpenditurePool,
+    currentMonthSpent,
+    currentMonthRemaining,
+    lastClosedMonthKey,
+  ]);
+
   const chartData = useMemo(
     () => buildChartData(allocations),
     [allocations]
@@ -419,10 +505,18 @@ export function useBabylonEngine() {
         setDebts((prev) => applyDebtAllocation(prev, split.debtShare));
       }
 
+      pushActivity({
+        kind: "income",
+        title: entry.source,
+        subtitle: "Income engine recorded",
+        amount: entry.amount,
+        streamKind: entry.kind,
+      });
+
       setTributeOpen(false);
       return true;
     },
-    [hasActiveDebt]
+    [hasActiveDebt, pushActivity]
   );
 
   const addExpense = useCallback(
@@ -450,13 +544,21 @@ export function useBabylonEngine() {
         date: input.date || todayIso(),
         dueDate: input.dueDate,
         budgetCategoryId: input.budgetCategoryId,
+        isSettled: false,
       };
 
       setExpenses((prev) => [entry, ...prev]);
+      pushActivity({
+        kind: "expense",
+        title: entry.name,
+        subtitle:
+          entry.category === "desire" ? "Desire archived" : "Need archived",
+        amount: entry.amount,
+      });
       setTributeOpen(false);
       return true;
     },
-    [budgetTargets]
+    [budgetTargets, pushActivity]
   );
 
   const addDebt = useCallback((input: DebtInput): boolean => {
@@ -536,12 +638,20 @@ export function useBabylonEngine() {
 
   const deleteBudgetTarget = useCallback(
     (id: string, reassignToId?: string | null) => {
+      let removedName: string | null = null;
+      let reassignName: string | null = null;
+
       setBudgetTargets((prev) => {
+        const removed = prev.find((t) => t.id === id);
         const canReassign =
           typeof reassignToId === "string" &&
           reassignToId !== id &&
           prev.some((t) => t.id === reassignToId);
         const targetId = canReassign ? reassignToId : null;
+        removedName = removed?.categoryName ?? null;
+        reassignName = targetId
+          ? (prev.find((t) => t.id === targetId)?.categoryName ?? null)
+          : null;
 
         setExpenses((expensesPrev) =>
           expensesPrev.map((e) => {
@@ -554,8 +664,18 @@ export function useBabylonEngine() {
 
         return prev.filter((t) => t.id !== id);
       });
+
+      if (removedName) {
+        pushActivity({
+          kind: "budget",
+          title: removedName,
+          subtitle: reassignName
+            ? `Category removed · orphans → ${reassignName}`
+            : "Category removed",
+        });
+      }
     },
-    []
+    [pushActivity]
   );
 
   const addBudgetTarget = useCallback(
@@ -580,12 +700,143 @@ export function useBabylonEngine() {
       };
 
       setBudgetTargets((prev) => [...prev, entry]);
+      pushActivity({
+        kind: "budget",
+        title: entry.categoryName,
+        subtitle: "Budget bucket mapped",
+        amount: entry.plannedAmount,
+      });
       if (options?.closeModal !== false) {
         setTributeOpen(false);
       }
       return entry.id;
     },
-    []
+    [pushActivity]
+  );
+
+  const toggleExpenseSettled = useCallback(
+    (id: string) => {
+      let nextSettled: boolean | null = null;
+      let name = "";
+      let amount = 0;
+
+      setExpenses((prev) => {
+        const target = prev.find((e) => e.id === id);
+        if (!target) return prev;
+        nextSettled = !target.isSettled;
+        name = target.name;
+        amount = target.amount;
+        return prev.map((e) =>
+          e.id === id ? { ...e, isSettled: nextSettled! } : e
+        );
+      });
+
+      if (nextSettled !== null) {
+        pushActivity({
+          kind: "settle",
+          title: name,
+          subtitle: nextSettled ? "Marked settled" : "Reopened as pending",
+          amount,
+        });
+      }
+    },
+    [pushActivity]
+  );
+
+  const autoScaleBudgetCaps = useCallback((): boolean => {
+    if (budgetTargets.length === 0) return false;
+    if (currentMonthExpenditurePool <= 0) return false;
+    const scaled = scaleBudgetCapsToPool(
+      budgetTargets,
+      currentMonthExpenditurePool
+    );
+    if (!scaled) return false;
+    setBudgetTargets(scaled);
+    pushActivity({
+      kind: "budget",
+      title: "Auto-Scale Allocations",
+      subtitle: `Caps fitted to ${formatMonthLabel(currentMonthKey)} 70% pool`,
+      amount: currentMonthExpenditurePool,
+    });
+    return true;
+  }, [
+    budgetTargets,
+    currentMonthExpenditurePool,
+    currentMonthKey,
+    pushActivity,
+  ]);
+
+  const closeMonth = useCallback(
+    (disposition: SurplusDisposition): boolean => {
+      if (lastClosedMonthKey === currentMonthKey) return false;
+
+      const surplus = Math.max(0, expenditureRemaining);
+      const closedAt = new Date().toISOString();
+      const archive: PeriodArchive = {
+        id: generateId(),
+        monthKey: currentMonthKey,
+        closedAt,
+        totalIncome: monthlyCloseSummary.totalIncome,
+        totalSpent: monthlyCloseSummary.totalSpent,
+        wealthAllocated: monthlyCloseSummary.wealthAllocated,
+        debtAllocated: monthlyCloseSummary.debtAllocated,
+        expenditurePool: monthlyCloseSummary.expenditurePool,
+        expenditureRemaining: monthlyCloseSummary.expenditureRemaining,
+        surplusDisposition: disposition,
+        surplusAmount: surplus,
+      };
+
+      if (surplus > 0) {
+        if (disposition === "emergency_shield") {
+          setEmergencyShield((prev) => roundMoney(prev + surplus));
+        } else {
+          const split = splitSurplusToDebtWealth(surplus, hasActiveDebt);
+          const event: AllocationEvent = {
+            id: generateId(),
+            incomeId: `period-close-${currentMonthKey}`,
+            date: todayIso(),
+            monthKey: currentMonthKey,
+            gross: surplus,
+            wealth: split.wealth,
+            debt: split.debt,
+            expenditure: 0,
+          };
+          setAllocations((prev) => [event, ...prev]);
+          if (split.debt > 0) {
+            setDebts((prev) => applyDebtAllocation(prev, split.debt));
+          }
+        }
+      }
+
+      setExpenses((prev) =>
+        prev.map((e) =>
+          monthKeyFromDate(e.date) === currentMonthKey
+            ? { ...e, isSettled: true }
+            : e
+        )
+      );
+      setPeriodArchives((prev) => [archive, ...prev]);
+      setLastClosedMonthKey(currentMonthKey);
+      pushActivity({
+        kind: "close",
+        title: `${monthlyCloseSummary.monthLabel} closed`,
+        subtitle:
+          disposition === "emergency_shield"
+            ? "Surplus tucked into emergency shield"
+            : "Surplus directed to Debt/Wealth multiplier",
+        amount: surplus,
+      });
+      setMonthlyCloseOpen(false);
+      return true;
+    },
+    [
+      lastClosedMonthKey,
+      currentMonthKey,
+      expenditureRemaining,
+      monthlyCloseSummary,
+      hasActiveDebt,
+      pushActivity,
+    ]
   );
 
   const clearAllData = useCallback(() => {
@@ -596,9 +847,14 @@ export function useBabylonEngine() {
     setDebts([]);
     setAllocations([]);
     setBudgetTargets([]);
+    setActivityLog([]);
+    setEmergencyShield(0);
+    setPeriodArchives([]);
+    setLastClosedMonthKey(null);
     setUsernameState("");
     setTributeOpen(false);
     setTributeMode("income");
+    setMonthlyCloseOpen(false);
     setActiveNav("overview");
     setSidebarOpen(false);
   }, []);
@@ -611,6 +867,10 @@ export function useBabylonEngine() {
       allocations,
       budgetTargets,
       displayName: username,
+      activityLog,
+      emergencyShield,
+      periodArchives,
+      lastClosedMonthKey,
     });
     const blob = new Blob([JSON.stringify(backup, null, 2)], {
       type: "application/json",
@@ -624,7 +884,18 @@ export function useBabylonEngine() {
     anchor.click();
     anchor.remove();
     URL.revokeObjectURL(url);
-  }, [incomes, expenses, debts, allocations, budgetTargets, username]);
+  }, [
+    incomes,
+    expenses,
+    debts,
+    allocations,
+    budgetTargets,
+    username,
+    activityLog,
+    emergencyShield,
+    periodArchives,
+    lastClosedMonthKey,
+  ]);
 
   const importBackup = useCallback((raw: unknown): string | null => {
     const backup = validateLedgerBackup(raw);
@@ -639,6 +910,10 @@ export function useBabylonEngine() {
       allocations: backup.allocations,
       budgetTargets: backup.budgetTargets,
       displayName: backup.displayName,
+      activityLog: backup.activityLog ?? [],
+      emergencyShield: backup.emergencyShield ?? 0,
+      periodArchives: backup.periodArchives ?? [],
+      lastClosedMonthKey: backup.lastClosedMonthKey ?? null,
     };
 
     savePersistedState(next);
@@ -648,9 +923,14 @@ export function useBabylonEngine() {
     setDebts(next.debts);
     setAllocations(next.allocations);
     setBudgetTargets(next.budgetTargets);
+    setActivityLog(next.activityLog);
+    setEmergencyShield(next.emergencyShield);
+    setPeriodArchives(next.periodArchives);
+    setLastClosedMonthKey(next.lastClosedMonthKey);
     setUsernameState(backup.displayName);
     setTributeOpen(false);
     setTributeMode("income");
+    setMonthlyCloseOpen(false);
     setActiveNav("overview");
     return null;
   }, []);
@@ -709,6 +989,8 @@ export function useBabylonEngine() {
     setTributeMode,
     openTribute,
     closeTribute,
+    monthlyCloseOpen,
+    setMonthlyCloseOpen,
     hasActiveDebt,
     goldRetained,
     debtAllocated,
@@ -731,6 +1013,10 @@ export function useBabylonEngine() {
     currentMonthRemaining,
     desiresPoolRemaining,
     tributeEngines,
+    recentActivity,
+    monthlyCloseSummary,
+    emergencyShield,
+    lastClosedMonthKey,
     budgetVariances,
     budgetPlannedTotal,
     budgetActualTotal,
@@ -749,6 +1035,9 @@ export function useBabylonEngine() {
     updateBudgetTargetFull,
     deleteBudgetTarget,
     addBudgetTarget,
+    toggleExpenseSettled,
+    autoScaleBudgetCaps,
+    closeMonth,
     clearAllData,
     exportBackup,
     importBackup,
