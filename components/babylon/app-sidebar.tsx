@@ -5,9 +5,21 @@ import {
   Download,
   Landmark,
   ShieldCheck,
+  Trash2,
   Upload,
   X,
 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { NAV_ITEMS } from "@/lib/babylon/constants";
@@ -21,6 +33,7 @@ interface AppSidebarProps {
   onSelectNav: (section: NavSection) => void;
   onExportBackup: () => void;
   onImportBackup: (raw: unknown) => string | null;
+  onClearAllData: () => void;
 }
 
 export function AppSidebar({
@@ -30,6 +43,7 @@ export function AppSidebar({
   onSelectNav,
   onExportBackup,
   onImportBackup,
+  onClearAllData,
 }: AppSidebarProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importStatus, setImportStatus] = useState<string | null>(null);
@@ -156,6 +170,40 @@ export function AppSidebar({
               {importStatus}
             </p>
           )}
+
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <button
+                type="button"
+                className="mt-1 flex w-full items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-[11px] text-rose-400/70 transition-colors hover:bg-rose-500/5 hover:text-rose-400"
+              >
+                <Trash2 className="h-3 w-3" />
+                Reset Ledger Workspace
+              </button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>
+                  Are you absolutely sure you want to purge the ledger?
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  This action will permanently delete all recorded income
+                  streams, custom budget categories, expenditures, and debt
+                  ledgers from this device. This step cannot be undone unless
+                  you have an exported backup file.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  className="bg-rose-600 text-white shadow-sm hover:bg-rose-500 focus-visible:ring-rose-500/60"
+                  onClick={onClearAllData}
+                >
+                  Purge Workspace Data
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
 
         <Card className="border-emerald-900/40 bg-gradient-to-br from-slate-900 to-slate-950">

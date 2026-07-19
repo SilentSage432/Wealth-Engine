@@ -1,5 +1,17 @@
 # Development Journal
 
+## 2026-07-19 — Reset Ledger Workspace (confirmed purge)
+
+### What changed
+- Confirmed that `clearAllData()` zeroes incomes, expenses, debts, allocations, and budgetTargets, removes the persistence key via `clearPersistedState()`, resets display name / dialogs / nav to the cold-start empty state, and lets the dashboard re-render instantly.
+- **UI:** Sidebar Data backups zone gains a low-emphasis crimson “Reset Ledger Workspace” control that opens an AlertDialog; only “Purge Workspace Data” calls `clearAllData()`.
+- Added shadcn-styled `components/ui/alert-dialog.tsx` on `@radix-ui/react-alert-dialog`.
+
+### Ownership
+- Mutation + localStorage wipe: `hooks/useBabylonEngine.ts` (`clearAllData`) / `lib/babylon/persistence.ts` (`clearPersistedState`)
+- Confirmation presentation: `components/babylon/app-sidebar.tsx`
+- Primitive: `components/ui/alert-dialog.tsx`
+
 ## 2026-07-19 — Dynamic budget blueprint (steward-configured categories)
 
 ### What changed

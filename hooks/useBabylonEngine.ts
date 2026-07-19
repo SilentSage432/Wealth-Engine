@@ -496,6 +496,8 @@ export function useBabylonEngine() {
     setTributeOpen(false);
     setTributeMode("income");
     setBlueprintOpen(false);
+    setActiveNav("overview");
+    setSidebarOpen(false);
   }, []);
 
   const exportBackup = useCallback(() => {

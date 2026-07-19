@@ -21,10 +21,10 @@ A premium, single-page budgeting platform that teaches and enforces Babylonian w
 - [x] Expense due dates + due-soon indicator
 - [x] Budget Blueprint (planned caps + Planned vs. Actual within 70%)
 - [x] Steward-configured budget categories (`addBudgetTarget` + Configure dialog)
+- [x] Clear-ledger UI control (confirmed purge via sidebar AlertDialog)
 - [ ] Reversible debt amortization on income delete
 - [ ] Monthly close ritual (period summary)
 - [ ] Accessibility audit (keyboard + screen reader)
-- [ ] Clear-ledger UI control (hook mutation already exists)
 - [ ] Expense paid/settled toggle
 - [ ] Edit / delete budget buckets
 - [ ] Auto-scale budget caps from current-month expenditure pool

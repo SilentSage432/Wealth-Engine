@@ -38,7 +38,7 @@ Legacy expenses without `dueDate` soft-migrate to use `date`. Desire expenses wi
 - `addDebt` — ID + creditor tracking with mandatory monthly allocation
 - `addBudgetTarget` — ID + custom category name / planned cap / essential flag (persisted)
 - `updateBudgetTarget` — adjust a category planned amount (persisted)
-- `clearAllData` — wipe localStorage and reset in-memory ledger (including empty blueprint)
+- `clearAllData` — wipe localStorage and reset in-memory ledger (including empty blueprint); exposed via sidebar AlertDialog confirmation
 - `exportBackup` — download versioned `LedgerBackup` JSON
 - `importBackup` — strict schema validation, overwrite vault, force state reset
 
@@ -64,7 +64,6 @@ Legacy expenses without `dueDate` soft-migrate to use `date`. Desire expenses wi
 - Debt payment waterfall visualization
 - Recurring income scheduling automation
 - Optional multi-profile vaults
-- UI affordance for `clearAllData` (hook already exports it)
 - Paid/settled toggle for expenses (due-soon currently treats all ledger expenses as open)
 - Edit / delete budget buckets (add + update-cap already exist)
 - Auto-scale budget caps from current-month 70% pool

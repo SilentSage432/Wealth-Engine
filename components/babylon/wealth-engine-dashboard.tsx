@@ -45,6 +45,7 @@ export function WealthEngineDashboard() {
         onSelectNav={engine.selectNav}
         onExportBackup={engine.exportBackup}
         onImportBackup={engine.importBackup}
+        onClearAllData={engine.clearAllData}
       />
 
       <div className="lg:pl-72">
