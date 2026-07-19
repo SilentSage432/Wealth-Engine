@@ -1,3 +1,4 @@
+export { AffordabilityAnchor } from "@/components/babylon/affordability-anchor";
 export { AppSidebar } from "@/components/babylon/app-sidebar";
 export { AnalyticsHub } from "@/components/babylon/analytics-hub";
 export { CommandBar } from "@/components/babylon/command-bar";

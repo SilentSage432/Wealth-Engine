@@ -16,11 +16,14 @@ A premium, single-page budgeting platform that teaches and enforces Babylonian w
 - [x] Graceful empty states for charts + tables
 
 ## Phase 2 — Depth
-- [ ] Ledger export / import
+- [x] Ledger export / import
+- [x] Affordability Anchor (Desires pool % + labor hours)
+- [x] Expense due dates + due-soon indicator
 - [ ] Reversible debt amortization on income delete
 - [ ] Monthly close ritual (period summary)
 - [ ] Accessibility audit (keyboard + screen reader)
 - [ ] Clear-ledger UI control (hook mutation already exists)
+- [ ] Expense paid/settled toggle
 
 ## Phase 3 — Platform
 - [ ] Auth + cloud sync

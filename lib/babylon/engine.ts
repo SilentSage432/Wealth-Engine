@@ -7,7 +7,12 @@ import type {
   AllocationSplit,
   ChartMonthPoint,
   DebtEntry,
+  IncomeEntry,
+  IncomeInterval,
 } from "@/types/babylon";
+
+/** Assumed productive hours per week for labor-equivalent math. */
+const WORK_HOURS_PER_WEEK = 40;
 
 export function monthKeyFromDate(isoDate: string): string {
   return isoDate.slice(0, 7);
@@ -25,6 +30,78 @@ export function todayIso(): string {
 
 export function roundMoney(value: number): number {
   return Math.round(value * 100) / 100;
+}
+
+/** Calendar-day difference: dueDate − today (negative = overdue). */
+export function daysUntilDue(dueDate: string, today: string = todayIso()): number {
+  const due = Date.parse(`${dueDate}T00:00:00`);
+  const now = Date.parse(`${today}T00:00:00`);
+  if (!Number.isFinite(due) || !Number.isFinite(now)) return Number.NaN;
+  return Math.round((due - now) / 86_400_000);
+}
+
+/** Unpaid expense due today through the next 7 days (inclusive). */
+export function isDueWithinWeek(
+  dueDate: string,
+  today: string = todayIso()
+): boolean {
+  const days = daysUntilDue(dueDate, today);
+  return Number.isFinite(days) && days >= 0 && days <= 7;
+}
+
+/** Normalize a recurring income amount to a monthly equivalent. One-time excluded. */
+export function monthlyIncomeEquivalent(
+  amount: number,
+  interval: IncomeInterval
+): number {
+  switch (interval) {
+    case "weekly":
+      return roundMoney((amount * 52) / 12);
+    case "biweekly":
+      return roundMoney((amount * 26) / 12);
+    case "monthly":
+      return roundMoney(amount);
+    case "yearly":
+      return roundMoney(amount / 12);
+    case "one-time":
+      return 0;
+  }
+}
+
+/** Aggregate effective hourly rate from active recurring income streams. */
+export function effectiveHourlyRate(incomes: IncomeEntry[]): number {
+  const monthly = roundMoney(
+    incomes.reduce(
+      (sum, entry) =>
+        sum + monthlyIncomeEquivalent(entry.amount, entry.interval),
+      0
+    )
+  );
+  if (monthly <= 0) return 0;
+  const hoursPerMonth = (WORK_HOURS_PER_WEEK * 52) / 12;
+  return roundMoney(monthly / hoursPerMonth);
+}
+
+/** Labor hours required to fund an amount at the given hourly rate. */
+export function laborHoursForAmount(
+  amount: number,
+  hourlyRate: number
+): number | null {
+  if (!Number.isFinite(amount) || amount <= 0) return null;
+  if (!Number.isFinite(hourlyRate) || hourlyRate <= 0) return null;
+  return Math.round((amount / hourlyRate) * 10) / 10;
+}
+
+/** Share of remaining desires pool consumed by a prospective purchase. */
+export function desiresPoolSharePct(
+  amount: number,
+  desiresPoolRemaining: number
+): number | null {
+  if (!Number.isFinite(amount) || amount <= 0) return null;
+  if (!Number.isFinite(desiresPoolRemaining) || desiresPoolRemaining <= 0) {
+    return null;
+  }
+  return Math.round((amount / desiresPoolRemaining) * 1000) / 10;
 }
 
 export function allocateIncome(

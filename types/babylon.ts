@@ -31,6 +31,8 @@ export interface ExpenseEntry {
   category: ExpenseKind;
   amount: number;
   date: string;
+  /** ISO date (YYYY-MM-DD) when payment is due. */
+  dueDate: string;
 }
 
 export interface DebtEntry {
@@ -92,7 +94,26 @@ export interface ExpenseInput {
   name: string;
   amount: number;
   date: string;
+  dueDate: string;
   category: ExpenseKind;
+}
+
+/** Portable ledger snapshot for export / import backups. */
+export interface LedgerBackup {
+  version: 1;
+  exportedAt: string;
+  incomes: IncomeEntry[];
+  expenses: ExpenseEntry[];
+  debts: DebtEntry[];
+  allocations: AllocationEvent[];
+  displayName: string;
+}
+
+export interface AffordabilitySnapshot {
+  /** Remaining current-month expenditure available for discretionary spend. */
+  desiresPoolRemaining: number;
+  /** Effective hourly rate from active recurring income streams. */
+  hourlyLaborRate: number;
 }
 
 export interface DebtInput {

@@ -1,6 +1,13 @@
 "use client";
 
-import { Landmark, ShieldCheck, X } from "lucide-react";
+import { useRef, useState, type ChangeEvent } from "react";
+import {
+  Download,
+  Landmark,
+  ShieldCheck,
+  Upload,
+  X,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { NAV_ITEMS } from "@/lib/babylon/constants";
@@ -12,6 +19,8 @@ interface AppSidebarProps {
   activeNav: NavSection;
   onClose: () => void;
   onSelectNav: (section: NavSection) => void;
+  onExportBackup: () => void;
+  onImportBackup: (raw: unknown) => string | null;
 }
 
 export function AppSidebar({
@@ -19,7 +28,35 @@ export function AppSidebar({
   activeNav,
   onClose,
   onSelectNav,
+  onExportBackup,
+  onImportBackup,
 }: AppSidebarProps) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [importStatus, setImportStatus] = useState<string | null>(null);
+  const [importError, setImportError] = useState(false);
+
+  const handleFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const parsed: unknown = JSON.parse(text);
+      const error = onImportBackup(parsed);
+      if (error) {
+        setImportError(true);
+        setImportStatus(error);
+        return;
+      }
+      setImportError(false);
+      setImportStatus("Backup restored.");
+    } catch {
+      setImportError(true);
+      setImportStatus("Could not read that file as JSON.");
+    }
+  };
+
   return (
     <aside
       className={cn(
@@ -74,7 +111,53 @@ export function AppSidebar({
         })}
       </nav>
 
-      <div className="border-t border-slate-800/80 p-4">
+      <div className="space-y-3 border-t border-slate-800/80 p-4">
+        <div className="space-y-2">
+          <p className="px-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+            Data backups
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-9 justify-center border-slate-800 bg-slate-950/50 text-xs text-slate-300 hover:bg-slate-900 hover:text-slate-100"
+              onClick={onExportBackup}
+            >
+              <Download className="h-3.5 w-3.5" />
+              Export
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-9 justify-center border-slate-800 bg-slate-950/50 text-xs text-slate-300 hover:bg-slate-900 hover:text-slate-100"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <Upload className="h-3.5 w-3.5" />
+              Import
+            </Button>
+          </div>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="application/json,.json"
+            className="hidden"
+            onChange={handleFileChange}
+            aria-label="Import backup JSON"
+          />
+          {importStatus && (
+            <p
+              className={cn(
+                "px-0.5 text-[11px] leading-snug",
+                importError ? "text-rose-400" : "text-emerald-500/90"
+              )}
+            >
+              {importStatus}
+            </p>
+          )}
+        </div>
+
         <Card className="border-emerald-900/40 bg-gradient-to-br from-slate-900 to-slate-950">
           <CardContent className="space-y-3 p-4">
             <div className="flex items-center gap-2 text-emerald-400">

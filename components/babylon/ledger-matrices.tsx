@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { INTERVAL_LABELS } from "@/lib/babylon/constants";
+import { isDueWithinWeek } from "@/lib/babylon/engine";
 import { cn, formatCurrency } from "@/lib/utils";
 import type { DebtEntry, ExpenseEntry, IncomeEntry, TributeMode } from "@/types/babylon";
 
@@ -206,13 +207,14 @@ export function LedgerMatrices({
                       <TableHead>Category</TableHead>
                       <TableHead>Amount</TableHead>
                       <TableHead>Date</TableHead>
+                      <TableHead>Due Date</TableHead>
                       <TableHead className="w-12" />
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     <TableRow>
                       <TableCell
-                        colSpan={5}
+                        colSpan={6}
                         className="py-10 text-center text-sm text-slate-500"
                       >
                         No tribute recorded yet. Use &apos;Record Tribute&apos;
@@ -229,46 +231,65 @@ export function LedgerMatrices({
                       <TableHead>Category</TableHead>
                       <TableHead>Amount</TableHead>
                       <TableHead>Date</TableHead>
+                      <TableHead>Due Date</TableHead>
                       <TableHead className="w-12" />
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {expenses.map((row) => (
-                      <TableRow key={row.id}>
-                        <TableCell className="font-medium text-slate-100">
-                          {row.name}
-                        </TableCell>
-                        <TableCell>
-                          <span
+                    {expenses.map((row) => {
+                      const dueSoon = isDueWithinWeek(row.dueDate);
+                      return (
+                        <TableRow key={row.id}>
+                          <TableCell className="font-medium text-slate-100">
+                            <span className="inline-flex flex-wrap items-center gap-2">
+                              {row.name}
+                              {dueSoon && (
+                                <span className="text-[11px] font-medium text-amber-400">
+                                  Due soon
+                                </span>
+                              )}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            <span
+                              className={cn(
+                                "inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium",
+                                row.category === "need"
+                                  ? "bg-emerald-500/10 text-emerald-400"
+                                  : "bg-amber-500/10 text-amber-400"
+                              )}
+                            >
+                              {row.category === "need" ? "Need" : "Desire"}
+                            </span>
+                          </TableCell>
+                          <TableCell className="tabular-nums">
+                            {formatCurrency(row.amount)}
+                          </TableCell>
+                          <TableCell className="text-slate-400">
+                            {row.date}
+                          </TableCell>
+                          <TableCell
                             className={cn(
-                              "inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium",
-                              row.category === "need"
-                                ? "bg-emerald-500/10 text-emerald-400"
-                                : "bg-amber-500/10 text-amber-400"
+                              "tabular-nums",
+                              dueSoon ? "text-amber-400" : "text-slate-400"
                             )}
                           >
-                            {row.category === "need" ? "Need" : "Desire"}
-                          </span>
-                        </TableCell>
-                        <TableCell className="tabular-nums">
-                          {formatCurrency(row.amount)}
-                        </TableCell>
-                        <TableCell className="text-slate-400">
-                          {row.date}
-                        </TableCell>
-                        <TableCell>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-slate-500 hover:text-rose-400"
-                            onClick={() => onDeleteExpense(row.id)}
-                            aria-label="Delete expense"
-                          >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                            {row.dueDate}
+                          </TableCell>
+                          <TableCell>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-slate-500 hover:text-rose-400"
+                              onClick={() => onDeleteExpense(row.id)}
+                              aria-label="Delete expense"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               )}

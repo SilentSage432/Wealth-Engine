@@ -10,6 +10,7 @@ import {
   allocateIncome,
   applyDebtAllocation,
   buildChartData,
+  effectiveHourlyRate,
   monthKeyFromDate,
   roundMoney,
   todayIso,
@@ -17,9 +18,11 @@ import {
   totalRemainingDebt,
 } from "@/lib/babylon/engine";
 import {
+  buildLedgerBackup,
   clearPersistedState,
   loadPersistedState,
   savePersistedState,
+  validateLedgerBackup,
 } from "@/lib/babylon/persistence";
 import { generateId } from "@/lib/utils";
 import type {
@@ -230,6 +233,14 @@ export function useBabylonEngine() {
     [currentMonthExpenditurePool, currentMonthSpent]
   );
 
+  /** Unspent current-month living allowance available for discretionary spend. */
+  const desiresPoolRemaining = currentMonthRemaining;
+
+  const hourlyLaborRate = useMemo(
+    () => effectiveHourlyRate(incomes),
+    [incomes]
+  );
+
   const chartData = useMemo(
     () => buildChartData(allocations),
     [allocations]
@@ -343,7 +354,8 @@ export function useBabylonEngine() {
     if (
       !input.name.trim() ||
       !Number.isFinite(input.amount) ||
-      input.amount <= 0
+      input.amount <= 0 ||
+      !input.dueDate
     ) {
       return false;
     }
@@ -354,6 +366,7 @@ export function useBabylonEngine() {
       category: input.category,
       amount: roundMoney(input.amount),
       date: input.date || todayIso(),
+      dueDate: input.dueDate,
     };
 
     setExpenses((prev) => [entry, ...prev]);
@@ -395,6 +408,54 @@ export function useBabylonEngine() {
     setDisplayName(EMPTY_STATE.displayName);
     setTributeOpen(false);
     setTributeMode("income");
+  }, []);
+
+  const exportBackup = useCallback(() => {
+    const backup = buildLedgerBackup({
+      incomes,
+      expenses,
+      debts,
+      allocations,
+      displayName,
+    });
+    const blob = new Blob([JSON.stringify(backup, null, 2)], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    const stamp = todayIso();
+    anchor.href = url;
+    anchor.download = `wealth-engine-backup-${stamp}.json`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+  }, [incomes, expenses, debts, allocations, displayName]);
+
+  const importBackup = useCallback((raw: unknown): string | null => {
+    const backup = validateLedgerBackup(raw);
+    if (!backup) {
+      return "Invalid backup file. Expected a Wealth Engine JSON export with incomes, expenses, and debts.";
+    }
+
+    const next: PersistedState = {
+      incomes: backup.incomes,
+      expenses: backup.expenses,
+      debts: backup.debts,
+      allocations: backup.allocations,
+      displayName: backup.displayName,
+    };
+
+    savePersistedState(next);
+    setIncomes(next.incomes);
+    setExpenses(next.expenses);
+    setDebts(next.debts);
+    setAllocations(next.allocations);
+    setDisplayName(next.displayName);
+    setTributeOpen(false);
+    setTributeMode("income");
+    setActiveNav("overview");
+    return null;
   }, []);
 
   const deleteIncome = useCallback((id: string) => {
@@ -459,6 +520,8 @@ export function useBabylonEngine() {
     currentMonthNeed,
     currentMonthDesire,
     currentMonthRemaining,
+    desiresPoolRemaining,
+    hourlyLaborRate,
     chartData,
     wealthSpark,
     donutData,
@@ -469,6 +532,8 @@ export function useBabylonEngine() {
     addExpense,
     addDebt,
     clearAllData,
+    exportBackup,
+    importBackup,
     deleteIncome,
     deleteExpense,
     deleteDebt,

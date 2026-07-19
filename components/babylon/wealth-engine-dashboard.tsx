@@ -1,5 +1,6 @@
 "use client";
 
+import { AffordabilityAnchor } from "@/components/babylon/affordability-anchor";
 import { AnalyticsHub } from "@/components/babylon/analytics-hub";
 import { AppSidebar } from "@/components/babylon/app-sidebar";
 import { CommandBar } from "@/components/babylon/command-bar";
@@ -40,6 +41,8 @@ export function WealthEngineDashboard() {
         activeNav={engine.activeNav}
         onClose={() => engine.setSidebarOpen(false)}
         onSelectNav={engine.selectNav}
+        onExportBackup={engine.exportBackup}
+        onImportBackup={engine.importBackup}
       />
 
       <div className="lg:pl-72">
@@ -72,6 +75,10 @@ export function WealthEngineDashboard() {
                     progressIndicatorClass={engine.progressIndicatorClass}
                     totalSpent={engine.totalSpent}
                     expenditurePool={engine.expenditurePool}
+                  />
+                  <AffordabilityAnchor
+                    desiresPoolRemaining={engine.desiresPoolRemaining}
+                    hourlyLaborRate={engine.hourlyLaborRate}
                   />
                   <AnalyticsHub
                     chartData={engine.chartData}

@@ -65,6 +65,7 @@ export function RecordTributeDialog({
   const [expenseName, setExpenseName] = useState("");
   const [expenseAmount, setExpenseAmount] = useState("");
   const [expenseDate, setExpenseDate] = useState(todayIso());
+  const [expenseDueDate, setExpenseDueDate] = useState(todayIso());
   const [expenseIsDesire, setExpenseIsDesire] = useState(false);
 
   const [debtCreditor, setDebtCreditor] = useState("");
@@ -80,6 +81,7 @@ export function RecordTributeDialog({
     setExpenseName("");
     setExpenseAmount("");
     setExpenseDate(todayIso());
+    setExpenseDueDate(todayIso());
     setExpenseIsDesire(false);
     setDebtCreditor("");
     setDebtTotal("");
@@ -104,6 +106,7 @@ export function RecordTributeDialog({
         name: expenseName,
         amount: Number.parseFloat(expenseAmount),
         date: expenseDate,
+        dueDate: expenseDueDate,
         category: expenseIsDesire ? "desire" : "need",
       });
       return;
@@ -262,15 +265,27 @@ export function RecordTributeDialog({
                   required={mode === "expense"}
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="expense-date">Date</Label>
-                <Input
-                  id="expense-date"
-                  type="date"
-                  value={expenseDate}
-                  onChange={(e) => setExpenseDate(e.target.value)}
-                  required={mode === "expense"}
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="expense-date">Date</Label>
+                  <Input
+                    id="expense-date"
+                    type="date"
+                    value={expenseDate}
+                    onChange={(e) => setExpenseDate(e.target.value)}
+                    required={mode === "expense"}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="expense-due-date">Due Date</Label>
+                  <Input
+                    id="expense-due-date"
+                    type="date"
+                    value={expenseDueDate}
+                    onChange={(e) => setExpenseDueDate(e.target.value)}
+                    required={mode === "expense"}
+                  />
+                </div>
               </div>
               <div className="flex items-center justify-between rounded-lg border border-slate-800 bg-slate-950/50 px-4 py-3">
                 <div>

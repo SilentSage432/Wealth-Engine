@@ -1,5 +1,19 @@
 # Development Journal
 
+## 2026-07-19 — Cash-flow utilities (backup, affordability, due dates)
+
+### What changed
+- **Data portability:** Sidebar footer utility zone with Export Backup / Import Backup. Export downloads a versioned JSON ledger (`LedgerBackup`). Import validates schema strictly via `validateLedgerBackup`, overwrites localStorage, and resets in-memory state for a clean re-render.
+- **Affordability Anchor:** Command Deck single-input tool showing (1) % of current-month remaining Desires pool and (2) labor hours at the aggregated hourly rate from recurring income streams.
+- **Expense due dates:** `ExpenseEntry` / `ExpenseInput` require `dueDate`. Tribute dialog + expenses ledger updated; amber “Due soon” tag when due within the next 7 days.
+- Persistence load soft-migrates legacy expenses missing `dueDate` (falls back to transaction `date`).
+
+### Ownership
+- Schema validation + backup builders: `lib/babylon/persistence.ts`
+- Labor / due-date pure helpers: `lib/babylon/engine.ts`
+- Mutations + derived metrics: `hooks/useBabylonEngine.ts`
+- Presentation: sidebar, `affordability-anchor.tsx`, ledger, tribute dialog
+
 ## 2026-07-19 — Live input pipelines (no mock seed)
 
 ### What changed
