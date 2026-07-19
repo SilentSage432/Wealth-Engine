@@ -84,7 +84,7 @@ Legacy expenses without `dueDate` soft-migrate to use `date`. Desire expenses wi
 - Cloud→local pull / multi-device conflict policy (Path A is local-first dual-write + first-login migrate)
 
 ## Path A — Cloud synchronization (complete)
-- Env: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` (see `.env.example`)
+- Env: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (see `.env.example`; legacy `ANON_KEY` still accepted)
 - Migration: `supabase/migrations/20260719_init_babylon_schema.sql`
 - Auth: sidebar “☁️ Connect Cloud Vault” → `AuthModal` (sign-in / create steward)
 - Hydration: first session with local data + empty cloud → batch upsert incomes / expenses / budget_targets
