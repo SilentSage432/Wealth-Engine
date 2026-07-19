@@ -17,8 +17,9 @@ components/dashboard/BudgetBlueprint.tsx    → Necessary Expenditures planning 
 components/dashboard/RecentActivityStrip.tsx → Command Deck mutation feed
 components/ui/*                             → shadcn-styled Radix primitives
 lib/utils.ts                                → cn, currency, ids, relative time
+hooks/useTributeHotkeys.ts                  → global Record Tribute keyboard shortcuts
+components/ui/tooltip.tsx                   → accessible micro-tooltips
 ```
-
 ## Babylon Engine flow
 ```
 Gross Income

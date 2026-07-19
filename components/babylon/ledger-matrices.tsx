@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Check, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -59,12 +60,21 @@ export function LedgerMatrices({
   onDeleteDebt,
   onToggleExpenseSettled,
 }: LedgerMatricesProps) {
+  const [pulsingSettledId, setPulsingSettledId] = useState<string | null>(null);
+
   const categoryLabel = (id: string | undefined) => {
     if (!id) return "Uncategorized";
     return (
       budgetTargets.find((t) => t.id === id)?.categoryName ?? "Uncategorized"
     );
   };
+
+  const handleToggleSettled = (row: ExpenseEntry) => {
+    const willSettle = !row.isSettled;
+    onToggleExpenseSettled(row.id);
+    if (willSettle) setPulsingSettledId(row.id);
+  };
+
   return (
     <section className="animate-fade-up">
       <Card>
@@ -83,24 +93,27 @@ export function LedgerMatrices({
               variant="outline"
               size="sm"
               onClick={() => onOpenTribute("income")}
+              aria-label="Record income tribute"
             >
-              <Plus className="h-3.5 w-3.5" />
+              <Plus className="h-3.5 w-3.5" aria-hidden="true" />
               Income
             </Button>
             <Button
               variant="outline"
               size="sm"
               onClick={() => onOpenTribute("expense")}
+              aria-label="Record expense tribute"
             >
-              <Plus className="h-3.5 w-3.5" />
+              <Plus className="h-3.5 w-3.5" aria-hidden="true" />
               Expense
             </Button>
             <Button
               variant="outline"
               size="sm"
               onClick={() => onOpenTribute("debt")}
+              aria-label="Record debt obligation"
             >
-              <Plus className="h-3.5 w-3.5" />
+              <Plus className="h-3.5 w-3.5" aria-hidden="true" />
               Debt
             </Button>
           </div>
@@ -197,9 +210,9 @@ export function LedgerMatrices({
                               size="icon"
                               className="h-10 w-10 text-slate-500 hover:text-rose-400 md:h-8 md:w-8"
                               onClick={() => onDeleteIncome(row.id)}
-                              aria-label="Delete income"
+                              aria-label={`Delete income ${row.source}`}
                             >
-                              <Trash2 className="h-3.5 w-3.5" />
+                              <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
                             </Button>
                           </TableCell>
                         </TableRow>
@@ -285,12 +298,20 @@ export function LedgerMatrices({
                         return (
                           <TableRow
                             key={row.id}
-                            className={cn(row.isSettled && "opacity-55")}
+                            className={cn(
+                              "transition-opacity duration-300 ease-out will-change-[opacity]",
+                              row.isSettled && "opacity-55"
+                            )}
                           >
                             <TableCell>
                               <button
                                 type="button"
-                                onClick={() => onToggleExpenseSettled(row.id)}
+                                onClick={() => handleToggleSettled(row)}
+                                onAnimationEnd={() => {
+                                  if (pulsingSettledId === row.id) {
+                                    setPulsingSettledId(null);
+                                  }
+                                }}
                                 aria-label={
                                   row.isSettled
                                     ? `Mark ${row.name} as pending`
@@ -298,19 +319,26 @@ export function LedgerMatrices({
                                 }
                                 aria-pressed={row.isSettled}
                                 className={cn(
-                                  "flex h-10 w-10 items-center justify-center rounded-md border transition-colors md:h-8 md:w-8",
+                                  "flex h-10 w-10 items-center justify-center rounded-md border transition-all duration-300 ease-out will-change-transform md:h-8 md:w-8",
                                   row.isSettled
                                     ? "border-emerald-500/50 bg-emerald-500/15 text-emerald-400"
-                                    : "border-slate-700 bg-slate-950/50 text-slate-500 hover:border-slate-500 hover:text-slate-300"
+                                    : "border-slate-700 bg-slate-950/50 text-slate-500 hover:border-slate-500 hover:text-slate-300",
+                                  pulsingSettledId === row.id &&
+                                    "animate-settle-pulse"
                                 )}
                               >
-                                <Check className="h-3.5 w-3.5" />
+                                <Check
+                                  className="h-3.5 w-3.5"
+                                  aria-hidden="true"
+                                />
                               </button>
                             </TableCell>
                             <TableCell
                               className={cn(
-                                "font-medium text-slate-100",
-                                row.isSettled && "text-slate-400 line-through"
+                                "font-medium transition-[color,opacity,text-decoration-color] duration-300 ease-out",
+                                row.isSettled
+                                  ? "text-slate-400 line-through decoration-slate-500"
+                                  : "text-slate-100"
                               )}
                             >
                               <span className="inline-flex flex-wrap items-center gap-2">
@@ -344,8 +372,9 @@ export function LedgerMatrices({
                             </TableCell>
                             <TableCell
                               className={cn(
-                                "tabular-nums",
-                                row.isSettled && "line-through text-slate-500"
+                                "tabular-nums transition-[color,opacity,text-decoration-color] duration-300 ease-out",
+                                row.isSettled &&
+                                  "line-through text-slate-500 decoration-slate-600"
                               )}
                             >
                               {formatCurrency(row.amount)}
@@ -367,9 +396,12 @@ export function LedgerMatrices({
                                 size="icon"
                                 className="h-10 w-10 text-slate-500 hover:text-rose-400 md:h-8 md:w-8"
                                 onClick={() => onDeleteExpense(row.id)}
-                                aria-label="Delete expense"
+                                aria-label={`Delete expense ${row.name}`}
                               >
-                                <Trash2 className="h-3.5 w-3.5" />
+                                <Trash2
+                                  className="h-3.5 w-3.5"
+                                  aria-hidden="true"
+                                />
                               </Button>
                             </TableCell>
                           </TableRow>
@@ -447,9 +479,12 @@ export function LedgerMatrices({
                                 size="icon"
                                 className="h-10 w-10 text-slate-500 hover:text-rose-400 md:h-8 md:w-8"
                                 onClick={() => onDeleteDebt(row.id)}
-                                aria-label="Delete debt"
+                                aria-label={`Delete debt ${row.creditor}`}
                               >
-                                <Trash2 className="h-3.5 w-3.5" />
+                                <Trash2
+                                  className="h-3.5 w-3.5"
+                                  aria-hidden="true"
+                                />
                               </Button>
                             </TableCell>
                           </TableRow>

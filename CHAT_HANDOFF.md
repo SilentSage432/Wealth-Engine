@@ -13,7 +13,7 @@
 - Primitives: `components/ui/*`
 - Feature UI: `components/babylon/*`, `components/dashboard/BudgetBlueprint.tsx`, `components/dashboard/TributeEnginesPanel.tsx`, `components/dashboard/RecentActivityStrip.tsx`, `components/modals/RecordTransactionModal.tsx`, `components/modals/MonthlyCloseModal.tsx`
 - Helpers: `lib/utils.ts` (`cn`, currency formatters, `generateId`, `formatRelativeTime`)
-
+- Hotkeys: `hooks/useTributeHotkeys.ts`
 ## Run locally
 ```bash
 npm install
@@ -76,6 +76,10 @@ Legacy expenses without `dueDate` soft-migrate to use `date`. Desire expenses wi
 ## Next candidates (Phase 3)
 - Auth + cloud sync
 - Multi-currency / shared household vaults
-- Accessibility audit (keyboard + screen reader)
 - Debt payment waterfall visualization
 - Recurring income scheduling automation
+
+## Path B polish (complete)
+- Record Tribute hotkeys: `N` / `Ctrl+N` / `Cmd+N` via `useTributeHotkeys`
+- Settled pulse + opacity transitions; inline category expand-fade
+- Tribute Engines accessible tooltips; Wisdom floating console aesthetic

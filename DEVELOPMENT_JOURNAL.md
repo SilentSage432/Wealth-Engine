@@ -1,5 +1,21 @@
 # Development Journal
 
+## 2026-07-19 — Path B: Accessibility & UI polish
+
+### What changed
+- **Hotkeys:** `useTributeHotkeys` — bare `N` (outside editable fields) and `Ctrl/Cmd+N` open Record Tribute; disabled while tribute/close modals are open.
+- **Focus / Esc:** Radix Dialog focus trap retained; Record Tribute auto-focuses the active tab; Esc closes via Dialog without mid-draft corruption (reset only on reopen).
+- **ARIA:** Stream-kind pills (`aria-pressed`/`aria-label`), settled toggles, ledger/command actions, wisdom tabs, Auto-Scale, inline category expand (`aria-expanded`/`aria-controls`).
+- **Micro-motion:** Settled check spring pulse + `duration-300 ease-out` row opacity/line-through; inline category `animate-expand-fade`.
+- **Tooltips:** Accessible Radix tooltips on Tribute Engines badges (Side Hustle / Passive / Primary / Other).
+- **Wisdom console:** Floating depth (`wisdom-console` inset highlight + soft emerald glow) without layout shift.
+
+### Ownership
+- Hotkeys: `hooks/useTributeHotkeys.ts` composed in dashboard
+- Tooltip primitive: `components/ui/tooltip.tsx`
+- Motion tokens: `app/globals.css`
+- Surfaces: modal, ledger, TributeEnginesPanel, WisdomBox, CommandBar
+
 ## 2026-07-19 — Phase 2 Depth complete (settled, activity, auto-scale, monthly close)
 
 ### What changed

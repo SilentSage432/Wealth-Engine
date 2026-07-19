@@ -388,7 +388,21 @@ export function RecordTransactionModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[min(90vh,900px)] overflow-y-auto scrollbar-thin sm:max-w-lg">
+      <DialogContent
+        className="max-h-[min(90vh,900px)] overflow-y-auto scrollbar-thin sm:max-w-lg"
+        onOpenAutoFocus={(event) => {
+          // Prefer active tab trigger for predictable keyboard entry.
+          const root = event.currentTarget;
+          if (!(root instanceof HTMLElement)) return;
+          const target = root.querySelector<HTMLElement>(
+            '[role="tab"][data-state="active"], [role="tab"]'
+          );
+          if (target) {
+            event.preventDefault();
+            target.focus();
+          }
+        }}
+      >
         <DialogHeader>
           <DialogTitle className="font-[family-name:var(--font-display)] text-xl sm:text-2xl">
             Record Tribute
@@ -401,28 +415,35 @@ export function RecordTransactionModal({
           onValueChange={(v) => onModeChange(v as TributeMode)}
           className="w-full"
         >
-          <TabsList className="grid h-auto w-full grid-cols-2 gap-1 p-1 sm:grid-cols-4">
+          <TabsList
+            className="grid h-auto w-full grid-cols-2 gap-1 p-1 sm:grid-cols-4"
+            aria-label="Tribute entry type"
+          >
             <TabsTrigger
               value="income"
               className="min-h-11 px-2 text-[11px] leading-tight sm:text-sm"
+              aria-label="Income stream tab"
             >
               Income stream
             </TabsTrigger>
             <TabsTrigger
               value="expense"
               className="min-h-11 px-2 text-[11px] leading-tight sm:text-sm"
+              aria-label="Expense item tab"
             >
               Expense Item
             </TabsTrigger>
             <TabsTrigger
               value="debt"
               className="min-h-11 px-2 text-[11px] leading-tight sm:text-sm"
+              aria-label="Debt obligation tab"
             >
               Debt Obligation
             </TabsTrigger>
             <TabsTrigger
               value="budget"
               className="min-h-11 px-2 text-[11px] leading-tight sm:text-sm"
+              aria-label="Budget category tab"
             >
               Budget Category
             </TabsTrigger>
@@ -463,8 +484,10 @@ export function RecordTransactionModal({
                         key={kind}
                         type="button"
                         onClick={() => setIncomeKind(kind)}
+                        aria-label={`Classify as ${STREAM_KIND_LABELS[kind]}`}
+                        aria-pressed={active}
                         className={cn(
-                          "min-h-11 rounded-md border px-3 py-2 text-left text-xs font-medium transition-colors sm:text-sm",
+                          "min-h-11 rounded-md border px-3 py-2 text-left text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 sm:text-sm",
                           active
                             ? kind === "side_hustle"
                               ? "border-amber-500/50 bg-amber-500/10 text-amber-300"
@@ -607,14 +630,19 @@ export function RecordTransactionModal({
                     setInlineCategoryOpen((open) => !open);
                     setFormFeedback(null);
                   }}
-                  className="text-left text-xs font-medium text-emerald-400/90 transition-colors hover:text-emerald-300"
+                  aria-expanded={inlineCategoryOpen}
+                  aria-controls="inline-category-creator"
+                  className="text-left text-xs font-medium text-emerald-400/90 transition-colors hover:text-emerald-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50"
                 >
                   {inlineCategoryOpen
                     ? "− Cancel New Category"
                     : "+ Create New Category Inline"}
                 </button>
                 {inlineCategoryOpen && (
-                  <div className="space-y-3 rounded-lg border border-slate-800 bg-slate-950/60 p-3">
+                  <div
+                    id="inline-category-creator"
+                    className="animate-expand-fade space-y-3 overflow-hidden rounded-lg border border-slate-800 bg-slate-950/60 p-3"
+                  >
                     <div className="space-y-2">
                       <Label htmlFor="inline-category-name">Bucket Name</Label>
                       <Input
@@ -670,6 +698,7 @@ export function RecordTransactionModal({
                         type="button"
                         size="sm"
                         onClick={handleCreateInlineCategory}
+                        aria-label="Create and select new budget category"
                       >
                         Create & Select
                       </Button>

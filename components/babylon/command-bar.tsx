@@ -82,8 +82,13 @@ export function CommandBar({
               className="min-h-11 w-full flex-1 sm:w-auto sm:flex-none"
               onClick={onOpenMonthlyClose}
               disabled={monthAlreadyClosed}
+              aria-label={
+                monthAlreadyClosed
+                  ? "Month already sealed"
+                  : "Open monthly close ritual"
+              }
             >
-              <CalendarCheck className="h-4 w-4" />
+              <CalendarCheck className="h-4 w-4" aria-hidden="true" />
               {monthAlreadyClosed ? "Month Sealed" : "Close Month"}
             </Button>
           )}
@@ -92,8 +97,10 @@ export function CommandBar({
             size="lg"
             className="min-h-11 w-full flex-1 shadow-amber-900/20 sm:w-auto sm:flex-none"
             onClick={onRecordTribute}
+            aria-label="Record Tribute (shortcut N)"
+            title="Record Tribute · N"
           >
-            <Plus className="h-4 w-4" />
+            <Plus className="h-4 w-4" aria-hidden="true" />
             Record Tribute
           </Button>
         </div>

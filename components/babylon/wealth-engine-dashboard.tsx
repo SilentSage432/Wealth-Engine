@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback } from "react";
 import { AffordabilityAnchor } from "@/components/babylon/affordability-anchor";
 import { AnalyticsHub } from "@/components/babylon/analytics-hub";
 import { AppSidebar } from "@/components/babylon/app-sidebar";
@@ -15,12 +16,22 @@ import { TributeEnginesPanel } from "@/components/dashboard/TributeEnginesPanel"
 import { MonthlyCloseModal } from "@/components/modals/MonthlyCloseModal";
 import { RecordTransactionModal } from "@/components/modals/RecordTransactionModal";
 import { useBabylonEngine } from "@/hooks/useBabylonEngine";
+import { useTributeHotkeys } from "@/hooks/useTributeHotkeys";
 import { cn } from "@/lib/utils";
 
 export function WealthEngineDashboard() {
   const engine = useBabylonEngine();
+  const { openTribute, hydrated, tributeOpen, monthlyCloseOpen } = engine;
 
-  if (!engine.hydrated) {
+  const openTributeHotkey = useCallback(() => {
+    openTribute("income");
+  }, [openTribute]);
+
+  useTributeHotkeys(openTributeHotkey, {
+    enabled: hydrated && !tributeOpen && !monthlyCloseOpen,
+  });
+
+  if (!hydrated) {
     return <VaultLoading />;
   }
 

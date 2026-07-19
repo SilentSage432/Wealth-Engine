@@ -34,12 +34,12 @@ A premium, single-page budgeting platform that teaches and enforces Babylonian w
 - [x] Monthly close ritual (summary → surplus disposition → archive & roll forward)
 
 ## Phase 3 — Platform
+- [x] Accessibility audit & keyboard control loops (hotkeys, focus trap, aria-labels)
+- [x] High-end micro-animations & UI polish (settled pulse, inline expand, wisdom console, engine tooltips)
 - [ ] Auth + cloud sync
 - [ ] Multi-currency
 - [ ] Shared household vaults
 - [ ] Institutional knowledge composition (read-only Observatory views)
-- [ ] Accessibility audit (keyboard + screen reader)
-
 ## Architectural ownership
 | Concern | Owner |
 |--------|--------|

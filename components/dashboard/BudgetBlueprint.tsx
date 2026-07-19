@@ -190,8 +190,9 @@ export function BudgetBlueprint({
                 className="min-h-10"
                 disabled={!canAutoScale}
                 onClick={handleAutoScale}
+                aria-label="Auto-scale budget allocations to the 70 percent pool"
               >
-                <Scale className="h-3.5 w-3.5" />
+                <Scale className="h-3.5 w-3.5" aria-hidden="true" />
                 Auto-Scale Allocations
               </Button>
             )}
