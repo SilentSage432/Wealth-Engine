@@ -1,4 +1,9 @@
-import type { IncomeInterval, NavSection, PersistedState } from "@/types/babylon";
+import type {
+  IncomeInterval,
+  IncomeStreamKind,
+  NavSection,
+  PersistedState,
+} from "@/types/babylon";
 import { BookOpen, LayoutDashboard, ScrollText } from "lucide-react";
 import type { ComponentType } from "react";
 
@@ -43,6 +48,20 @@ export const INTERVAL_LABELS: Record<IncomeInterval, string> = {
   monthly: "Monthly",
   yearly: "Yearly",
 };
+
+export const STREAM_KIND_LABELS: Record<IncomeStreamKind, string> = {
+  primary: "Primary Labor",
+  side_hustle: "Side Hustle",
+  passive: "Passive Engine",
+  other: "Other",
+};
+
+export const STREAM_KIND_ORDER: readonly IncomeStreamKind[] = [
+  "primary",
+  "side_hustle",
+  "passive",
+  "other",
+] as const;
 
 export const NAV_ITEMS: ReadonlyArray<{
   id: NavSection;

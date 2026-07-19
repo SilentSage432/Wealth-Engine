@@ -12,6 +12,7 @@ import type {
   ExpenseKind,
   IncomeEntry,
   IncomeInterval,
+  IncomeStreamKind,
   LedgerBackup,
   PersistedState,
 } from "@/types/babylon";
@@ -22,6 +23,13 @@ const INCOME_INTERVALS: ReadonlySet<string> = new Set([
   "biweekly",
   "monthly",
   "yearly",
+]);
+
+const INCOME_STREAM_KINDS: ReadonlySet<string> = new Set([
+  "primary",
+  "side_hustle",
+  "passive",
+  "other",
 ]);
 
 const EXPENSE_KINDS: ReadonlySet<string> = new Set(["need", "desire"]);
@@ -63,12 +71,19 @@ function parseIncomeEntry(value: unknown): IncomeEntry | null {
   if (!isFiniteNumber(value.expenditureShare)) return null;
   if (typeof value.debtRedirected !== "boolean") return null;
 
+  // Soft-migrate legacy incomes without kind → primary labor.
+  const kind: IncomeStreamKind =
+    typeof value.kind === "string" && INCOME_STREAM_KINDS.has(value.kind)
+      ? (value.kind as IncomeStreamKind)
+      : "primary";
+
   return {
     id: value.id,
     source: value.source.trim(),
     amount: value.amount,
     date: value.date,
     interval: value.interval as IncomeInterval,
+    kind,
     wealthShare: value.wealthShare,
     debtShare: value.debtShare,
     expenditureShare: value.expenditureShare,
@@ -152,7 +167,7 @@ function parseDebtEntry(value: unknown): DebtEntry | null {
     id: value.id,
     creditor: value.creditor.trim(),
     totalDebt: value.totalDebt,
-    remainingDebt: value.remainingDebt,
+    remainingDebt: Math.min(value.totalDebt, Math.max(0, value.remainingDebt)),
     monthlyAllocation: value.monthlyAllocation,
     createdAt: value.createdAt,
   };

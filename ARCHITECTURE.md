@@ -34,9 +34,9 @@ Gross Income
 - Budget variance (`buildBudgetVariances`) is owned by the pure engine; the hook selects current-month expenses and persists `budgetTargets`.
 - Charts and tables **consume** derived state; they never recompute splits.
 - Presentation components render only; they never own ledger state.
-- `RecordTransactionModal` owns ephemeral form fields; the hook owns durable ledger mutations (`addIncome` / `addExpense` / `addDebt` / `addBudgetTarget` / `updateBudgetTarget` / `updateBudgetTargetFull` / `deleteBudgetTarget` / `clearAllData` / `exportBackup` / `importBackup`).
-- Budget Blueprint edit dialog owns ephemeral edit fields; durable changes go through `updateBudgetTargetFull` / `deleteBudgetTarget`.
-
+- `RecordTransactionModal` owns ephemeral form fields (including inline category draft + form feedback); the hook owns durable ledger mutations (`addIncome` / `addExpense` / `addDebt` / `addBudgetTarget` / `updateBudgetTarget` / `updateBudgetTargetFull` / `deleteBudgetTarget` / `clearAllData` / `exportBackup` / `importBackup`).
+- Budget Blueprint edit dialog owns ephemeral edit fields and orphan-reassignment choice; durable changes go through `updateBudgetTargetFull` / `deleteBudgetTarget(id, reassignToId?)`.
+- Overview Command Deck composes KPIs + analytics; `LedgerMatrices` mounts only under Ledger Matrices nav.
 ## Persistence contract
 Key: `wealth-engine-babylon-v2`  
 Shape: `{ incomes, expenses, debts, allocations, budgetTargets, displayName }`  

@@ -48,7 +48,7 @@ export function AffordabilityAnchor({
           </p>
           <p className="text-sm text-slate-400">
             Test a discretionary purchase against this month&apos;s remaining
-            Desires pool and your labor rate.
+            Desires pool and your primary labor rate.
           </p>
         </div>
 
@@ -86,15 +86,15 @@ export function AffordabilityAnchor({
         </div>
         <div className="rounded-lg border border-slate-800/70 bg-slate-950/40 px-3.5 py-3">
           <p className="text-[10px] uppercase tracking-wider text-slate-500">
-            Labor hours required
+            Primary labor hours
           </p>
           <p className="mt-1 font-[family-name:var(--font-display)] text-2xl font-semibold tabular-nums text-slate-100">
             {laborHours === null ? "—" : `${laborHours}h`}
           </p>
           <p className="mt-1 text-xs text-slate-500">
             {hourlyLaborRate > 0
-              ? `Effective rate: ${formatCurrency(hourlyLaborRate)}/hr`
-              : "Add recurring income to compute rate"}
+              ? `Primary rate: ${formatCurrency(hourlyLaborRate)}/hr`
+              : "Add recurring primary income to compute rate"}
           </p>
         </div>
       </div>

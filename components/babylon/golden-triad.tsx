@@ -135,7 +135,7 @@ export function GoldenTriad({
           <div>
             <CardDescription className="flex items-center gap-1.5 text-slate-400">
               <Wallet className="h-3.5 w-3.5" />
-              Necessary Expenditures · 70%
+              Necessary Expenditures · 70% · This Month
             </CardDescription>
             <CardTitle
               className={cn(

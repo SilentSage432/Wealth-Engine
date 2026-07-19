@@ -5,6 +5,13 @@ export type IncomeInterval =
   | "monthly"
   | "yearly";
 
+/** Classification for growth-focused multi-income tracking. */
+export type IncomeStreamKind =
+  | "primary"
+  | "side_hustle"
+  | "passive"
+  | "other";
+
 export type ExpenseKind = "need" | "desire";
 
 export type TributeMode = "income" | "expense" | "debt" | "budget";
@@ -43,6 +50,8 @@ export interface IncomeEntry {
   amount: number;
   date: string;
   interval: IncomeInterval;
+  /** Growth engine classification — legacy rows soft-migrate to primary. */
+  kind: IncomeStreamKind;
   wealthShare: number;
   debtShare: number;
   expenditureShare: number;
@@ -115,6 +124,7 @@ export interface IncomeInput {
   amount: number;
   date: string;
   interval: IncomeInterval;
+  kind: IncomeStreamKind;
 }
 
 export interface ExpenseInput {
@@ -139,9 +149,9 @@ export interface LedgerBackup {
 }
 
 export interface AffordabilitySnapshot {
-  /** Remaining current-month expenditure available for discretionary spend. */
+  /** Unspent discretionary slice of the current-month 70% pool. */
   desiresPoolRemaining: number;
-  /** Effective hourly rate from active recurring income streams. */
+  /** Effective hourly rate from primary recurring labor streams. */
   hourlyLaborRate: number;
 }
 
@@ -156,4 +166,23 @@ export interface AllocationSplit {
   debtShare: number;
   expenditureShare: number;
   debtRedirected: boolean;
+}
+
+/** Per-kind revenue pulse for the Tribute Engines scoreboard. */
+export interface TributeEngineKindRow {
+  kind: IncomeStreamKind;
+  amount: number;
+  pctOfMonth: number;
+  /** Month-over-month % change vs prior calendar month; null if no prior base. */
+  momPct: number | null;
+}
+
+export interface TributeEngineSnapshot {
+  monthKey: string;
+  monthTotal: number;
+  primaryAmount: number;
+  secondaryAmount: number;
+  primaryPct: number;
+  secondaryPct: number;
+  byKind: TributeEngineKindRow[];
 }

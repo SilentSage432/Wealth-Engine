@@ -25,12 +25,14 @@ A premium, single-page budgeting platform that teaches and enforces Babylonian w
 - [x] Budget bucket edit / delete (`updateBudgetTargetFull` / `deleteBudgetTarget`)
 - [x] Responsive layout audit (mobile drawer, triad/charts wrap, table scroll, touch targets)
 - [x] Progressive Web App (manifest + service worker + installable icons)
-- [ ] Reversible debt amortization on income delete
+- [x] P0 trust math (reverse debt on income delete, current-month Triad expenditure, desires pool + primary rate)
+- [x] Income stream kinds + Tribute Engines scoreboard
+- [x] P2 Workflow Clarity (inline category create, expense date, mutation feedback, over-plan banner, orphan reassignment, overview ledger declutter)
 - [ ] Monthly close ritual (period summary)
 - [ ] Accessibility audit (keyboard + screen reader)
 - [ ] Expense paid/settled toggle
 - [ ] Auto-scale budget caps from current-month expenditure pool
-
+- [ ] Recent activity strip on overview (non-matrix)
 ## Phase 3 — Platform
 - [ ] Auth + cloud sync
 - [ ] Multi-currency

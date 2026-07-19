@@ -11,8 +11,11 @@ import {
   applyDebtAllocation,
   buildBudgetVariances,
   buildChartData,
-  effectiveHourlyRate,
+  buildTributeEngineSnapshot,
+  computeDesiresPoolRemaining,
   monthKeyFromDate,
+  primaryHourlyRate,
+  reverseDebtAllocation,
   roundMoney,
   todayIso,
   totalOriginalDebt,
@@ -127,43 +130,6 @@ export function useBabylonEngine() {
     [allocations]
   );
 
-  const expenditurePool = useMemo(
-    () => roundMoney(allocations.reduce((sum, a) => sum + a.expenditure, 0)),
-    [allocations]
-  );
-
-  const totalSpent = useMemo(
-    () => roundMoney(expenses.reduce((sum, e) => sum + e.amount, 0)),
-    [expenses]
-  );
-
-  const expenditureRemaining = useMemo(
-    () => roundMoney(Math.max(0, expenditurePool - totalSpent)),
-    [expenditurePool, totalSpent]
-  );
-
-  const expenditureUsedPct = useMemo(() => {
-    if (expenditurePool <= 0) return 0;
-    return Math.min(100, Math.round((totalSpent / expenditurePool) * 100));
-  }, [totalSpent, expenditurePool]);
-
-  const expenditureRemainingPct = useMemo(
-    () => Math.max(0, 100 - expenditureUsedPct),
-    [expenditureUsedPct]
-  );
-
-  const expenditureBarTone = useMemo((): ExpenditureBarTone => {
-    if (expenditureRemainingPct > 40) return "emerald";
-    if (expenditureRemainingPct > 15) return "amber";
-    return "crimson";
-  }, [expenditureRemainingPct]);
-
-  const progressIndicatorClass = useMemo(() => {
-    if (expenditureBarTone === "emerald") return "bg-emerald-500";
-    if (expenditureBarTone === "amber") return "bg-amber-500";
-    return "bg-rose-500";
-  }, [expenditureBarTone]);
-
   const originalDebt = useMemo(() => totalOriginalDebt(debts), [debts]);
   const remainingDebt = useMemo(() => totalRemainingDebt(debts), [debts]);
 
@@ -200,6 +166,12 @@ export function useBabylonEngine() {
           .reduce((sum, e) => sum + e.amount, 0)
       ),
     [expenses]
+  );
+
+  /** Lifetime expenditure total — ledger need/desire mix (not Triad month card). */
+  const lifetimeSpent = useMemo(
+    () => roundMoney(needSpend + desireSpend),
+    [needSpend, desireSpend]
   );
 
   const currentMonthKey = useMemo(
@@ -255,8 +227,36 @@ export function useBabylonEngine() {
     [currentMonthExpenditurePool, currentMonthSpent]
   );
 
-  /** Unspent current-month living allowance available for discretionary spend. */
-  const desiresPoolRemaining = currentMonthRemaining;
+  /** Golden Triad expenditure card — current calendar month only. */
+  const expenditurePool = currentMonthExpenditurePool;
+  const totalSpent = currentMonthSpent;
+
+  const expenditureRemaining = useMemo(
+    () => roundMoney(Math.max(0, expenditurePool - totalSpent)),
+    [expenditurePool, totalSpent]
+  );
+
+  const expenditureUsedPct = useMemo(() => {
+    if (expenditurePool <= 0) return 0;
+    return Math.min(100, Math.round((totalSpent / expenditurePool) * 100));
+  }, [totalSpent, expenditurePool]);
+
+  const expenditureRemainingPct = useMemo(
+    () => Math.max(0, 100 - expenditureUsedPct),
+    [expenditureUsedPct]
+  );
+
+  const expenditureBarTone = useMemo((): ExpenditureBarTone => {
+    if (expenditureRemainingPct > 40) return "emerald";
+    if (expenditureRemainingPct > 15) return "amber";
+    return "crimson";
+  }, [expenditureRemainingPct]);
+
+  const progressIndicatorClass = useMemo(() => {
+    if (expenditureBarTone === "emerald") return "bg-emerald-500";
+    if (expenditureBarTone === "amber") return "bg-amber-500";
+    return "bg-rose-500";
+  }, [expenditureBarTone]);
 
   const budgetVariances = useMemo(
     () => buildBudgetVariances(budgetTargets, currentMonthExpenses),
@@ -271,6 +271,16 @@ export function useBabylonEngine() {
     [budgetTargets]
   );
 
+  const essentialPlannedTotal = useMemo(
+    () =>
+      roundMoney(
+        budgetTargets
+          .filter((t) => t.isEssential)
+          .reduce((sum, t) => sum + Math.max(0, t.plannedAmount), 0)
+      ),
+    [budgetTargets]
+  );
+
   const budgetActualTotal = useMemo(
     () =>
       roundMoney(
@@ -279,9 +289,29 @@ export function useBabylonEngine() {
     [budgetVariances]
   );
 
-  const hourlyLaborRate = useMemo(
-    () => effectiveHourlyRate(incomes),
-    [incomes]
+  /** Unspent discretionary slice of the current-month 70% pool. */
+  const desiresPoolRemaining = useMemo(
+    () =>
+      computeDesiresPoolRemaining(
+        currentMonthExpenditurePool,
+        currentMonthNeed,
+        currentMonthDesire,
+        essentialPlannedTotal
+      ),
+    [
+      currentMonthExpenditurePool,
+      currentMonthNeed,
+      currentMonthDesire,
+      essentialPlannedTotal,
+    ]
+  );
+
+  /** Primary labor hourly rate for Affordability Anchor. */
+  const hourlyLaborRate = useMemo(() => primaryHourlyRate(incomes), [incomes]);
+
+  const tributeEngines = useMemo(
+    () => buildTributeEngineSnapshot(incomes, currentMonthKey),
+    [incomes, currentMonthKey]
   );
 
   const chartData = useMemo(
@@ -351,7 +381,8 @@ export function useBabylonEngine() {
       if (
         !input.source.trim() ||
         !Number.isFinite(input.amount) ||
-        input.amount <= 0
+        input.amount <= 0 ||
+        !input.kind
       ) {
         return false;
       }
@@ -366,6 +397,7 @@ export function useBabylonEngine() {
         amount: roundMoney(input.amount),
         date,
         interval: input.interval,
+        kind: input.kind,
         ...split,
       };
 
@@ -502,27 +534,42 @@ export function useBabylonEngine() {
     [budgetTargets]
   );
 
-  const deleteBudgetTarget = useCallback((id: string) => {
-    setBudgetTargets((prev) => prev.filter((t) => t.id !== id));
-    // Detach spend from the removed bucket — leave as uncategorized.
-    setExpenses((prev) =>
-      prev.map((e) =>
-        e.budgetCategoryId === id
-          ? { ...e, budgetCategoryId: undefined }
-          : e
-      )
-    );
-  }, []);
+  const deleteBudgetTarget = useCallback(
+    (id: string, reassignToId?: string | null) => {
+      setBudgetTargets((prev) => {
+        const canReassign =
+          typeof reassignToId === "string" &&
+          reassignToId !== id &&
+          prev.some((t) => t.id === reassignToId);
+        const targetId = canReassign ? reassignToId : null;
+
+        setExpenses((expensesPrev) =>
+          expensesPrev.map((e) => {
+            if (e.budgetCategoryId !== id) return e;
+            return targetId
+              ? { ...e, budgetCategoryId: targetId }
+              : { ...e, budgetCategoryId: undefined };
+          })
+        );
+
+        return prev.filter((t) => t.id !== id);
+      });
+    },
+    []
+  );
 
   const addBudgetTarget = useCallback(
-    (target: Omit<BudgetTarget, "id">): boolean => {
+    (
+      target: Omit<BudgetTarget, "id">,
+      options?: { closeModal?: boolean }
+    ): string | null => {
       const categoryName = target.categoryName.trim();
       if (
         !categoryName ||
         !Number.isFinite(target.plannedAmount) ||
         target.plannedAmount < 0
       ) {
-        return false;
+        return null;
       }
 
       const entry: BudgetTarget = {
@@ -533,8 +580,10 @@ export function useBabylonEngine() {
       };
 
       setBudgetTargets((prev) => [...prev, entry]);
-      setTributeOpen(false);
-      return true;
+      if (options?.closeModal !== false) {
+        setTributeOpen(false);
+      }
+      return entry.id;
     },
     []
   );
@@ -607,7 +656,15 @@ export function useBabylonEngine() {
   }, []);
 
   const deleteIncome = useCallback((id: string) => {
-    setIncomes((prev) => prev.filter((i) => i.id !== id));
+    setIncomes((prev) => {
+      const target = prev.find((i) => i.id === id);
+      if (target && target.debtShare > 0) {
+        setDebts((debtsPrev) =>
+          reverseDebtAllocation(debtsPrev, target.debtShare)
+        );
+      }
+      return prev.filter((i) => i.id !== id);
+    });
     setAllocations((prev) => prev.filter((a) => a.incomeId !== id));
   }, []);
 
@@ -668,10 +725,12 @@ export function useBabylonEngine() {
     totalIncome,
     needSpend,
     desireSpend,
+    lifetimeSpent,
     currentMonthNeed,
     currentMonthDesire,
     currentMonthRemaining,
     desiresPoolRemaining,
+    tributeEngines,
     budgetVariances,
     budgetPlannedTotal,
     budgetActualTotal,

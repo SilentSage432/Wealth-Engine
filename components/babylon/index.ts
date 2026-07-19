@@ -13,3 +13,4 @@ export { VaultLoading } from "@/components/babylon/vault-loading";
 export { WealthEngineDashboard } from "@/components/babylon/wealth-engine-dashboard";
 export { WisdomBox } from "@/components/babylon/wisdom-box";
 export { BudgetBlueprint } from "@/components/dashboard/BudgetBlueprint";
+export { TributeEnginesPanel } from "@/components/dashboard/TributeEnginesPanel";

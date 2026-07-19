@@ -10,6 +10,7 @@ import { QuickStats } from "@/components/babylon/quick-stats";
 import { VaultLoading } from "@/components/babylon/vault-loading";
 import { WisdomBox } from "@/components/babylon/wisdom-box";
 import { BudgetBlueprint } from "@/components/dashboard/BudgetBlueprint";
+import { TributeEnginesPanel } from "@/components/dashboard/TributeEnginesPanel";
 import { RecordTransactionModal } from "@/components/modals/RecordTransactionModal";
 import { useBabylonEngine } from "@/hooks/useBabylonEngine";
 import { cn } from "@/lib/utils";
@@ -23,8 +24,7 @@ export function WealthEngineDashboard() {
 
   const showOverview = engine.activeNav === "overview";
   const showWisdom = engine.activeNav === "wisdom";
-  const showLedgers =
-    engine.activeNav === "ledgers" || engine.activeNav === "overview";
+  const showLedgers = engine.activeNav === "ledgers";
 
   return (
     <div className="relative min-h-dvh overflow-x-clip bg-slate-950 text-slate-100 luxury-grid">
@@ -82,8 +82,10 @@ export function WealthEngineDashboard() {
                     desiresPoolRemaining={engine.desiresPoolRemaining}
                     hourlyLaborRate={engine.hourlyLaborRate}
                   />
+                  <TributeEnginesPanel snapshot={engine.tributeEngines} />
                   <BudgetBlueprint
                     variances={engine.budgetVariances}
+                    budgetTargets={engine.budgetTargets}
                     plannedTotal={engine.budgetPlannedTotal}
                     actualTotal={engine.budgetActualTotal}
                     expenditurePool={engine.currentMonthExpenditurePool}
@@ -121,31 +123,31 @@ export function WealthEngineDashboard() {
             </>
           )}
 
-          {showLedgers && engine.activeNav === "ledgers" && (
-            <BudgetBlueprint
-              variances={engine.budgetVariances}
-              plannedTotal={engine.budgetPlannedTotal}
-              actualTotal={engine.budgetActualTotal}
-              expenditurePool={engine.currentMonthExpenditurePool}
-              onUpdateTargetFull={engine.updateBudgetTargetFull}
-              onDeleteTarget={engine.deleteBudgetTarget}
-            />
-          )}
-
           {showLedgers && (
-            <LedgerMatrices
-              incomes={engine.incomes}
-              expenses={engine.expenses}
-              debts={engine.debts}
-              needSpend={engine.needSpend}
-              desireSpend={engine.desireSpend}
-              totalSpent={engine.totalSpent}
-              budgetTargets={engine.budgetTargets}
-              onOpenTribute={engine.openTribute}
-              onDeleteIncome={engine.deleteIncome}
-              onDeleteExpense={engine.deleteExpense}
-              onDeleteDebt={engine.deleteDebt}
-            />
+            <>
+              <BudgetBlueprint
+                variances={engine.budgetVariances}
+                budgetTargets={engine.budgetTargets}
+                plannedTotal={engine.budgetPlannedTotal}
+                actualTotal={engine.budgetActualTotal}
+                expenditurePool={engine.currentMonthExpenditurePool}
+                onUpdateTargetFull={engine.updateBudgetTargetFull}
+                onDeleteTarget={engine.deleteBudgetTarget}
+              />
+              <LedgerMatrices
+                incomes={engine.incomes}
+                expenses={engine.expenses}
+                debts={engine.debts}
+                needSpend={engine.needSpend}
+                desireSpend={engine.desireSpend}
+                totalSpent={engine.lifetimeSpent}
+                budgetTargets={engine.budgetTargets}
+                onOpenTribute={engine.openTribute}
+                onDeleteIncome={engine.deleteIncome}
+                onDeleteExpense={engine.deleteExpense}
+                onDeleteDebt={engine.deleteDebt}
+              />
+            </>
           )}
 
           <footer className="border-t border-slate-800/60 pt-6 pb-2 text-center text-xs text-slate-600">

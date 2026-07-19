@@ -1,5 +1,38 @@
 # Development Journal
 
+## 2026-07-19 — P2 Workflow Clarity
+
+### What changed
+- **Inline category create:** Expense tab gains “+ Create New Category Inline” nested form (name, cap, essential) via `addBudgetTarget(..., { closeModal: false })`; new bucket auto-selects without leaving the expense draft.
+- **Expense transaction date:** Visible date picker (no longer forced/hidden “today”); due date retained beside it.
+- **Mutation feedback:** Record Tribute surfaces inline error/success alerts when `addIncome` / `addExpense` / `addDebt` / `addBudgetTarget` reject or succeed at validation bounds.
+- **Over-plan banner:** Budget Blueprint warns when `budgetPlannedTotal` exceeds current-month 70% expenditure pool, with exact variance.
+- **Orphan reassignment:** `deleteBudgetTarget(id, reassignToId?)` reassigns linked expenses; delete confirm offers an alternate category select.
+- **Command Deck declutter:** `LedgerMatrices` render only on Ledger Matrices nav — overview keeps KPIs, engines, blueprint, analytics, wisdom.
+
+### Ownership
+- Entry UX: `components/modals/RecordTransactionModal.tsx`
+- Blueprint guardrails: `components/dashboard/BudgetBlueprint.tsx`
+- Mutations: `hooks/useBabylonEngine.ts` (`addBudgetTarget` → `string | null`, `deleteBudgetTarget` reassign)
+- Layout: `components/babylon/wealth-engine-dashboard.tsx`
+
+## 2026-07-19 — P0/P1 trust math + Tribute Engines
+
+### What changed
+- **Debt reverse amortization:** `reverseDebtAllocation` + `deleteIncome` restores creditor `remainingDebt` (clamped ≤ `totalDebt`).
+- **Golden Triad 70% card:** Uses current-month expenditure pool / spend / remaining (labeled “This Month”).
+- **Desires pool:** `computeDesiresPoolRemaining` — discretionary slice after needs reservation (actual needs ∪ essential planned caps).
+- **Affordability rate:** `primaryHourlyRate` — primary recurring labor only.
+- **IncomeStreamKind:** `primary | side_hustle | passive | other` on incomes; legacy soft-migrates to `primary`.
+- **Record Tribute:** Stream Classification toggle group on Income tab.
+- **Tribute Engines Breakdown:** Month total, primary vs secondary mix, per-kind MoM pulse (`TributeEnginesPanel`).
+
+### Ownership
+- Math: `lib/babylon/engine.ts`
+- Schema / migrate: `types/babylon.ts`, `lib/babylon/persistence.ts`, `lib/babylon/constants.ts`
+- State: `hooks/useBabylonEngine.ts`
+- UI: modal, `TributeEnginesPanel`, triad, affordability, ledger badges
+
 ## 2026-07-19 — Progressive Web App (installable standalone)
 
 ### What changed

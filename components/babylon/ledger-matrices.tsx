@@ -19,7 +19,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { INTERVAL_LABELS } from "@/lib/babylon/constants";
+import { INTERVAL_LABELS, STREAM_KIND_LABELS } from "@/lib/babylon/constants";
 import { isDueWithinWeek } from "@/lib/babylon/engine";
 import { cn, formatCurrency } from "@/lib/utils";
 import type {
@@ -148,6 +148,21 @@ export function LedgerMatrices({
                         <TableRow key={row.id}>
                           <TableCell className="font-medium text-slate-100">
                             {row.source}
+                            <span
+                              className={cn(
+                                "ml-2 inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium",
+                                row.kind === "side_hustle" &&
+                                  "bg-amber-500/10 text-amber-400",
+                                row.kind === "passive" &&
+                                  "bg-emerald-500/10 text-emerald-400",
+                                row.kind === "primary" &&
+                                  "bg-slate-700/50 text-slate-300",
+                                row.kind === "other" &&
+                                  "bg-slate-800 text-slate-500"
+                              )}
+                            >
+                              {STREAM_KIND_LABELS[row.kind]}
+                            </span>
                             {row.debtRedirected && (
                               <span className="ml-2 inline-flex rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-400">
                                 30% archive

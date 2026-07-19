@@ -2,6 +2,7 @@ import {
   BUDGET_WARNING_PCT,
   DEBT_RATE,
   EXPENDITURE_RATE,
+  STREAM_KIND_ORDER,
   WEALTH_RATE,
 } from "@/lib/babylon/constants";
 import type {
@@ -13,6 +14,9 @@ import type {
   ExpenseEntry,
   IncomeEntry,
   IncomeInterval,
+  IncomeStreamKind,
+  TributeEngineKindRow,
+  TributeEngineSnapshot,
 } from "@/types/babylon";
 
 /** Assumed productive hours per week for labor-equivalent math. */
@@ -26,6 +30,15 @@ export function formatMonthLabel(monthKey: string): string {
   const [year, month] = monthKey.split("-").map(Number);
   const date = new Date(year, month - 1, 1);
   return date.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
+}
+
+/** Previous calendar month key (YYYY-MM). */
+export function previousMonthKey(monthKey: string): string {
+  const [year, month] = monthKey.split("-").map(Number);
+  const date = new Date(year, month - 2, 1);
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  return `${y}-${m}`;
 }
 
 export function todayIso(): string {
@@ -72,10 +85,19 @@ export function monthlyIncomeEquivalent(
   }
 }
 
-/** Aggregate effective hourly rate from active recurring income streams. */
-export function effectiveHourlyRate(incomes: IncomeEntry[]): number {
+/**
+ * Aggregate effective hourly rate from recurring income streams.
+ * Optionally restrict to specific stream kinds (e.g. primary labor only).
+ */
+export function effectiveHourlyRate(
+  incomes: IncomeEntry[],
+  kinds?: ReadonlyArray<IncomeStreamKind>
+): number {
+  const scoped = kinds
+    ? incomes.filter((entry) => kinds.includes(entry.kind))
+    : incomes;
   const monthly = roundMoney(
-    incomes.reduce(
+    scoped.reduce(
       (sum, entry) =>
         sum + monthlyIncomeEquivalent(entry.amount, entry.interval),
       0
@@ -84,6 +106,11 @@ export function effectiveHourlyRate(incomes: IncomeEntry[]): number {
   if (monthly <= 0) return 0;
   const hoursPerMonth = (WORK_HOURS_PER_WEEK * 52) / 12;
   return roundMoney(monthly / hoursPerMonth);
+}
+
+/** Primary labor hourly rate — excludes side hustles, passive, and other. */
+export function primaryHourlyRate(incomes: IncomeEntry[]): number {
+  return effectiveHourlyRate(incomes, ["primary"]);
 }
 
 /** Labor hours required to fund an amount at the given hourly rate. */
@@ -106,6 +133,28 @@ export function desiresPoolSharePct(
     return null;
   }
   return Math.round((amount / desiresPoolRemaining) * 1000) / 10;
+}
+
+/**
+ * Unspent discretionary slice of the current-month 70% pool.
+ * Needs reserve the greater of actual need spend and essential planned caps;
+ * desires draw from what remains.
+ */
+export function computeDesiresPoolRemaining(
+  monthExpenditurePool: number,
+  monthNeedSpend: number,
+  monthDesireSpend: number,
+  essentialPlannedTotal: number
+): number {
+  const needsReservation = Math.max(
+    Math.max(0, monthNeedSpend),
+    Math.max(0, essentialPlannedTotal)
+  );
+  const discretionaryCap = Math.max(
+    0,
+    monthExpenditurePool - needsReservation
+  );
+  return roundMoney(Math.max(0, discretionaryCap - Math.max(0, monthDesireSpend)));
 }
 
 export function allocateIncome(
@@ -133,12 +182,24 @@ export function allocateIncome(
   };
 }
 
+/** Ensure remainingDebt stays within [0, totalDebt]. */
+export function clampDebtBalances(debts: DebtEntry[]): DebtEntry[] {
+  return debts.map((d) => ({
+    ...d,
+    totalDebt: roundMoney(Math.max(0, d.totalDebt)),
+    remainingDebt: roundMoney(
+      Math.min(Math.max(0, d.totalDebt), Math.max(0, d.remainingDebt))
+    ),
+    monthlyAllocation: roundMoney(Math.max(0, d.monthlyAllocation)),
+  }));
+}
+
 export function applyDebtAllocation(
   debts: DebtEntry[],
   amount: number
 ): DebtEntry[] {
   if (amount <= 0 || debts.length === 0) {
-    return debts;
+    return clampDebtBalances(debts);
   }
 
   let remaining = amount;
@@ -154,7 +215,39 @@ export function applyDebtAllocation(
     remaining = roundMoney(remaining - applied);
   }
 
-  return active;
+  return clampDebtBalances(active);
+}
+
+/**
+ * Reverse a prior debt waterfall application by restoring remaining balances
+ * (most-cleared creditors first), never exceeding totalDebt.
+ */
+export function reverseDebtAllocation(
+  debts: DebtEntry[],
+  amount: number
+): DebtEntry[] {
+  if (amount <= 0 || debts.length === 0) {
+    return clampDebtBalances(debts);
+  }
+
+  let remaining = amount;
+  const active = debts.map((d) => ({ ...d }));
+  const ordered = [...active].sort((a, b) => {
+    const clearedA = a.totalDebt - a.remainingDebt;
+    const clearedB = b.totalDebt - b.remainingDebt;
+    return clearedB - clearedA;
+  });
+
+  for (const debt of ordered) {
+    if (remaining <= 0) break;
+    const room = roundMoney(Math.max(0, debt.totalDebt - debt.remainingDebt));
+    if (room <= 0) continue;
+    const restored = Math.min(room, remaining);
+    debt.remainingDebt = roundMoney(debt.remainingDebt + restored);
+    remaining = roundMoney(remaining - restored);
+  }
+
+  return clampDebtBalances(active);
 }
 
 export function totalRemainingDebt(debts: DebtEntry[]): number {
@@ -236,4 +329,65 @@ export function buildBudgetVariances(
       tone,
     };
   });
+}
+
+function sumIncomeByKind(
+  incomes: IncomeEntry[],
+  monthKey: string
+): Record<IncomeStreamKind, number> {
+  const totals: Record<IncomeStreamKind, number> = {
+    primary: 0,
+    side_hustle: 0,
+    passive: 0,
+    other: 0,
+  };
+  for (const entry of incomes) {
+    if (monthKeyFromDate(entry.date) !== monthKey) continue;
+    totals[entry.kind] = roundMoney(totals[entry.kind] + entry.amount);
+  }
+  return totals;
+}
+
+/** Build the Tribute Engines scoreboard for a calendar month. */
+export function buildTributeEngineSnapshot(
+  incomes: IncomeEntry[],
+  monthKey: string
+): TributeEngineSnapshot {
+  const current = sumIncomeByKind(incomes, monthKey);
+  const prior = sumIncomeByKind(incomes, previousMonthKey(monthKey));
+  const monthTotal = roundMoney(
+    STREAM_KIND_ORDER.reduce((sum, kind) => sum + current[kind], 0)
+  );
+  const primaryAmount = current.primary;
+  const secondaryAmount = roundMoney(monthTotal - primaryAmount);
+
+  const byKind: TributeEngineKindRow[] = STREAM_KIND_ORDER.map((kind) => {
+    const amount = current[kind];
+    const priorAmount = prior[kind];
+    const pctOfMonth =
+      monthTotal <= 0 ? 0 : Math.round((amount / monthTotal) * 1000) / 10;
+    let momPct: number | null = null;
+    if (priorAmount > 0) {
+      momPct = Math.round(((amount - priorAmount) / priorAmount) * 1000) / 10;
+    } else if (amount > 0 && priorAmount === 0) {
+      momPct = null; // new engine — no prior base to percentage
+    }
+    return { kind, amount, pctOfMonth, momPct };
+  });
+
+  return {
+    monthKey,
+    monthTotal,
+    primaryAmount,
+    secondaryAmount,
+    primaryPct:
+      monthTotal <= 0
+        ? 0
+        : Math.round((primaryAmount / monthTotal) * 1000) / 10,
+    secondaryPct:
+      monthTotal <= 0
+        ? 0
+        : Math.round((secondaryAmount / monthTotal) * 1000) / 10,
+    byKind,
+  };
 }

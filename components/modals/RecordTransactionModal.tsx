@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { INTERVAL_LABELS } from "@/lib/babylon/constants";
+import { INTERVAL_LABELS, STREAM_KIND_LABELS, STREAM_KIND_ORDER } from "@/lib/babylon/constants";
 import { todayIso } from "@/lib/babylon/engine";
 import { cn, formatCurrency } from "@/lib/utils";
 import type {
@@ -31,8 +31,14 @@ import type {
   ExpenseInput,
   IncomeInput,
   IncomeInterval,
+  IncomeStreamKind,
   TributeMode,
 } from "@/types/babylon";
+
+type FormFeedback = {
+  tone: "error" | "success";
+  message: string;
+};
 
 interface RecordTransactionModalProps {
   open: boolean;
@@ -45,7 +51,10 @@ interface RecordTransactionModalProps {
   onRecordIncome: (input: IncomeInput) => boolean;
   onRecordExpense: (input: ExpenseInput) => boolean;
   onRecordDebt: (input: DebtInput) => boolean;
-  onAddBudgetTarget: (target: Omit<BudgetTarget, "id">) => boolean;
+  onAddBudgetTarget: (
+    target: Omit<BudgetTarget, "id">,
+    options?: { closeModal?: boolean }
+  ) => string | null;
 }
 
 const MODE_COPY: Record<
@@ -96,6 +105,7 @@ export function RecordTransactionModal({
   const [incomeDate, setIncomeDate] = useState(todayIso());
   const [incomeInterval, setIncomeInterval] =
     useState<IncomeInterval>("monthly");
+  const [incomeKind, setIncomeKind] = useState<IncomeStreamKind>("primary");
 
   const [expenseName, setExpenseName] = useState("");
   const [expenseAmount, setExpenseAmount] = useState("");
@@ -111,6 +121,11 @@ export function RecordTransactionModal({
   const [budgetName, setBudgetName] = useState("");
   const [budgetCap, setBudgetCap] = useState("");
   const [budgetIsEssential, setBudgetIsEssential] = useState(true);
+  const [inlineCategoryOpen, setInlineCategoryOpen] = useState(false);
+  const [inlineCategoryName, setInlineCategoryName] = useState("");
+  const [inlineCategoryCap, setInlineCategoryCap] = useState("");
+  const [inlineCategoryEssential, setInlineCategoryEssential] = useState(true);
+  const [formFeedback, setFormFeedback] = useState<FormFeedback | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -118,6 +133,7 @@ export function RecordTransactionModal({
     setIncomeAmount("");
     setIncomeDate(todayIso());
     setIncomeInterval("monthly");
+    setIncomeKind("primary");
     setExpenseName("");
     setExpenseAmount("");
     setExpenseDate(todayIso());
@@ -134,6 +150,11 @@ export function RecordTransactionModal({
     setBudgetName("");
     setBudgetCap("");
     setBudgetIsEssential(true);
+    setInlineCategoryOpen(false);
+    setInlineCategoryName("");
+    setInlineCategoryCap("");
+    setInlineCategoryEssential(true);
+    setFormFeedback(null);
     // Reset only when the modal opens or the active profile tab changes —
     // live `budgetTargets` updates are handled by the sync effect below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -170,49 +191,194 @@ export function RecordTransactionModal({
 
   const handleBudgetCategoryChange = (id: string) => {
     setExpenseBudgetId(id);
+    setFormFeedback(null);
     const target = budgetTargets.find((t) => t.id === id);
     if (target) setExpenseIsDesire(!target.isEssential);
   };
 
-  const handleSubmit = (event: FormEvent) => {
-    event.preventDefault();
-
-    if (mode === "income") {
-      onRecordIncome({
-        source: incomeSource,
-        amount: Number.parseFloat(incomeAmount),
-        date: incomeDate,
-        interval: incomeInterval,
+  const handleCreateInlineCategory = () => {
+    const cap = Number.parseFloat(inlineCategoryCap);
+    if (!inlineCategoryName.trim()) {
+      setFormFeedback({
+        tone: "error",
+        message: "Enter a category name before creating the bucket.",
+      });
+      return;
+    }
+    if (!Number.isFinite(cap) || cap < 0) {
+      setFormFeedback({
+        tone: "error",
+        message: "Planned cap must be zero or a positive amount.",
       });
       return;
     }
 
+    const newId = onAddBudgetTarget(
+      {
+        categoryName: inlineCategoryName.trim(),
+        plannedAmount: cap,
+        isEssential: inlineCategoryEssential,
+      },
+      { closeModal: false }
+    );
+
+    if (!newId) {
+      setFormFeedback({
+        tone: "error",
+        message: "Could not create category. Check the name and planned cap.",
+      });
+      return;
+    }
+
+    setExpenseBudgetId(newId);
+    setExpenseIsDesire(!inlineCategoryEssential);
+    setInlineCategoryOpen(false);
+    setInlineCategoryName("");
+    setInlineCategoryCap("");
+    setInlineCategoryEssential(true);
+    setFormFeedback({
+      tone: "success",
+      message: "Category created — selected for this expense.",
+    });
+  };
+
+  const handleSubmit = (event: FormEvent) => {
+    event.preventDefault();
+    setFormFeedback(null);
+
+    if (mode === "income") {
+      const amount = Number.parseFloat(incomeAmount);
+      if (!incomeSource.trim() || !Number.isFinite(amount) || amount <= 0) {
+        setFormFeedback({
+          tone: "error",
+          message: "Income needs a source and a positive amount.",
+        });
+        return;
+      }
+      if (!incomeDate) {
+        setFormFeedback({
+          tone: "error",
+          message: "Select a tribute date for this income.",
+        });
+        return;
+      }
+      const ok = onRecordIncome({
+        source: incomeSource,
+        amount,
+        date: incomeDate,
+        interval: incomeInterval,
+        kind: incomeKind,
+      });
+      if (!ok) {
+        setFormFeedback({
+          tone: "error",
+          message:
+            "Income was rejected. Check amount bounds and that the date is valid.",
+        });
+      }
+      return;
+    }
+
     if (mode === "expense") {
-      onRecordExpense({
+      const amount = Number.parseFloat(expenseAmount);
+      if (!expenseName.trim() || !Number.isFinite(amount) || amount <= 0) {
+        setFormFeedback({
+          tone: "error",
+          message: "Expense needs a name and a positive amount.",
+        });
+        return;
+      }
+      if (!expenseBudgetId) {
+        setFormFeedback({
+          tone: "error",
+          message:
+            "Select a budget category, or create one inline below the selector.",
+        });
+        return;
+      }
+      if (!expenseDate) {
+        setFormFeedback({
+          tone: "error",
+          message: "Select the transaction date for this expense.",
+        });
+        return;
+      }
+      if (!expenseDueDate) {
+        setFormFeedback({
+          tone: "error",
+          message: "Select a due date for this expense.",
+        });
+        return;
+      }
+      const ok = onRecordExpense({
         name: expenseName,
-        amount: Number.parseFloat(expenseAmount),
+        amount,
         date: expenseDate,
         dueDate: expenseDueDate,
         category: expenseIsDesire ? "desire" : "need",
         budgetCategoryId: expenseBudgetId,
       });
+      if (!ok) {
+        setFormFeedback({
+          tone: "error",
+          message:
+            "Expense was rejected. Check amount, dates, and category selection.",
+        });
+      }
       return;
     }
 
     if (mode === "debt") {
-      onRecordDebt({
+      const total = Number.parseFloat(debtTotal);
+      const monthly = Number.parseFloat(debtMonthly);
+      if (!debtCreditor.trim() || !Number.isFinite(total) || total <= 0) {
+        setFormFeedback({
+          tone: "error",
+          message: "Debt needs a creditor and a positive total.",
+        });
+        return;
+      }
+      if (!Number.isFinite(monthly) || monthly <= 0) {
+        setFormFeedback({
+          tone: "error",
+          message: "Monthly allocation must be a positive amount.",
+        });
+        return;
+      }
+      const ok = onRecordDebt({
         creditor: debtCreditor,
-        totalDebt: Number.parseFloat(debtTotal),
-        monthlyAllocation: Number.parseFloat(debtMonthly),
+        totalDebt: total,
+        monthlyAllocation: monthly,
       });
+      if (!ok) {
+        setFormFeedback({
+          tone: "error",
+          message:
+            "Debt was rejected. Check totals and monthly allocation bounds.",
+        });
+      }
       return;
     }
 
-    onAddBudgetTarget({
-      categoryName: budgetName,
-      plannedAmount: Number.parseFloat(budgetCap),
+    const cap = Number.parseFloat(budgetCap);
+    if (!budgetName.trim() || !Number.isFinite(cap) || cap < 0) {
+      setFormFeedback({
+        tone: "error",
+        message: "Budget category needs a name and a non-negative planned cap.",
+      });
+      return;
+    }
+    const newId = onAddBudgetTarget({
+      categoryName: budgetName.trim(),
+      plannedAmount: cap,
       isEssential: budgetIsEssential,
     });
+    if (!newId) {
+      setFormFeedback({
+        tone: "error",
+        message: "Could not create budget category. Check the fields and retry.",
+      });
+    }
   };
 
   const parsedIncome = Number.parseFloat(incomeAmount);
@@ -286,6 +452,37 @@ export function RecordTransactionModal({
                   onChange={(e) => setIncomeAmount(e.target.value)}
                   required={mode === "income"}
                 />
+              </div>
+              <div className="space-y-2">
+                <Label>Stream Classification</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  {STREAM_KIND_ORDER.map((kind) => {
+                    const active = incomeKind === kind;
+                    return (
+                      <button
+                        key={kind}
+                        type="button"
+                        onClick={() => setIncomeKind(kind)}
+                        className={cn(
+                          "min-h-11 rounded-md border px-3 py-2 text-left text-xs font-medium transition-colors sm:text-sm",
+                          active
+                            ? kind === "side_hustle"
+                              ? "border-amber-500/50 bg-amber-500/10 text-amber-300"
+                              : kind === "passive"
+                                ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-300"
+                                : "border-slate-500 bg-slate-800 text-slate-100"
+                            : "border-slate-800 bg-slate-950/50 text-slate-400 hover:border-slate-700 hover:text-slate-200"
+                        )}
+                      >
+                        {STREAM_KIND_LABELS[kind]}
+                      </button>
+                    );
+                  })}
+                </div>
+                <p className="text-[11px] text-slate-500">
+                  Classify engines so primary labor stays distinct from
+                  multiplication streams.
+                </p>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
@@ -400,23 +597,108 @@ export function RecordTransactionModal({
                   </Select>
                 ) : (
                   <div className="rounded-md border border-dashed border-slate-800 bg-slate-950/50 px-3 py-3 text-xs leading-relaxed text-slate-500">
-                    No budget buckets yet. Switch to the{" "}
-                    <span className="text-slate-300">Budget Category</span> tab
-                    to map your blueprint first.
+                    No budget buckets yet. Create one inline below without
+                    leaving this expense.
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setInlineCategoryOpen((open) => !open);
+                    setFormFeedback(null);
+                  }}
+                  className="text-left text-xs font-medium text-emerald-400/90 transition-colors hover:text-emerald-300"
+                >
+                  {inlineCategoryOpen
+                    ? "− Cancel New Category"
+                    : "+ Create New Category Inline"}
+                </button>
+                {inlineCategoryOpen && (
+                  <div className="space-y-3 rounded-lg border border-slate-800 bg-slate-950/60 p-3">
+                    <div className="space-y-2">
+                      <Label htmlFor="inline-category-name">Bucket Name</Label>
+                      <Input
+                        id="inline-category-name"
+                        placeholder="e.g. Sustenance"
+                        value={inlineCategoryName}
+                        onChange={(e) => setInlineCategoryName(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="inline-category-cap">Planned Cap</Label>
+                      <Input
+                        id="inline-category-cap"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="0.00"
+                        value={inlineCategoryCap}
+                        onChange={(e) => setInlineCategoryCap(e.target.value)}
+                      />
+                    </div>
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={cn(
+                            "text-xs font-medium",
+                            inlineCategoryEssential
+                              ? "text-emerald-400"
+                              : "text-slate-500"
+                          )}
+                        >
+                          Essential
+                        </span>
+                        <Switch
+                          checked={!inlineCategoryEssential}
+                          onCheckedChange={(checked) =>
+                            setInlineCategoryEssential(!checked)
+                          }
+                          aria-label="Toggle inline category essential"
+                        />
+                        <span
+                          className={cn(
+                            "text-xs font-medium",
+                            !inlineCategoryEssential
+                              ? "text-amber-400"
+                              : "text-slate-500"
+                          )}
+                        >
+                          Desire
+                        </span>
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={handleCreateInlineCategory}
+                      >
+                        Create & Select
+                      </Button>
+                    </div>
                   </div>
                 )}
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="expense-due-date">Due Date</Label>
-                <Input
-                  id="expense-due-date"
-                  type="date"
-                  value={expenseDueDate}
-                  onChange={(e) => setExpenseDueDate(e.target.value)}
-                  required={mode === "expense"}
-                />
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="expense-date">Transaction Date</Label>
+                  <Input
+                    id="expense-date"
+                    type="date"
+                    value={expenseDate}
+                    onChange={(e) => setExpenseDate(e.target.value)}
+                    required={mode === "expense"}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="expense-due-date">Due Date</Label>
+                  <Input
+                    id="expense-due-date"
+                    type="date"
+                    value={expenseDueDate}
+                    onChange={(e) => setExpenseDueDate(e.target.value)}
+                    required={mode === "expense"}
+                  />
+                </div>
               </div>
-              <input type="hidden" value={expenseDate} readOnly />
               <div className="flex items-center justify-between rounded-lg border border-slate-800 bg-slate-950/50 px-4 py-3">
                 <div>
                   <p className="text-sm font-medium text-slate-200">
@@ -567,6 +849,20 @@ export function RecordTransactionModal({
               </div>
             </TabsContent>
 
+            {formFeedback && (
+              <div
+                role="alert"
+                className={cn(
+                  "mt-4 rounded-lg border px-3 py-2.5 text-sm",
+                  formFeedback.tone === "error"
+                    ? "border-rose-900/60 bg-rose-500/10 text-rose-300"
+                    : "border-emerald-900/60 bg-emerald-500/10 text-emerald-300"
+                )}
+              >
+                {formFeedback.message}
+              </div>
+            )}
+
             <DialogFooter className="mt-6">
               <Button
                 type="button"
@@ -577,7 +873,7 @@ export function RecordTransactionModal({
               </Button>
               <Button
                 type="submit"
-                disabled={mode === "expense" && !hasBudgetCategories}
+                disabled={mode === "expense" && !expenseBudgetId}
               >
                 {copy.submit}
               </Button>

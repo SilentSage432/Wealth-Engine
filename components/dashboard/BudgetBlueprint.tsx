@@ -31,12 +31,20 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { cn, formatCurrency } from "@/lib/utils";
 import type { BudgetCategoryVariance, BudgetTarget } from "@/types/babylon";
 
 interface BudgetBlueprintProps {
   variances: BudgetCategoryVariance[];
+  budgetTargets: BudgetTarget[];
   plannedTotal: number;
   actualTotal: number;
   expenditurePool: number;
@@ -44,11 +52,12 @@ interface BudgetBlueprintProps {
     id: string,
     updatedData: Partial<Omit<BudgetTarget, "id">>
   ) => boolean;
-  onDeleteTarget: (id: string) => void;
+  onDeleteTarget: (id: string, reassignToId?: string | null) => void;
 }
 
 export function BudgetBlueprint({
   variances,
+  budgetTargets,
   plannedTotal,
   actualTotal,
   expenditurePool,
@@ -60,6 +69,7 @@ export function BudgetBlueprint({
   const [draftCap, setDraftCap] = useState("");
   const [draftEssential, setDraftEssential] = useState(true);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [reassignToId, setReassignToId] = useState<string>("");
 
   useEffect(() => {
     if (!editing) return;
@@ -67,17 +77,29 @@ export function BudgetBlueprint({
     setDraftCap(String(editing.plannedAmount));
     setDraftEssential(editing.isEssential);
     setConfirmDelete(false);
-  }, [editing]);
+    const alternatives = budgetTargets.filter((t) => t.id !== editing.id);
+    setReassignToId(alternatives[0]?.id ?? "");
+  }, [editing, budgetTargets]);
 
   const remainingTotal = Math.max(0, plannedTotal - actualTotal);
   const poolPressure =
     expenditurePool > 0
       ? Math.round((plannedTotal / expenditurePool) * 100)
       : null;
+  const overPlanAmount =
+    plannedTotal > expenditurePool
+      ? Math.round((plannedTotal - expenditurePool) * 100) / 100
+      : 0;
+  const isOverPlanned = overPlanAmount > 0;
+
+  const reassignmentOptions = editing
+    ? budgetTargets.filter((t) => t.id !== editing.id)
+    : [];
 
   const closeEditor = () => {
     setEditing(null);
     setConfirmDelete(false);
+    setReassignToId("");
   };
 
   const handleSave = (event: FormEvent) => {
@@ -94,7 +116,11 @@ export function BudgetBlueprint({
 
   const handleDelete = () => {
     if (!editing) return;
-    onDeleteTarget(editing.id);
+    const target =
+      reassignmentOptions.length > 0 && reassignToId
+        ? reassignToId
+        : null;
+    onDeleteTarget(editing.id, target);
     closeEditor();
   };
 
@@ -137,6 +163,32 @@ export function BudgetBlueprint({
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
+          {isOverPlanned && (
+            <div
+              role="alert"
+              className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3"
+            >
+              <p className="text-sm font-medium text-amber-200">
+                Budget over-planned vs. this month&apos;s 70% pool
+              </p>
+              <p className="mt-1 text-xs leading-relaxed text-amber-200/80">
+                Planned caps total{" "}
+                <span className="tabular-nums font-medium text-amber-100">
+                  {formatCurrency(plannedTotal)}
+                </span>
+                , exceeding the Necessary Expenditures pool of{" "}
+                <span className="tabular-nums font-medium text-amber-100">
+                  {formatCurrency(expenditurePool)}
+                </span>{" "}
+                by{" "}
+                <span className="tabular-nums font-semibold text-amber-100">
+                  {formatCurrency(overPlanAmount)}
+                </span>
+                . Trim category caps or grow this month&apos;s income before
+                over-committing living allowance.
+              </p>
+            </div>
+          )}
           {variances.length === 0 ? (
             <div className="rounded-lg border border-dashed border-slate-800 bg-slate-950/40 px-4 py-10 text-center">
               <p className="font-[family-name:var(--font-display)] text-lg text-slate-200">
@@ -368,10 +420,34 @@ export function BudgetBlueprint({
             <AlertDialogTitle>Delete this budget bucket?</AlertDialogTitle>
             <AlertDialogDescription>
               &ldquo;{editing?.categoryName}&rdquo; will be removed from your
-              blueprint. Linked expenses stay in the ledger as Uncategorized.
-              This cannot be undone.
+              blueprint. Linked expenses can be reassigned to another category,
+              or left Uncategorized if none remains. This cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {reassignmentOptions.length > 0 ? (
+            <div className="space-y-2">
+              <Label htmlFor="reassign-category">
+                Reassign orphan expenses to
+              </Label>
+              <Select value={reassignToId} onValueChange={setReassignToId}>
+                <SelectTrigger id="reassign-category">
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {reassignmentOptions.map((target) => (
+                    <SelectItem key={target.id} value={target.id}>
+                      {target.categoryName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : (
+            <p className="text-xs text-slate-500">
+              No alternative buckets remain — linked expenses will become
+              Uncategorized.
+            </p>
+          )}
           <AlertDialogFooter>
             <AlertDialogCancel>Keep Category</AlertDialogCancel>
             <AlertDialogAction
