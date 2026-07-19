@@ -1,0 +1,134 @@
+@import "tailwindcss";
+
+:root {
+  --background: #020617;
+  --foreground: #f1f5f9;
+  --panel: #0f172a;
+  --panel-border: #1e293b;
+  --emerald: #10b981;
+  --amber: #f59e0b;
+  --crimson: #ef4444;
+  --muted: #94a3b8;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-body);
+  --font-display: var(--font-display);
+  --font-mono: var(--font-geist-mono);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-body), ui-sans-serif, system-ui, sans-serif;
+  min-height: 100vh;
+}
+
+::selection {
+  background: rgba(16, 185, 129, 0.35);
+  color: #ecfdf5;
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes pulse-soft {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes marquee-fade {
+  0%,
+  15% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  20%,
+  80% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  85%,
+  100% {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+
+.animate-fade-up {
+  animation: fade-up 0.55s ease-out both;
+}
+
+.animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(16, 185, 129, 0.08),
+    transparent
+  );
+  background-size: 200% 100%;
+  animation: shimmer 3.5s ease-in-out infinite;
+}
+
+.animate-pulse-soft {
+  animation: pulse-soft 3s ease-in-out infinite;
+}
+
+.wisdom-fade {
+  animation: marquee-fade 8s ease-in-out infinite;
+}
+
+.luxury-grid {
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(16, 185, 129, 0.12), transparent),
+    radial-gradient(ellipse 60% 40% at 100% 0%, rgba(245, 158, 11, 0.06), transparent),
+    linear-gradient(rgba(30, 41, 59, 0.35) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(30, 41, 59, 0.35) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 100%, 48px 48px, 48px 48px;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 999px;
+}

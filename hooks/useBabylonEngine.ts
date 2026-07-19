@@ -1,0 +1,479 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import {
+  BABYLON_WISDOM,
+  DONUT_COLORS,
+  EMPTY_STATE,
+} from "@/lib/babylon/constants";
+import {
+  allocateIncome,
+  applyDebtAllocation,
+  buildChartData,
+  monthKeyFromDate,
+  roundMoney,
+  todayIso,
+  totalOriginalDebt,
+  totalRemainingDebt,
+} from "@/lib/babylon/engine";
+import {
+  clearPersistedState,
+  loadPersistedState,
+  savePersistedState,
+} from "@/lib/babylon/persistence";
+import { generateId } from "@/lib/utils";
+import type {
+  AllocationEvent,
+  DebtEntry,
+  DebtInput,
+  DonutSlice,
+  ExpenditureBarTone,
+  ExpenseEntry,
+  ExpenseInput,
+  IncomeEntry,
+  IncomeInput,
+  NavSection,
+  PersistedState,
+  TributeMode,
+} from "@/types/babylon";
+
+export function useBabylonEngine() {
+  const [hydrated, setHydrated] = useState(false);
+  const [incomes, setIncomes] = useState<IncomeEntry[]>([]);
+  const [expenses, setExpenses] = useState<ExpenseEntry[]>([]);
+  const [debts, setDebts] = useState<DebtEntry[]>([]);
+  const [allocations, setAllocations] = useState<AllocationEvent[]>([]);
+  const [displayName, setDisplayName] = useState("Steward");
+
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [activeNav, setActiveNav] = useState<NavSection>("overview");
+  const [clock, setClock] = useState(() => new Date());
+  const [wisdomIndex, setWisdomIndex] = useState(0);
+
+  const [tributeOpen, setTributeOpen] = useState(false);
+  const [tributeMode, setTributeMode] = useState<TributeMode>("income");
+
+  useEffect(() => {
+    const stored = loadPersistedState();
+    setIncomes(stored.incomes);
+    setExpenses(stored.expenses);
+    setDebts(stored.debts);
+    setAllocations(stored.allocations);
+    setDisplayName(stored.displayName);
+    setHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    const payload: PersistedState = {
+      incomes,
+      expenses,
+      debts,
+      allocations,
+      displayName,
+    };
+    savePersistedState(payload);
+  }, [hydrated, incomes, expenses, debts, allocations, displayName]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setClock(new Date()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setWisdomIndex((prev) => (prev + 1) % BABYLON_WISDOM.length);
+    }, 8000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const hasActiveDebt = useMemo(
+    () => debts.some((d) => d.remainingDebt > 0),
+    [debts]
+  );
+
+  const goldRetained = useMemo(
+    () => roundMoney(allocations.reduce((sum, a) => sum + a.wealth, 0)),
+    [allocations]
+  );
+
+  const debtAllocated = useMemo(
+    () => roundMoney(allocations.reduce((sum, a) => sum + a.debt, 0)),
+    [allocations]
+  );
+
+  const expenditurePool = useMemo(
+    () => roundMoney(allocations.reduce((sum, a) => sum + a.expenditure, 0)),
+    [allocations]
+  );
+
+  const totalSpent = useMemo(
+    () => roundMoney(expenses.reduce((sum, e) => sum + e.amount, 0)),
+    [expenses]
+  );
+
+  const expenditureRemaining = useMemo(
+    () => roundMoney(Math.max(0, expenditurePool - totalSpent)),
+    [expenditurePool, totalSpent]
+  );
+
+  const expenditureUsedPct = useMemo(() => {
+    if (expenditurePool <= 0) return 0;
+    return Math.min(100, Math.round((totalSpent / expenditurePool) * 100));
+  }, [totalSpent, expenditurePool]);
+
+  const expenditureRemainingPct = useMemo(
+    () => Math.max(0, 100 - expenditureUsedPct),
+    [expenditureUsedPct]
+  );
+
+  const expenditureBarTone = useMemo((): ExpenditureBarTone => {
+    if (expenditureRemainingPct > 40) return "emerald";
+    if (expenditureRemainingPct > 15) return "amber";
+    return "crimson";
+  }, [expenditureRemainingPct]);
+
+  const progressIndicatorClass = useMemo(() => {
+    if (expenditureBarTone === "emerald") return "bg-emerald-500";
+    if (expenditureBarTone === "amber") return "bg-amber-500";
+    return "bg-rose-500";
+  }, [expenditureBarTone]);
+
+  const originalDebt = useMemo(() => totalOriginalDebt(debts), [debts]);
+  const remainingDebt = useMemo(() => totalRemainingDebt(debts), [debts]);
+
+  const clearedDebt = useMemo(
+    () => roundMoney(Math.max(0, originalDebt - remainingDebt)),
+    [originalDebt, remainingDebt]
+  );
+
+  const debtClearPct = useMemo(() => {
+    if (originalDebt <= 0) return 100;
+    return Math.min(100, Math.round((clearedDebt / originalDebt) * 100));
+  }, [clearedDebt, originalDebt]);
+
+  const totalIncome = useMemo(
+    () => roundMoney(incomes.reduce((sum, i) => sum + i.amount, 0)),
+    [incomes]
+  );
+
+  const needSpend = useMemo(
+    () =>
+      roundMoney(
+        expenses
+          .filter((e) => e.category === "need")
+          .reduce((sum, e) => sum + e.amount, 0)
+      ),
+    [expenses]
+  );
+
+  const desireSpend = useMemo(
+    () =>
+      roundMoney(
+        expenses
+          .filter((e) => e.category === "desire")
+          .reduce((sum, e) => sum + e.amount, 0)
+      ),
+    [expenses]
+  );
+
+  const currentMonthKey = useMemo(
+    () => monthKeyFromDate(todayIso()),
+    // Recompute when the calendar day may roll over with the live clock.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [clock]
+  );
+
+  const currentMonthExpenses = useMemo(
+    () => expenses.filter((e) => monthKeyFromDate(e.date) === currentMonthKey),
+    [expenses, currentMonthKey]
+  );
+
+  const currentMonthNeed = useMemo(
+    () =>
+      roundMoney(
+        currentMonthExpenses
+          .filter((e) => e.category === "need")
+          .reduce((sum, e) => sum + e.amount, 0)
+      ),
+    [currentMonthExpenses]
+  );
+
+  const currentMonthDesire = useMemo(
+    () =>
+      roundMoney(
+        currentMonthExpenses
+          .filter((e) => e.category === "desire")
+          .reduce((sum, e) => sum + e.amount, 0)
+      ),
+    [currentMonthExpenses]
+  );
+
+  const currentMonthExpenditurePool = useMemo(
+    () =>
+      roundMoney(
+        allocations
+          .filter((a) => a.monthKey === currentMonthKey)
+          .reduce((sum, a) => sum + a.expenditure, 0)
+      ),
+    [allocations, currentMonthKey]
+  );
+
+  const currentMonthSpent = useMemo(
+    () => roundMoney(currentMonthNeed + currentMonthDesire),
+    [currentMonthNeed, currentMonthDesire]
+  );
+
+  const currentMonthRemaining = useMemo(
+    () =>
+      roundMoney(Math.max(0, currentMonthExpenditurePool - currentMonthSpent)),
+    [currentMonthExpenditurePool, currentMonthSpent]
+  );
+
+  const chartData = useMemo(
+    () => buildChartData(allocations),
+    [allocations]
+  );
+
+  const wealthSpark = useMemo(() => {
+    let running = 0;
+    return chartData.map((point, index) => {
+      running = roundMoney(running + point.wealth);
+      return { index, value: running };
+    });
+  }, [chartData]);
+
+  const donutData = useMemo((): DonutSlice[] => {
+    return [
+      { name: "Needs", value: currentMonthNeed, color: DONUT_COLORS.need },
+      { name: "Desires", value: currentMonthDesire, color: DONUT_COLORS.desire },
+      {
+        name: "Unspent Allowance",
+        value: currentMonthRemaining,
+        color: DONUT_COLORS.remaining,
+      },
+    ].filter((s) => s.value > 0);
+  }, [currentMonthNeed, currentMonthDesire, currentMonthRemaining]);
+
+  const greeting = useMemo(() => {
+    const hour = clock.getHours();
+    if (hour < 12) return "Good morning";
+    if (hour < 17) return "Good afternoon";
+    return "Good evening";
+  }, [clock]);
+
+  const localizedDate = useMemo(
+    () =>
+      clock.toLocaleDateString("en-US", {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      }),
+    [clock]
+  );
+
+  const localizedTime = useMemo(
+    () =>
+      clock.toLocaleTimeString("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      }),
+    [clock]
+  );
+
+  const openTribute = useCallback((mode: TributeMode = "income") => {
+    setTributeMode(mode);
+    setTributeOpen(true);
+  }, []);
+
+  const closeTribute = useCallback(() => {
+    setTributeOpen(false);
+  }, []);
+
+  const addIncome = useCallback(
+    (input: IncomeInput): boolean => {
+      if (
+        !input.source.trim() ||
+        !Number.isFinite(input.amount) ||
+        input.amount <= 0
+      ) {
+        return false;
+      }
+
+      const split = allocateIncome(input.amount, hasActiveDebt);
+      const id = generateId();
+      const date = input.date || todayIso();
+
+      const entry: IncomeEntry = {
+        id,
+        source: input.source.trim(),
+        amount: roundMoney(input.amount),
+        date,
+        interval: input.interval,
+        ...split,
+      };
+
+      const event: AllocationEvent = {
+        id: generateId(),
+        incomeId: id,
+        date,
+        monthKey: monthKeyFromDate(date),
+        gross: entry.amount,
+        wealth: split.wealthShare,
+        debt: split.debtShare,
+        expenditure: split.expenditureShare,
+      };
+
+      setIncomes((prev) => [entry, ...prev]);
+      setAllocations((prev) => [event, ...prev]);
+
+      if (split.debtShare > 0) {
+        setDebts((prev) => applyDebtAllocation(prev, split.debtShare));
+      }
+
+      setTributeOpen(false);
+      return true;
+    },
+    [hasActiveDebt]
+  );
+
+  const addExpense = useCallback((input: ExpenseInput): boolean => {
+    if (
+      !input.name.trim() ||
+      !Number.isFinite(input.amount) ||
+      input.amount <= 0
+    ) {
+      return false;
+    }
+
+    const entry: ExpenseEntry = {
+      id: generateId(),
+      name: input.name.trim(),
+      category: input.category,
+      amount: roundMoney(input.amount),
+      date: input.date || todayIso(),
+    };
+
+    setExpenses((prev) => [entry, ...prev]);
+    setTributeOpen(false);
+    return true;
+  }, []);
+
+  const addDebt = useCallback((input: DebtInput): boolean => {
+    if (
+      !input.creditor.trim() ||
+      !Number.isFinite(input.totalDebt) ||
+      input.totalDebt <= 0 ||
+      !Number.isFinite(input.monthlyAllocation) ||
+      input.monthlyAllocation <= 0
+    ) {
+      return false;
+    }
+
+    const entry: DebtEntry = {
+      id: generateId(),
+      creditor: input.creditor.trim(),
+      totalDebt: roundMoney(input.totalDebt),
+      remainingDebt: roundMoney(input.totalDebt),
+      monthlyAllocation: roundMoney(input.monthlyAllocation),
+      createdAt: todayIso(),
+    };
+
+    setDebts((prev) => [entry, ...prev]);
+    setTributeOpen(false);
+    return true;
+  }, []);
+
+  const clearAllData = useCallback(() => {
+    clearPersistedState();
+    setIncomes([]);
+    setExpenses([]);
+    setDebts([]);
+    setAllocations([]);
+    setDisplayName(EMPTY_STATE.displayName);
+    setTributeOpen(false);
+    setTributeMode("income");
+  }, []);
+
+  const deleteIncome = useCallback((id: string) => {
+    setIncomes((prev) => prev.filter((i) => i.id !== id));
+    setAllocations((prev) => prev.filter((a) => a.incomeId !== id));
+  }, []);
+
+  const deleteExpense = useCallback((id: string) => {
+    setExpenses((prev) => prev.filter((e) => e.id !== id));
+  }, []);
+
+  const deleteDebt = useCallback((id: string) => {
+    setDebts((prev) => prev.filter((d) => d.id !== id));
+  }, []);
+
+  const previewAllocation = useCallback(
+    (gross: number) => allocateIncome(gross, hasActiveDebt),
+    [hasActiveDebt]
+  );
+
+  const selectNav = useCallback((section: NavSection) => {
+    setActiveNav(section);
+    setSidebarOpen(false);
+  }, []);
+
+  return {
+    hydrated,
+    incomes,
+    expenses,
+    debts,
+    allocations,
+    displayName,
+    setDisplayName,
+    sidebarOpen,
+    setSidebarOpen,
+    activeNav,
+    selectNav,
+    wisdomIndex,
+    setWisdomIndex,
+    tributeOpen,
+    setTributeOpen,
+    tributeMode,
+    setTributeMode,
+    openTribute,
+    closeTribute,
+    hasActiveDebt,
+    goldRetained,
+    debtAllocated,
+    expenditurePool,
+    totalSpent,
+    expenditureRemaining,
+    expenditureRemainingPct,
+    expenditureBarTone,
+    progressIndicatorClass,
+    clearedDebt,
+    originalDebt,
+    remainingDebt,
+    debtClearPct,
+    totalIncome,
+    needSpend,
+    desireSpend,
+    currentMonthNeed,
+    currentMonthDesire,
+    currentMonthRemaining,
+    chartData,
+    wealthSpark,
+    donutData,
+    greeting,
+    localizedDate,
+    localizedTime,
+    addIncome,
+    addExpense,
+    addDebt,
+    clearAllData,
+    deleteIncome,
+    deleteExpense,
+    deleteDebt,
+    previewAllocation,
+  };
+}
+
+export type BabylonEngine = ReturnType<typeof useBabylonEngine>;

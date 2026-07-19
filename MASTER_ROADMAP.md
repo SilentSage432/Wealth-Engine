@@ -1,0 +1,39 @@
+# Master Roadmap — Wealth Engine
+
+## Vision
+A premium, single-page budgeting platform that teaches and enforces Babylonian wealth laws through autonomous allocation — educational clarity first, competitive polish second.
+
+## Phase 1 — Foundation (Complete)
+- [x] Next.js 15 App Router scaffold
+- [x] Luxury dashboard shell (sidebar + viewport)
+- [x] Babylon 10/20/70 allocation engine
+- [x] Golden Triad KPIs
+- [x] Recharts analytics hub
+- [x] Ledger matrices (income / expenses / debt)
+- [x] Needs vs. Desires gatekeeper
+- [x] localStorage persistence (empty-first, live input pipelines)
+- [x] Wisdom marquee
+- [x] Graceful empty states for charts + tables
+
+## Phase 2 — Depth
+- [ ] Ledger export / import
+- [ ] Reversible debt amortization on income delete
+- [ ] Monthly close ritual (period summary)
+- [ ] Accessibility audit (keyboard + screen reader)
+- [ ] Clear-ledger UI control (hook mutation already exists)
+
+## Phase 3 — Platform
+- [ ] Auth + cloud sync
+- [ ] Multi-currency
+- [ ] Shared household vaults
+- [ ] Institutional knowledge composition (read-only Observatory views)
+
+## Architectural ownership
+| Concern | Owner |
+|--------|--------|
+| Allocation math | `lib/babylon/engine.ts` |
+| Ledger state + persistence | `hooks/useBabylonEngine.ts` |
+| Type contracts | `types/babylon.ts` |
+| Presentation | `components/babylon/*` |
+| UI primitives | `components/ui/*` |
+| Brand / shell | `app/layout.tsx`, `app/globals.css` |
