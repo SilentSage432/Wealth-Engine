@@ -1,5 +1,19 @@
 # Development Journal
 
+## 2026-07-19 — Progressive Web App (installable standalone)
+
+### What changed
+- `app/manifest.ts` — Web App Manifest (standalone, slate theme, 192/512 icons).
+- `public/sw.js` — lightweight cache-first service worker for `/` + manifest.
+- `components/layout/ServiceWorkerRegistrar.tsx` — registers SW on non-localhost hosts.
+- Root layout: Apple web app metadata, theme color, manifest link, registrar mount.
+- Icons: `public/icons/icon-192x192.png`, `public/icons/icon-512x512.png`.
+
+### Ownership
+- Manifest: `app/manifest.ts`
+- Worker: `public/sw.js`
+- Registration: `ServiceWorkerRegistrar` composed in `app/layout.tsx`
+
 ## 2026-07-19 — Responsive layout audit (320px → ultra-wide)
 
 ### What changed

@@ -8,9 +8,10 @@
 - Domain hook: `hooks/useBabylonEngine.ts` (state, persistence, actions, metrics)
 - Pure engine: `lib/babylon/engine.ts`
 - Types: `types/babylon.ts`
-- Shell: `app/layout.tsx`, `app/globals.css`
+- Shell: `app/layout.tsx`, `app/globals.css`, `app/manifest.ts`
+- PWA: `public/sw.js`, `components/layout/ServiceWorkerRegistrar.tsx`, `public/icons/*`
 - Primitives: `components/ui/*`
-- Feature UI: `components/babylon/*`, `components/dashboard/BudgetBlueprint.tsx`
+- Feature UI: `components/babylon/*`, `components/dashboard/BudgetBlueprint.tsx`, `components/modals/RecordTransactionModal.tsx`
 - Helpers: `lib/utils.ts` (`cn`, currency formatters, `generateId`)
 
 ## Run locally
