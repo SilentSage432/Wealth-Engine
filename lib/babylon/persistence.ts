@@ -1,6 +1,12 @@
-import { EMPTY_STATE, STORAGE_KEY } from "@/lib/babylon/constants";
+import {
+  DEFAULT_BUDGET_TARGETS,
+  DISCRETIONARY_BUDGET_ID,
+  EMPTY_STATE,
+  STORAGE_KEY,
+} from "@/lib/babylon/constants";
 import type {
   AllocationEvent,
+  BudgetTarget,
   DebtEntry,
   ExpenseEntry,
   ExpenseKind,
@@ -91,6 +97,13 @@ function parseExpenseEntry(value: unknown): ExpenseEntry | null {
       : null;
   if (!dueDate) return null;
 
+  const budgetCategoryId =
+    typeof value.budgetCategoryId === "string" && value.budgetCategoryId.trim()
+      ? value.budgetCategoryId.trim()
+      : value.category === "desire"
+        ? DISCRETIONARY_BUDGET_ID
+        : undefined;
+
   return {
     id: value.id,
     name: value.name.trim(),
@@ -98,7 +111,29 @@ function parseExpenseEntry(value: unknown): ExpenseEntry | null {
     amount: value.amount,
     date: value.date,
     dueDate,
+    ...(budgetCategoryId ? { budgetCategoryId } : {}),
   };
+}
+
+function parseBudgetTarget(value: unknown): BudgetTarget | null {
+  if (!isRecord(value)) return null;
+  if (!isNonEmptyString(value.id)) return null;
+  if (!isNonEmptyString(value.categoryName)) return null;
+  if (!isFiniteNumber(value.plannedAmount) || value.plannedAmount < 0) {
+    return null;
+  }
+  if (typeof value.isEssential !== "boolean") return null;
+
+  return {
+    id: value.id,
+    categoryName: value.categoryName.trim(),
+    plannedAmount: value.plannedAmount,
+    isEssential: value.isEssential,
+  };
+}
+
+function defaultBudgetTargets(): BudgetTarget[] {
+  return DEFAULT_BUDGET_TARGETS.map((t) => ({ ...t }));
 }
 
 function parseDebtEntry(value: unknown): DebtEntry | null {
@@ -191,11 +226,20 @@ export function normalizePersistedState(raw: unknown): PersistedState {
         .filter((e): e is AllocationEvent => e !== null)
     : [];
 
+  const parsedTargets = Array.isArray(raw.budgetTargets)
+    ? raw.budgetTargets
+        .map(parseBudgetTarget)
+        .filter((t): t is BudgetTarget => t !== null)
+    : [];
+  const budgetTargets =
+    parsedTargets.length > 0 ? parsedTargets : defaultBudgetTargets();
+
   return {
     incomes,
     expenses,
     debts,
     allocations,
+    budgetTargets,
     displayName:
       typeof raw.displayName === "string" && raw.displayName.trim()
         ? raw.displayName.trim()
@@ -226,6 +270,14 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
     allocations = parsed;
   }
 
+  // Budget targets optional for older backups; seed operational defaults.
+  let budgetTargets = defaultBudgetTargets();
+  if (raw.budgetTargets !== undefined) {
+    const parsed = parseArray(raw.budgetTargets, parseBudgetTarget);
+    if (!parsed) return null;
+    budgetTargets = parsed.length > 0 ? parsed : defaultBudgetTargets();
+  }
+
   const displayName =
     typeof raw.displayName === "string" && raw.displayName.trim()
       ? raw.displayName.trim()
@@ -238,6 +290,7 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
     expenses,
     debts,
     allocations,
+    budgetTargets,
     displayName,
   };
 }
@@ -250,6 +303,7 @@ export function buildLedgerBackup(state: PersistedState): LedgerBackup {
     expenses: state.expenses,
     debts: state.debts,
     allocations: state.allocations,
+    budgetTargets: state.budgetTargets,
     displayName: state.displayName,
   };
 }

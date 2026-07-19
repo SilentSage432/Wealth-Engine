@@ -1,5 +1,20 @@
 # Development Journal
 
+## 2026-07-19 — Budget Blueprint (Necessary Expenditures planning)
+
+### What changed
+- **Budget targets:** Persisted `budgetTargets[]` with stable operational buckets (Housing & Utilities, Groceries & Sustenance, Transport, Discretionary Desires) inside the 70% expenditure boundary.
+- **Mutation:** `updateBudgetTarget(id, newAmount)` for on-the-fly planned-cap edits with immediate localStorage sync.
+- **Variance selector:** Pure `buildBudgetVariances()` groups current-month spend by `budgetCategoryId` and computes Planned vs. Actual (remaining, used %, emerald→amber at 85%).
+- **UI:** `components/dashboard/BudgetBlueprint.tsx` — compact category workspace with inline cap editor, dual-layer progress, remaining-balance copy. Mounted on Command Deck (before charts) and Ledger Matrices nav.
+- **Attribution:** Expense form requires a budget category; ledger shows bucket under expense name. Desire expenses soft-migrate to Discretionary Desires when missing an id.
+
+### Ownership
+- Defaults / warning threshold: `lib/babylon/constants.ts`
+- Variance math: `lib/babylon/engine.ts`
+- State + persistence + `updateBudgetTarget`: `hooks/useBabylonEngine.ts`
+- Presentation: `BudgetBlueprint`, tribute dialog, ledger, dashboard shell
+
 ## 2026-07-19 — Cash-flow utilities (backup, affordability, due dates)
 
 ### What changed

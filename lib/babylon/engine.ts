@@ -1,12 +1,16 @@
 import {
+  BUDGET_WARNING_PCT,
   DEBT_RATE,
   EXPENDITURE_RATE,
   WEALTH_RATE,
 } from "@/lib/babylon/constants";
 import type {
   AllocationSplit,
+  BudgetCategoryVariance,
+  BudgetTarget,
   ChartMonthPoint,
   DebtEntry,
+  ExpenseEntry,
   IncomeEntry,
   IncomeInterval,
 } from "@/types/babylon";
@@ -192,4 +196,44 @@ export function buildChartData(
   });
 
   return Array.from(map.values()).sort((a, b) => a.month.localeCompare(b.month));
+}
+
+/**
+ * Groups current-month spend by budget target and computes Planned vs. Actual variance.
+ * Expenses without a budgetCategoryId are ignored (except desire soft-migration handled at load).
+ */
+export function buildBudgetVariances(
+  targets: BudgetTarget[],
+  monthExpenses: ExpenseEntry[]
+): BudgetCategoryVariance[] {
+  return targets.map((target) => {
+    const actualAmount = roundMoney(
+      monthExpenses
+        .filter((e) => e.budgetCategoryId === target.id)
+        .reduce((sum, e) => sum + e.amount, 0)
+    );
+    const plannedAmount = roundMoney(Math.max(0, target.plannedAmount));
+    const remainingAmount = roundMoney(Math.max(0, plannedAmount - actualAmount));
+    const variance = roundMoney(plannedAmount - actualAmount);
+    const usedPct =
+      plannedAmount <= 0
+        ? actualAmount > 0
+          ? 100
+          : 0
+        : Math.min(999, Math.round((actualAmount / plannedAmount) * 100));
+    const tone =
+      usedPct >= BUDGET_WARNING_PCT ? ("amber" as const) : ("emerald" as const);
+
+    return {
+      id: target.id,
+      categoryName: target.categoryName,
+      plannedAmount,
+      actualAmount,
+      remainingAmount,
+      variance,
+      usedPct,
+      isEssential: target.isEssential,
+      tone,
+    };
+  });
 }

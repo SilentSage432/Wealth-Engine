@@ -21,11 +21,12 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { INTERVAL_LABELS } from "@/lib/babylon/constants";
+import { INTERVAL_LABELS, DISCRETIONARY_BUDGET_ID } from "@/lib/babylon/constants";
 import { todayIso } from "@/lib/babylon/engine";
 import { cn, formatCurrency } from "@/lib/utils";
 import type {
   AllocationSplit,
+  BudgetTarget,
   DebtInput,
   ExpenseInput,
   IncomeInput,
@@ -37,6 +38,7 @@ interface RecordTributeDialogProps {
   open: boolean;
   mode: TributeMode;
   hasActiveDebt: boolean;
+  budgetTargets: BudgetTarget[];
   onOpenChange: (open: boolean) => void;
   onModeChange: (mode: TributeMode) => void;
   onPreviewAllocation: (gross: number) => AllocationSplit;
@@ -49,6 +51,7 @@ export function RecordTributeDialog({
   open,
   mode,
   hasActiveDebt,
+  budgetTargets,
   onOpenChange,
   onModeChange,
   onPreviewAllocation,
@@ -67,6 +70,12 @@ export function RecordTributeDialog({
   const [expenseDate, setExpenseDate] = useState(todayIso());
   const [expenseDueDate, setExpenseDueDate] = useState(todayIso());
   const [expenseIsDesire, setExpenseIsDesire] = useState(false);
+  const [expenseBudgetId, setExpenseBudgetId] = useState(
+    () =>
+      budgetTargets.find((t) => t.isEssential)?.id ??
+      budgetTargets[0]?.id ??
+      ""
+  );
 
   const [debtCreditor, setDebtCreditor] = useState("");
   const [debtTotal, setDebtTotal] = useState("");
@@ -83,10 +92,34 @@ export function RecordTributeDialog({
     setExpenseDate(todayIso());
     setExpenseDueDate(todayIso());
     setExpenseIsDesire(false);
+    setExpenseBudgetId(
+      budgetTargets.find((t) => t.isEssential)?.id ??
+        budgetTargets[0]?.id ??
+        ""
+    );
     setDebtCreditor("");
     setDebtTotal("");
     setDebtMonthly("");
-  }, [open, mode]);
+  }, [open, mode, budgetTargets]);
+
+  const handleDesireToggle = (isDesire: boolean) => {
+    setExpenseIsDesire(isDesire);
+    if (isDesire) {
+      const discretionary =
+        budgetTargets.find((t) => t.id === DISCRETIONARY_BUDGET_ID) ??
+        budgetTargets.find((t) => !t.isEssential);
+      if (discretionary) setExpenseBudgetId(discretionary.id);
+      return;
+    }
+    const essential = budgetTargets.find((t) => t.isEssential);
+    if (essential) setExpenseBudgetId(essential.id);
+  };
+
+  const handleBudgetCategoryChange = (id: string) => {
+    setExpenseBudgetId(id);
+    const target = budgetTargets.find((t) => t.id === id);
+    if (target) setExpenseIsDesire(!target.isEssential);
+  };
 
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
@@ -108,6 +141,7 @@ export function RecordTributeDialog({
         date: expenseDate,
         dueDate: expenseDueDate,
         category: expenseIsDesire ? "desire" : "need",
+        budgetCategoryId: expenseBudgetId,
       });
       return;
     }
@@ -287,6 +321,28 @@ export function RecordTributeDialog({
                   />
                 </div>
               </div>
+              <div className="space-y-2">
+                <Label>Budget Category</Label>
+                <Select
+                  value={expenseBudgetId}
+                  onValueChange={handleBudgetCategoryChange}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {budgetTargets.map((target) => (
+                      <SelectItem key={target.id} value={target.id}>
+                        {target.categoryName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-[11px] text-slate-500">
+                  Attributes spend to a Necessary Expenditures bucket for
+                  Planned vs. Actual tracking.
+                </p>
+              </div>
               <div className="flex items-center justify-between rounded-lg border border-slate-800 bg-slate-950/50 px-4 py-3">
                 <div>
                   <p className="text-sm font-medium text-slate-200">
@@ -309,7 +365,7 @@ export function RecordTributeDialog({
                   </span>
                   <Switch
                     checked={expenseIsDesire}
-                    onCheckedChange={setExpenseIsDesire}
+                    onCheckedChange={handleDesireToggle}
                     aria-label="Toggle desire"
                   />
                   <span

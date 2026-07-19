@@ -19,11 +19,13 @@ A premium, single-page budgeting platform that teaches and enforces Babylonian w
 - [x] Ledger export / import
 - [x] Affordability Anchor (Desires pool % + labor hours)
 - [x] Expense due dates + due-soon indicator
+- [x] Budget Blueprint (planned caps + Planned vs. Actual within 70%)
 - [ ] Reversible debt amortization on income delete
 - [ ] Monthly close ritual (period summary)
 - [ ] Accessibility audit (keyboard + screen reader)
 - [ ] Clear-ledger UI control (hook mutation already exists)
 - [ ] Expense paid/settled toggle
+- [ ] Auto-scale budget caps from current-month expenditure pool
 
 ## Phase 3 — Platform
 - [ ] Auth + cloud sync
@@ -35,8 +37,9 @@ A premium, single-page budgeting platform that teaches and enforces Babylonian w
 | Concern | Owner |
 |--------|--------|
 | Allocation math | `lib/babylon/engine.ts` |
+| Budget variance math | `lib/babylon/engine.ts` (`buildBudgetVariances`) |
 | Ledger state + persistence | `hooks/useBabylonEngine.ts` |
 | Type contracts | `types/babylon.ts` |
-| Presentation | `components/babylon/*` |
+| Presentation | `components/babylon/*`, `components/dashboard/*` |
 | UI primitives | `components/ui/*` |
 | Brand / shell | `app/layout.tsx`, `app/globals.css` |

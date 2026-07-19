@@ -13,6 +13,30 @@ export type NavSection = "overview" | "ledgers" | "wisdom";
 
 export type ExpenditureBarTone = "emerald" | "amber" | "crimson";
 
+export type BudgetBarTone = "emerald" | "amber";
+
+/** Planned cap for a Necessary Expenditures (70%) operational bucket. */
+export interface BudgetTarget {
+  id: string;
+  categoryName: string;
+  plannedAmount: number;
+  isEssential: boolean;
+}
+
+/** Derived Planned vs. Actual snapshot for the current month. */
+export interface BudgetCategoryVariance {
+  id: string;
+  categoryName: string;
+  plannedAmount: number;
+  actualAmount: number;
+  remainingAmount: number;
+  /** Planned − Actual (positive = under cap). */
+  variance: number;
+  usedPct: number;
+  isEssential: boolean;
+  tone: BudgetBarTone;
+}
+
 export interface IncomeEntry {
   id: string;
   source: string;
@@ -33,6 +57,8 @@ export interface ExpenseEntry {
   date: string;
   /** ISO date (YYYY-MM-DD) when payment is due. */
   dueDate: string;
+  /** Links spend to a BudgetTarget within the 70% expenditure boundary. */
+  budgetCategoryId?: string;
 }
 
 export interface DebtEntry {
@@ -60,6 +86,7 @@ export interface PersistedState {
   expenses: ExpenseEntry[];
   debts: DebtEntry[];
   allocations: AllocationEvent[];
+  budgetTargets: BudgetTarget[];
   displayName: string;
 }
 
@@ -96,6 +123,7 @@ export interface ExpenseInput {
   date: string;
   dueDate: string;
   category: ExpenseKind;
+  budgetCategoryId: string;
 }
 
 /** Portable ledger snapshot for export / import backups. */
@@ -106,6 +134,7 @@ export interface LedgerBackup {
   expenses: ExpenseEntry[];
   debts: DebtEntry[];
   allocations: AllocationEvent[];
+  budgetTargets: BudgetTarget[];
   displayName: string;
 }
 

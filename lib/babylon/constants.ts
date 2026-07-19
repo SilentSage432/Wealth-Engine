@@ -1,4 +1,9 @@
-import type { IncomeInterval, NavSection, PersistedState } from "@/types/babylon";
+import type {
+  BudgetTarget,
+  IncomeInterval,
+  NavSection,
+  PersistedState,
+} from "@/types/babylon";
 import { BookOpen, LayoutDashboard, ScrollText } from "lucide-react";
 import type { ComponentType } from "react";
 
@@ -7,6 +12,39 @@ export const STORAGE_KEY = "wealth-engine-babylon-v2";
 export const WEALTH_RATE = 0.1;
 export const DEBT_RATE = 0.2;
 export const EXPENDITURE_RATE = 0.7;
+
+/** Amber warning threshold for category spend vs. planned cap. */
+export const BUDGET_WARNING_PCT = 85;
+
+/** Stable default operational buckets within the 70% Necessary Expenditures boundary. */
+export const DEFAULT_BUDGET_TARGETS: readonly BudgetTarget[] = [
+  {
+    id: "budget-housing",
+    categoryName: "Housing & Utilities",
+    plannedAmount: 1400,
+    isEssential: true,
+  },
+  {
+    id: "budget-groceries",
+    categoryName: "Groceries & Sustenance",
+    plannedAmount: 450,
+    isEssential: true,
+  },
+  {
+    id: "budget-transport",
+    categoryName: "Transport",
+    plannedAmount: 250,
+    isEssential: true,
+  },
+  {
+    id: "budget-desires",
+    categoryName: "Discretionary Desires",
+    plannedAmount: 300,
+    isEssential: false,
+  },
+];
+
+export const DISCRETIONARY_BUDGET_ID = "budget-desires";
 
 export const BABYLON_WISDOM: readonly string[] = [
   "A part of all you earn is yours to keep.",
@@ -50,5 +88,6 @@ export const EMPTY_STATE: PersistedState = {
   expenses: [],
   debts: [],
   allocations: [],
+  budgetTargets: DEFAULT_BUDGET_TARGETS.map((t) => ({ ...t })),
   displayName: "Steward",
 };

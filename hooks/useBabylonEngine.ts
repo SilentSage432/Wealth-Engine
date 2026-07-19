@@ -3,12 +3,14 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   BABYLON_WISDOM,
+  DEFAULT_BUDGET_TARGETS,
   DONUT_COLORS,
   EMPTY_STATE,
 } from "@/lib/babylon/constants";
 import {
   allocateIncome,
   applyDebtAllocation,
+  buildBudgetVariances,
   buildChartData,
   effectiveHourlyRate,
   monthKeyFromDate,
@@ -27,6 +29,7 @@ import {
 import { generateId } from "@/lib/utils";
 import type {
   AllocationEvent,
+  BudgetTarget,
   DebtEntry,
   DebtInput,
   DonutSlice,
@@ -40,12 +43,19 @@ import type {
   TributeMode,
 } from "@/types/babylon";
 
+function cloneDefaultBudgetTargets(): BudgetTarget[] {
+  return DEFAULT_BUDGET_TARGETS.map((t) => ({ ...t }));
+}
+
 export function useBabylonEngine() {
   const [hydrated, setHydrated] = useState(false);
   const [incomes, setIncomes] = useState<IncomeEntry[]>([]);
   const [expenses, setExpenses] = useState<ExpenseEntry[]>([]);
   const [debts, setDebts] = useState<DebtEntry[]>([]);
   const [allocations, setAllocations] = useState<AllocationEvent[]>([]);
+  const [budgetTargets, setBudgetTargets] = useState<BudgetTarget[]>(
+    cloneDefaultBudgetTargets
+  );
   const [displayName, setDisplayName] = useState("Steward");
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -62,6 +72,11 @@ export function useBabylonEngine() {
     setExpenses(stored.expenses);
     setDebts(stored.debts);
     setAllocations(stored.allocations);
+    setBudgetTargets(
+      stored.budgetTargets.length > 0
+        ? stored.budgetTargets
+        : cloneDefaultBudgetTargets()
+    );
     setDisplayName(stored.displayName);
     setHydrated(true);
   }, []);
@@ -73,10 +88,19 @@ export function useBabylonEngine() {
       expenses,
       debts,
       allocations,
+      budgetTargets,
       displayName,
     };
     savePersistedState(payload);
-  }, [hydrated, incomes, expenses, debts, allocations, displayName]);
+  }, [
+    hydrated,
+    incomes,
+    expenses,
+    debts,
+    allocations,
+    budgetTargets,
+    displayName,
+  ]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setClock(new Date()), 1000);
@@ -236,6 +260,27 @@ export function useBabylonEngine() {
   /** Unspent current-month living allowance available for discretionary spend. */
   const desiresPoolRemaining = currentMonthRemaining;
 
+  const budgetVariances = useMemo(
+    () => buildBudgetVariances(budgetTargets, currentMonthExpenses),
+    [budgetTargets, currentMonthExpenses]
+  );
+
+  const budgetPlannedTotal = useMemo(
+    () =>
+      roundMoney(
+        budgetTargets.reduce((sum, t) => sum + Math.max(0, t.plannedAmount), 0)
+      ),
+    [budgetTargets]
+  );
+
+  const budgetActualTotal = useMemo(
+    () =>
+      roundMoney(
+        budgetVariances.reduce((sum, row) => sum + row.actualAmount, 0)
+      ),
+    [budgetVariances]
+  );
+
   const hourlyLaborRate = useMemo(
     () => effectiveHourlyRate(incomes),
     [incomes]
@@ -350,29 +395,39 @@ export function useBabylonEngine() {
     [hasActiveDebt]
   );
 
-  const addExpense = useCallback((input: ExpenseInput): boolean => {
-    if (
-      !input.name.trim() ||
-      !Number.isFinite(input.amount) ||
-      input.amount <= 0 ||
-      !input.dueDate
-    ) {
-      return false;
-    }
+  const addExpense = useCallback(
+    (input: ExpenseInput): boolean => {
+      if (
+        !input.name.trim() ||
+        !Number.isFinite(input.amount) ||
+        input.amount <= 0 ||
+        !input.dueDate ||
+        !input.budgetCategoryId.trim()
+      ) {
+        return false;
+      }
 
-    const entry: ExpenseEntry = {
-      id: generateId(),
-      name: input.name.trim(),
-      category: input.category,
-      amount: roundMoney(input.amount),
-      date: input.date || todayIso(),
-      dueDate: input.dueDate,
-    };
+      const knownTarget = budgetTargets.some(
+        (t) => t.id === input.budgetCategoryId
+      );
+      if (!knownTarget) return false;
 
-    setExpenses((prev) => [entry, ...prev]);
-    setTributeOpen(false);
-    return true;
-  }, []);
+      const entry: ExpenseEntry = {
+        id: generateId(),
+        name: input.name.trim(),
+        category: input.category,
+        amount: roundMoney(input.amount),
+        date: input.date || todayIso(),
+        dueDate: input.dueDate,
+        budgetCategoryId: input.budgetCategoryId,
+      };
+
+      setExpenses((prev) => [entry, ...prev]);
+      setTributeOpen(false);
+      return true;
+    },
+    [budgetTargets]
+  );
 
   const addDebt = useCallback((input: DebtInput): boolean => {
     if (
@@ -399,12 +454,21 @@ export function useBabylonEngine() {
     return true;
   }, []);
 
+  const updateBudgetTarget = useCallback((id: string, newAmount: number) => {
+    if (!Number.isFinite(newAmount) || newAmount < 0) return;
+    const next = roundMoney(newAmount);
+    setBudgetTargets((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, plannedAmount: next } : t))
+    );
+  }, []);
+
   const clearAllData = useCallback(() => {
     clearPersistedState();
     setIncomes([]);
     setExpenses([]);
     setDebts([]);
     setAllocations([]);
+    setBudgetTargets(cloneDefaultBudgetTargets());
     setDisplayName(EMPTY_STATE.displayName);
     setTributeOpen(false);
     setTributeMode("income");
@@ -416,6 +480,7 @@ export function useBabylonEngine() {
       expenses,
       debts,
       allocations,
+      budgetTargets,
       displayName,
     });
     const blob = new Blob([JSON.stringify(backup, null, 2)], {
@@ -430,7 +495,7 @@ export function useBabylonEngine() {
     anchor.click();
     anchor.remove();
     URL.revokeObjectURL(url);
-  }, [incomes, expenses, debts, allocations, displayName]);
+  }, [incomes, expenses, debts, allocations, budgetTargets, displayName]);
 
   const importBackup = useCallback((raw: unknown): string | null => {
     const backup = validateLedgerBackup(raw);
@@ -443,6 +508,10 @@ export function useBabylonEngine() {
       expenses: backup.expenses,
       debts: backup.debts,
       allocations: backup.allocations,
+      budgetTargets:
+        backup.budgetTargets.length > 0
+          ? backup.budgetTargets
+          : cloneDefaultBudgetTargets(),
       displayName: backup.displayName,
     };
 
@@ -451,6 +520,7 @@ export function useBabylonEngine() {
     setExpenses(next.expenses);
     setDebts(next.debts);
     setAllocations(next.allocations);
+    setBudgetTargets(next.budgetTargets);
     setDisplayName(next.displayName);
     setTributeOpen(false);
     setTributeMode("income");
@@ -487,6 +557,7 @@ export function useBabylonEngine() {
     expenses,
     debts,
     allocations,
+    budgetTargets,
     displayName,
     setDisplayName,
     sidebarOpen,
@@ -521,6 +592,10 @@ export function useBabylonEngine() {
     currentMonthDesire,
     currentMonthRemaining,
     desiresPoolRemaining,
+    budgetVariances,
+    budgetPlannedTotal,
+    budgetActualTotal,
+    currentMonthExpenditurePool,
     hourlyLaborRate,
     chartData,
     wealthSpark,
@@ -531,6 +606,7 @@ export function useBabylonEngine() {
     addIncome,
     addExpense,
     addDebt,
+    updateBudgetTarget,
     clearAllData,
     exportBackup,
     importBackup,

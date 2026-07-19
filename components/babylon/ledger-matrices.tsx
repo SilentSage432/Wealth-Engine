@@ -22,7 +22,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { INTERVAL_LABELS } from "@/lib/babylon/constants";
 import { isDueWithinWeek } from "@/lib/babylon/engine";
 import { cn, formatCurrency } from "@/lib/utils";
-import type { DebtEntry, ExpenseEntry, IncomeEntry, TributeMode } from "@/types/babylon";
+import type {
+  BudgetTarget,
+  DebtEntry,
+  ExpenseEntry,
+  IncomeEntry,
+  TributeMode,
+} from "@/types/babylon";
 
 interface LedgerMatricesProps {
   incomes: IncomeEntry[];
@@ -31,6 +37,7 @@ interface LedgerMatricesProps {
   needSpend: number;
   desireSpend: number;
   totalSpent: number;
+  budgetTargets: BudgetTarget[];
   onOpenTribute: (mode: TributeMode) => void;
   onDeleteIncome: (id: string) => void;
   onDeleteExpense: (id: string) => void;
@@ -44,11 +51,16 @@ export function LedgerMatrices({
   needSpend,
   desireSpend,
   totalSpent,
+  budgetTargets,
   onOpenTribute,
   onDeleteIncome,
   onDeleteExpense,
   onDeleteDebt,
 }: LedgerMatricesProps) {
+  const categoryLabel = (id: string | undefined) => {
+    if (!id) return null;
+    return budgetTargets.find((t) => t.id === id)?.categoryName ?? null;
+  };
   return (
     <section className="animate-fade-up">
       <Card>
@@ -238,6 +250,7 @@ export function LedgerMatrices({
                   <TableBody>
                     {expenses.map((row) => {
                       const dueSoon = isDueWithinWeek(row.dueDate);
+                      const bucket = categoryLabel(row.budgetCategoryId);
                       return (
                         <TableRow key={row.id}>
                           <TableCell className="font-medium text-slate-100">
@@ -249,6 +262,11 @@ export function LedgerMatrices({
                                 </span>
                               )}
                             </span>
+                            {bucket && (
+                              <p className="mt-0.5 text-[11px] font-normal text-slate-500">
+                                {bucket}
+                              </p>
+                            )}
                           </TableCell>
                           <TableCell>
                             <span

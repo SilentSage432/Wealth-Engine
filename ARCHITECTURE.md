@@ -7,10 +7,11 @@ app/globals.css                             → luxury tokens, motion, grid atmo
 app/page.tsx                                → thin client page composer
 hooks/useBabylonEngine.ts                   → state, persistence, allocation actions, derived metrics
 types/babylon.ts                            → canonical TypeScript contracts
-lib/babylon/engine.ts                       → pure 10/20/70 allocation math + affordability / due helpers
+lib/babylon/engine.ts                       → pure 10/20/70 allocation math + affordability / due / budget variance helpers
 lib/babylon/persistence.ts                  → localStorage load/save/clear + backup validate/build
-lib/babylon/constants.ts                    → rates, wisdom, nav, labels, EMPTY_STATE
+lib/babylon/constants.ts                    → rates, wisdom, nav, labels, DEFAULT_BUDGET_TARGETS, EMPTY_STATE
 components/babylon/*                        → presentation zones (sidebar, triad, affordability, charts, ledgers, dialog)
+components/dashboard/BudgetBlueprint.tsx    → Necessary Expenditures planning workspace (Planned vs. Actual)
 components/ui/*                             → shadcn-styled Radix primitives
 lib/utils.ts                                → cn, currency, ids
 ```
@@ -23,17 +24,20 @@ Gross Income
     │         ├─ if remainingDebt > 0 → apply to creditors (smallest first)
     │         └─ else → redirect into Wealth Archive
     └─ 70% → Expenditure Allowance
-              └─ Expenses (Need | Desire, with dueDate) draw down remaining
+              ├─ BudgetTargets (planned caps per operational bucket)
+              └─ Expenses (Need | Desire, dueDate, budgetCategoryId) draw down remaining
 ```
 
 ## Ownership rules
 - Allocation math is owned by `lib/babylon/engine.ts` (pure) and composed by `useBabylonEngine`.
+- Budget variance (`buildBudgetVariances`) is owned by the pure engine; the hook selects current-month expenses and persists `budgetTargets`.
 - Charts and tables **consume** derived state; they never recompute splits.
 - Presentation components render only; they never own ledger state.
-- `RecordTributeDialog` owns ephemeral form fields; the hook owns durable ledger mutations (`addIncome` / `addExpense` / `addDebt` / `clearAllData` / `exportBackup` / `importBackup`).
+- `RecordTributeDialog` owns ephemeral form fields; the hook owns durable ledger mutations (`addIncome` / `addExpense` / `addDebt` / `updateBudgetTarget` / `clearAllData` / `exportBackup` / `importBackup`).
 
 ## Persistence contract
 Key: `wealth-engine-babylon-v2`  
-Shape: `{ incomes, expenses, debts, allocations, displayName }`  
-Expenses require `dueDate` (ISO). Cold start: empty arrays when no stored payload exists.  
-Portable backup shape: `LedgerBackup` (`version: 1`, `exportedAt`, plus full persisted arrays).
+Shape: `{ incomes, expenses, debts, allocations, budgetTargets, displayName }`  
+Expenses require `dueDate` (ISO) and optionally `budgetCategoryId` (links to a BudgetTarget).  
+Cold start: empty ledger arrays + seeded `DEFAULT_BUDGET_TARGETS`.  
+Portable backup shape: `LedgerBackup` (`version: 1`, `exportedAt`, plus full persisted arrays including `budgetTargets`).

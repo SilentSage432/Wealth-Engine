@@ -10,6 +10,7 @@ import { QuickStats } from "@/components/babylon/quick-stats";
 import { RecordTributeDialog } from "@/components/babylon/record-tribute-dialog";
 import { VaultLoading } from "@/components/babylon/vault-loading";
 import { WisdomBox } from "@/components/babylon/wisdom-box";
+import { BudgetBlueprint } from "@/components/dashboard/BudgetBlueprint";
 import { useBabylonEngine } from "@/hooks/useBabylonEngine";
 import { cn } from "@/lib/utils";
 
@@ -80,6 +81,13 @@ export function WealthEngineDashboard() {
                     desiresPoolRemaining={engine.desiresPoolRemaining}
                     hourlyLaborRate={engine.hourlyLaborRate}
                   />
+                  <BudgetBlueprint
+                    variances={engine.budgetVariances}
+                    plannedTotal={engine.budgetPlannedTotal}
+                    actualTotal={engine.budgetActualTotal}
+                    expenditurePool={engine.currentMonthExpenditurePool}
+                    onUpdateTarget={engine.updateBudgetTarget}
+                  />
                   <AnalyticsHub
                     chartData={engine.chartData}
                     donutData={engine.donutData}
@@ -111,6 +119,16 @@ export function WealthEngineDashboard() {
             </>
           )}
 
+          {showLedgers && engine.activeNav === "ledgers" && (
+            <BudgetBlueprint
+              variances={engine.budgetVariances}
+              plannedTotal={engine.budgetPlannedTotal}
+              actualTotal={engine.budgetActualTotal}
+              expenditurePool={engine.currentMonthExpenditurePool}
+              onUpdateTarget={engine.updateBudgetTarget}
+            />
+          )}
+
           {showLedgers && (
             <LedgerMatrices
               incomes={engine.incomes}
@@ -119,6 +137,7 @@ export function WealthEngineDashboard() {
               needSpend={engine.needSpend}
               desireSpend={engine.desireSpend}
               totalSpent={engine.totalSpent}
+              budgetTargets={engine.budgetTargets}
               onOpenTribute={engine.openTribute}
               onDeleteIncome={engine.deleteIncome}
               onDeleteExpense={engine.deleteExpense}
@@ -139,6 +158,7 @@ export function WealthEngineDashboard() {
         open={engine.tributeOpen}
         mode={engine.tributeMode}
         hasActiveDebt={engine.hasActiveDebt}
+        budgetTargets={engine.budgetTargets}
         onOpenChange={engine.setTributeOpen}
         onModeChange={engine.setTributeMode}
         onPreviewAllocation={engine.previewAllocation}
