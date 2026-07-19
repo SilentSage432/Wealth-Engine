@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Cormorant_Garamond, DM_Sans, Geist_Mono } from "next/font/google";
+import { Providers } from "@/app/providers";
 import { ServiceWorkerRegistrar } from "@/components/layout/ServiceWorkerRegistrar";
 import "./globals.css";
 
@@ -59,8 +60,10 @@ export default function RootLayout({
       <body
         className={`${display.variable} ${body.variable} ${geistMono.variable} antialiased`}
       >
-        {children}
-        <ServiceWorkerRegistrar />
+        <Providers>
+          {children}
+          <ServiceWorkerRegistrar />
+        </Providers>
       </body>
     </html>
   );

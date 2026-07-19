@@ -2,8 +2,11 @@
 
 import { useRef, useState, type ChangeEvent } from "react";
 import {
+  Cloud,
   Download,
   Landmark,
+  Loader2,
+  LogOut,
   ShieldCheck,
   Trash2,
   Upload,
@@ -34,6 +37,11 @@ interface AppSidebarProps {
   onExportBackup: () => void;
   onImportBackup: (raw: unknown) => string | null;
   onClearAllData: () => void;
+  isCloudSynced: boolean;
+  cloudHydrating?: boolean;
+  cloudUsername: string;
+  onConnectCloud: () => void;
+  onSignOutCloud: () => void | Promise<boolean>;
 }
 
 export function AppSidebar({
@@ -44,10 +52,16 @@ export function AppSidebar({
   onExportBackup,
   onImportBackup,
   onClearAllData,
+  isCloudSynced,
+  cloudHydrating = false,
+  cloudUsername,
+  onConnectCloud,
+  onSignOutCloud,
 }: AppSidebarProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importStatus, setImportStatus] = useState<string | null>(null);
   const [importError, setImportError] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
 
   const handleFileChange = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -68,6 +82,15 @@ export function AppSidebar({
     } catch {
       setImportError(true);
       setImportStatus("Could not read that file as JSON.");
+    }
+  };
+
+  const handleSignOut = async () => {
+    setSigningOut(true);
+    try {
+      await onSignOutCloud();
+    } finally {
+      setSigningOut(false);
     }
   };
 
@@ -128,6 +151,62 @@ export function AppSidebar({
       </nav>
 
       <div className="space-y-3 border-t border-slate-800/80 p-4">
+        <div className="rounded-lg border border-slate-800/80 bg-slate-950/60 p-3">
+          {isCloudSynced ? (
+            <div className="space-y-2.5">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-slate-100">
+                    {cloudUsername}
+                  </p>
+                  <p className="mt-0.5 flex items-center gap-1.5 text-[11px] text-emerald-400">
+                    <span
+                      className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400"
+                      aria-hidden
+                    />
+                    <span aria-live="polite">
+                      {cloudHydrating ? "Migrating…" : "Synced"}
+                    </span>
+                  </p>
+                </div>
+                {cloudHydrating && (
+                  <Loader2
+                    className="mt-0.5 h-3.5 w-3.5 shrink-0 animate-spin text-emerald-400"
+                    aria-hidden
+                  />
+                )}
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={signingOut}
+                className="h-8 w-full justify-center border-slate-800 bg-transparent text-xs text-slate-400 hover:bg-slate-900 hover:text-slate-100"
+                onClick={() => void handleSignOut()}
+                aria-label="Sign out of cloud vault"
+              >
+                {signingOut ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <LogOut className="h-3.5 w-3.5" />
+                )}
+                Sign Out
+              </Button>
+            </div>
+          ) : (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-9 w-full justify-center border-emerald-900/50 bg-emerald-500/5 text-xs text-emerald-300 hover:bg-emerald-500/10 hover:text-emerald-200"
+              onClick={onConnectCloud}
+            >
+              <Cloud className="h-3.5 w-3.5" aria-hidden />
+              ☁️ Connect Cloud Vault
+            </Button>
+          )}
+        </div>
+
         <div className="space-y-2">
           <p className="px-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
             Data backups

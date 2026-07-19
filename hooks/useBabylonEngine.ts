@@ -1,11 +1,22 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMutation } from "@tanstack/react-query";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   BABYLON_WISDOM,
   DONUT_COLORS,
   GREETING_NAME_FALLBACK,
 } from "@/lib/babylon/constants";
+import {
+  cloudUpdateExpenseSettled,
+  cloudUpsertBudgetTargets,
+  cloudUpsertExpense,
+  cloudUpsertIncome,
+} from "@/lib/babylon/cloud-sync";
+import {
+  migrateLocalLedgerToCloud,
+  type LocalVaultSnapshot,
+} from "@/lib/babylon/cloud-hydrate";
 import {
   allocateIncome,
   applyDebtAllocation,
@@ -34,6 +45,8 @@ import {
   saveUsername,
   validateLedgerBackup,
 } from "@/lib/babylon/persistence";
+import { signOutCloudSession } from "@/lib/supabase/auth";
+import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import { generateId } from "@/lib/utils";
 import type {
   ActivityEvent,
@@ -56,6 +69,11 @@ import type {
 } from "@/types/babylon";
 
 const ACTIVITY_LOG_LIMIT = 40;
+
+function logCloudSyncFailure(operation: string, error: unknown) {
+  console.error(`[cloud-sync] ${operation} failed — local vault retained.`, error);
+}
+
 export function useBabylonEngine() {
   const [hydrated, setHydrated] = useState(false);
   const [incomes, setIncomes] = useState<IncomeEntry[]>([]);
@@ -71,6 +89,19 @@ export function useBabylonEngine() {
   );
   /** Profile name input value — may be empty; greeting uses a visual fallback. */
   const [username, setUsernameState] = useState("");
+  /** Auth user id when a verified Supabase session is present; null = local-only. */
+  const [cloudUserId, setCloudUserId] = useState<string | null>(null);
+  const cloudUserIdRef = useRef<string | null>(null);
+  const [authOpen, setAuthOpen] = useState(false);
+  const [cloudHydrating, setCloudHydrating] = useState(false);
+  const hydrationAttemptedRef = useRef<Set<string>>(new Set());
+  const ledgerSnapshotRef = useRef<LocalVaultSnapshot>({
+    incomes: [],
+    expenses: [],
+    budgetTargets: [],
+    username: "",
+    monthKey: "",
+  });
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeNav, setActiveNav] = useState<NavSection>("overview");
@@ -80,6 +111,84 @@ export function useBabylonEngine() {
   const [tributeOpen, setTributeOpen] = useState(false);
   const [tributeMode, setTributeMode] = useState<TributeMode>("income");
   const [monthlyCloseOpen, setMonthlyCloseOpen] = useState(false);
+
+  useEffect(() => {
+    cloudUserIdRef.current = cloudUserId;
+  }, [cloudUserId]);
+
+  const currentMonthKey = useMemo(
+    () => monthKeyFromDate(todayIso()),
+    // Recompute when the calendar day may roll over with the live clock.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [clock]
+  );
+
+  useEffect(() => {
+    ledgerSnapshotRef.current = {
+      incomes,
+      expenses,
+      budgetTargets,
+      username,
+      monthKey: currentMonthKey,
+    };
+  }, [incomes, expenses, budgetTargets, username, currentMonthKey]);
+
+  const { mutate: mutateUpsertIncome } = useMutation({
+    mutationFn: ({
+      userId,
+      entry,
+    }: {
+      userId: string;
+      entry: IncomeEntry;
+    }) => cloudUpsertIncome(userId, entry),
+    onError: (error) => logCloudSyncFailure("upsertIncome", error),
+  });
+
+  const { mutate: mutateUpsertExpense } = useMutation({
+    mutationFn: ({
+      userId,
+      entry,
+    }: {
+      userId: string;
+      entry: ExpenseEntry;
+    }) => cloudUpsertExpense(userId, entry),
+    onError: (error) => logCloudSyncFailure("upsertExpense", error),
+  });
+
+  const { mutate: mutateUpdateExpenseSettled } = useMutation({
+    mutationFn: ({
+      userId,
+      expenseId,
+      isSettled,
+    }: {
+      userId: string;
+      expenseId: string;
+      isSettled: boolean;
+    }) => cloudUpdateExpenseSettled(userId, expenseId, isSettled),
+    onError: (error) => logCloudSyncFailure("updateExpenseSettled", error),
+  });
+
+  const { mutate: mutateUpsertBudgetTargets } = useMutation({
+    mutationFn: ({
+      userId,
+      targets,
+      monthKey,
+    }: {
+      userId: string;
+      targets: BudgetTarget[];
+      monthKey: string;
+    }) => cloudUpsertBudgetTargets(userId, targets, monthKey),
+    onError: (error) => logCloudSyncFailure("upsertBudgetTargets", error),
+  });
+
+  const queueCloudWrite = useCallback(
+    (write: (userId: string) => void) => {
+      const userId = cloudUserIdRef.current;
+      if (!userId) return;
+      write(userId);
+    },
+    []
+  );
 
   const pushActivity = useCallback(
     (event: Omit<ActivityEvent, "id" | "createdAt"> & { createdAt?: string }) => {
@@ -113,6 +222,84 @@ export function useBabylonEngine() {
   }, []);
 
   useEffect(() => {
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) {
+      setCloudUserId(null);
+      return;
+    }
+
+    let active = true;
+
+    void supabase.auth.getSession().then(({ data, error }) => {
+      if (!active) return;
+      if (error) {
+        console.error("[supabase] getSession failed", error);
+        setCloudUserId(null);
+        return;
+      }
+      setCloudUserId(data.session?.user.id ?? null);
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setCloudUserId(session?.user.id ?? null);
+    });
+
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  /** One-time local → cloud hydration when a session appears over an empty vault. */
+  useEffect(() => {
+    if (!hydrated || !cloudUserId) return;
+    if (hydrationAttemptedRef.current.has(cloudUserId)) return;
+
+    let cancelled = false;
+    setCloudHydrating(true);
+
+    void (async () => {
+      try {
+        const result = await migrateLocalLedgerToCloud(
+          cloudUserId,
+          ledgerSnapshotRef.current
+        );
+        if (cancelled) return;
+
+        if (result.remapped) {
+          setIncomes(result.remapped.incomes);
+          setExpenses(result.remapped.expenses);
+          setBudgetTargets(result.remapped.budgetTargets);
+        }
+
+        if (result.migrated) {
+          pushActivity({
+            kind: "close",
+            title: "Cloud vault sealed",
+            subtitle: "Local ledger migrated to your secure account",
+          });
+        }
+      } catch (error) {
+        console.error(
+          "[cloud-hydrate] local→cloud migration failed — local vault retained.",
+          error
+        );
+      } finally {
+        if (!cancelled) {
+          hydrationAttemptedRef.current.add(cloudUserId);
+          setCloudHydrating(false);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [hydrated, cloudUserId, pushActivity]);
+
+  useEffect(() => {
     if (!hydrated) return;
     const payload: PersistedState = {
       incomes,
@@ -144,6 +331,26 @@ export function useBabylonEngine() {
   const setUsername = useCallback((value: string) => {
     setUsernameState(value);
     saveUsername(value);
+  }, []);
+
+  const handleAuthenticated = useCallback(
+    (payload: { userId: string; username: string; mode: "sign_in" | "sign_up" }) => {
+      if (payload.mode === "sign_up" && payload.username.trim()) {
+        setUsername(payload.username.trim());
+      }
+      setAuthOpen(false);
+    },
+    [setUsername]
+  );
+
+  const signOutCloud = useCallback(async () => {
+    const result = await signOutCloudSession();
+    if (!result.ok) {
+      console.error("[auth] sign out failed", result.message);
+      return false;
+    }
+    // Session wipe only — local vault / localStorage backup remains intact.
+    return true;
   }, []);
 
   useEffect(() => {
@@ -215,13 +422,6 @@ export function useBabylonEngine() {
   const lifetimeSpent = useMemo(
     () => roundMoney(needSpend + desireSpend),
     [needSpend, desireSpend]
-  );
-
-  const currentMonthKey = useMemo(
-    () => monthKeyFromDate(todayIso()),
-    // Recompute when the calendar day may roll over with the live clock.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [clock]
   );
 
   const currentMonthExpenses = useMemo(
@@ -498,6 +698,7 @@ export function useBabylonEngine() {
         expenditure: split.expenditureShare,
       };
 
+      // Local path — always mutate vault state (offline-capable).
       setIncomes((prev) => [entry, ...prev]);
       setAllocations((prev) => [event, ...prev]);
 
@@ -513,10 +714,15 @@ export function useBabylonEngine() {
         streamKind: entry.kind,
       });
 
+      // Cloud path — dual-write when a verified session exists.
+      queueCloudWrite((userId) => {
+        mutateUpsertIncome({ userId, entry });
+      });
+
       setTributeOpen(false);
       return true;
     },
-    [hasActiveDebt, pushActivity]
+    [hasActiveDebt, pushActivity, queueCloudWrite, mutateUpsertIncome]
   );
 
   const addExpense = useCallback(
@@ -555,10 +761,15 @@ export function useBabylonEngine() {
           entry.category === "desire" ? "Desire archived" : "Need archived",
         amount: entry.amount,
       });
+
+      queueCloudWrite((userId) => {
+        mutateUpsertExpense({ userId, entry });
+      });
+
       setTributeOpen(false);
       return true;
     },
-    [budgetTargets, pushActivity]
+    [budgetTargets, pushActivity, queueCloudWrite, mutateUpsertExpense]
   );
 
   const addDebt = useCallback((input: DebtInput): boolean => {
@@ -738,9 +949,18 @@ export function useBabylonEngine() {
           subtitle: nextSettled ? "Marked settled" : "Reopened as pending",
           amount,
         });
+
+        const settled = nextSettled;
+        queueCloudWrite((userId) => {
+          mutateUpdateExpenseSettled({
+            userId,
+            expenseId: id,
+            isSettled: settled,
+          });
+        });
       }
     },
-    [pushActivity]
+    [pushActivity, queueCloudWrite, mutateUpdateExpenseSettled]
   );
 
   const autoScaleBudgetCaps = useCallback((): boolean => {
@@ -758,12 +978,23 @@ export function useBabylonEngine() {
       subtitle: `Caps fitted to ${formatMonthLabel(currentMonthKey)} 70% pool`,
       amount: currentMonthExpenditurePool,
     });
+
+    queueCloudWrite((userId) => {
+      mutateUpsertBudgetTargets({
+        userId,
+        targets: scaled,
+        monthKey: currentMonthKey,
+      });
+    });
+
     return true;
   }, [
     budgetTargets,
     currentMonthExpenditurePool,
     currentMonthKey,
     pushActivity,
+    queueCloudWrite,
+    mutateUpsertBudgetTargets,
   ]);
 
   const closeMonth = useCallback(
@@ -968,6 +1199,14 @@ export function useBabylonEngine() {
 
   return {
     hydrated,
+    /** True when a verified Supabase session is active (cloud dual-write armed). */
+    isCloudSynced: cloudUserId !== null,
+    cloudUserId,
+    cloudHydrating,
+    authOpen,
+    setAuthOpen,
+    handleAuthenticated,
+    signOutCloud,
     incomes,
     expenses,
     debts,

@@ -14,6 +14,7 @@ import { BudgetBlueprint } from "@/components/dashboard/BudgetBlueprint";
 import { RecentActivityStrip } from "@/components/dashboard/RecentActivityStrip";
 import { TributeEnginesPanel } from "@/components/dashboard/TributeEnginesPanel";
 import { MonthlyCloseModal } from "@/components/modals/MonthlyCloseModal";
+import { AuthModal } from "@/components/modals/AuthModal";
 import { RecordTransactionModal } from "@/components/modals/RecordTransactionModal";
 import { useBabylonEngine } from "@/hooks/useBabylonEngine";
 import { useTributeHotkeys } from "@/hooks/useTributeHotkeys";
@@ -21,14 +22,15 @@ import { cn } from "@/lib/utils";
 
 export function WealthEngineDashboard() {
   const engine = useBabylonEngine();
-  const { openTribute, hydrated, tributeOpen, monthlyCloseOpen } = engine;
+  const { openTribute, hydrated, tributeOpen, monthlyCloseOpen, authOpen } =
+    engine;
 
   const openTributeHotkey = useCallback(() => {
     openTribute("income");
   }, [openTribute]);
 
   useTributeHotkeys(openTributeHotkey, {
-    enabled: hydrated && !tributeOpen && !monthlyCloseOpen,
+    enabled: hydrated && !tributeOpen && !monthlyCloseOpen && !authOpen,
   });
 
   if (!hydrated) {
@@ -58,6 +60,11 @@ export function WealthEngineDashboard() {
         onExportBackup={engine.exportBackup}
         onImportBackup={engine.importBackup}
         onClearAllData={engine.clearAllData}
+        isCloudSynced={engine.isCloudSynced}
+        cloudHydrating={engine.cloudHydrating}
+        cloudUsername={engine.greetingName}
+        onConnectCloud={() => engine.setAuthOpen(true)}
+        onSignOutCloud={engine.signOutCloud}
       />
 
       <div className="min-w-0 lg:pl-72">
@@ -199,6 +206,13 @@ export function WealthEngineDashboard() {
         emergencyShield={engine.emergencyShield}
         onOpenChange={engine.setMonthlyCloseOpen}
         onCloseMonth={engine.closeMonth}
+      />
+
+      <AuthModal
+        open={engine.authOpen}
+        onOpenChange={engine.setAuthOpen}
+        defaultUsername={engine.username}
+        onAuthenticated={engine.handleAuthenticated}
       />
     </div>
   );

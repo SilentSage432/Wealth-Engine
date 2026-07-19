@@ -5,10 +5,14 @@
 
 ## Entry points
 - App surface: `app/page.tsx` → `components/babylon/wealth-engine-dashboard.tsx`
-- Domain hook: `hooks/useBabylonEngine.ts` (state, persistence, actions, metrics)
+- Domain hook: `hooks/useBabylonEngine.ts` (state, persistence, dual-write, hydration, auth, actions, metrics)
 - Pure engine: `lib/babylon/engine.ts`
 - Types: `types/babylon.ts`
-- Shell: `app/layout.tsx`, `app/globals.css`, `app/manifest.ts`
+- Shell: `app/layout.tsx` → `app/providers.tsx` (TanStack Query), `app/globals.css`, `app/manifest.ts`
+- Cloud client: `lib/supabase/client.ts`, `lib/supabase/auth.ts`, `lib/supabase/database.types.ts`
+- Cloud sync: `lib/babylon/cloud-mappers.ts`, `lib/babylon/cloud-sync.ts`, `lib/babylon/cloud-hydrate.ts`
+- Schema: `supabase/migrations/20260719_init_babylon_schema.sql`
+- Auth UI: `components/modals/AuthModal.tsx`
 - PWA: `public/sw.js`, `components/layout/ServiceWorkerRegistrar.tsx`, `public/icons/*`
 - Primitives: `components/ui/*`
 - Feature UI: `components/babylon/*`, `components/dashboard/BudgetBlueprint.tsx`, `components/dashboard/TributeEnginesPanel.tsx`, `components/dashboard/RecentActivityStrip.tsx`, `components/modals/RecordTransactionModal.tsx`, `components/modals/MonthlyCloseModal.tsx`
@@ -74,10 +78,19 @@ Legacy expenses without `dueDate` soft-migrate to use `date`. Desire expenses wi
 - Overview does not embed full Ledger Matrices.
 
 ## Next candidates (Phase 3)
-- Auth + cloud sync
 - Multi-currency / shared household vaults
 - Debt payment waterfall visualization
 - Recurring income scheduling automation
+- Cloud→local pull / multi-device conflict policy (Path A is local-first dual-write + first-login migrate)
+
+## Path A — Cloud synchronization (complete)
+- Env: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` (see `.env.example`)
+- Migration: `supabase/migrations/20260719_init_babylon_schema.sql`
+- Auth: sidebar “☁️ Connect Cloud Vault” → `AuthModal` (sign-in / create steward)
+- Hydration: first session with local data + empty cloud → batch upsert incomes / expenses / budget_targets
+- Dual-write: subsequent mutations while `isCloudSynced`
+- Sign out: clears Supabase session only; `localStorage` vault retained
+- Map at sync: TS `IncomeInterval` / `ActivityKind` ↔ DB enums via `cloud-mappers`
 
 ## Path B polish (complete)
 - Record Tribute hotkeys: `N` / `Ctrl+N` / `Cmd+N` via `useTributeHotkeys`

@@ -36,10 +36,25 @@ A premium, single-page budgeting platform that teaches and enforces Babylonian w
 ## Phase 3 — Platform
 - [x] Accessibility audit & keyboard control loops (hotkeys, focus trap, aria-labels)
 - [x] High-end micro-animations & UI polish (settled pulse, inline expand, wisdom console, engine tooltips)
-- [ ] Auth + cloud sync
+- [x] Path A cloud schema foundation (`supabase/migrations/20260719_init_babylon_schema.sql`)
+- [x] Path A client connectivity (Supabase SDK + TanStack Query + dual-write mutations)
+- [x] Path A auth UI + local→cloud hydration (AuthModal, sidebar vault anchor, one-time migrate)
 - [ ] Multi-currency
 - [ ] Shared household vaults
 - [ ] Institutional knowledge composition (read-only Observatory views)
+
+## Phase 3 Path A — Cloud synchronization (complete)
+Relational + client bridge fully wired:
+- Enums / tables / RLS / indexes — `supabase/migrations/20260719_init_babylon_schema.sql`
+- Client: `lib/supabase/client.ts` + `lib/supabase/auth.ts` + `lib/supabase/database.types.ts`
+- Cache: `app/providers.tsx` → TanStack Query (`staleTime` 5m)
+- Dual-write: `hooks/useBabylonEngine.ts` (income / expense / settled / auto-scale)
+- Hydration: `lib/babylon/cloud-hydrate.ts` — first sign-in migrates local vault when cloud is empty
+- Auth UI: `components/modals/AuthModal.tsx` (sign-in / create steward)
+- Sidebar anchor: Connect Cloud Vault ↔ Synced badge + Sign Out (session only; local cache retained)
+- Mappers: `lib/babylon/cloud-mappers.ts` + `lib/babylon/cloud-sync.ts`
+- Ownership: SQL owns schema; `types/babylon.ts` owns app contracts; sync adapters compose the boundary
+
 ## Architectural ownership
 | Concern | Owner |
 |--------|--------|
@@ -48,6 +63,14 @@ A premium, single-page budgeting platform that teaches and enforces Babylonian w
 | Period close / surplus | `hooks/useBabylonEngine.ts` (`closeMonth`, `splitSurplusToDebtWealth`) |
 | Ledger state + persistence | `hooks/useBabylonEngine.ts` |
 | Type contracts | `types/babylon.ts` |
+| Cloud relational schema | `supabase/migrations/*` |
+| Supabase browser client | `lib/supabase/client.ts` |
+| Auth session methods | `lib/supabase/auth.ts` |
+| Local→cloud hydration | `lib/babylon/cloud-hydrate.ts` |
+| Cloud ↔ domain mappers | `lib/babylon/cloud-mappers.ts` |
+| Cloud mutation primitives | `lib/babylon/cloud-sync.ts` |
+| Server-state cache | `app/providers.tsx` (TanStack Query) |
+| Auth onboarding UI | `components/modals/AuthModal.tsx` |
 | Presentation | `components/babylon/*`, `components/dashboard/*`, `components/modals/*` |
 | UI primitives | `components/ui/*` |
 | Brand / shell | `app/layout.tsx`, `app/globals.css` |

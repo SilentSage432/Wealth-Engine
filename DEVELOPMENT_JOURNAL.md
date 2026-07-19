@@ -1,5 +1,59 @@
 # Development Journal
 
+## 2026-07-19 — Phase 3 Path A: Auth UI + local→cloud hydration (complete)
+
+### What changed
+- **Auth modal:** `components/modals/AuthModal.tsx` — Sign In / Create Steward Account with username (create), email, password; validation + error/success feedback; Supabase `signInWithPassword` / `signUpWithPassword`
+- **Auth primitives:** `lib/supabase/auth.ts` — sign-in, sign-up (+ profile upsert), sign-out (session only)
+- **Hydration engine:** `lib/babylon/cloud-hydrate.ts` — on first session, if local ledger has data and cloud vault is empty, batch-upserts `budget_targets`, `income_entries`, `expense_entries`; remints legacy non-UUID ids when needed
+- **Hook:** `useBabylonEngine` composes auth listener + one-time migrate + `authOpen` / `signOutCloud` / `cloudHydrating`
+- **Sidebar anchor:** Connect Cloud Vault ↔ username + green Synced dot + Sign Out (local cache preserved)
+- **Dashboard:** mounts `AuthModal`; hotkeys disabled while auth dialog open
+
+### Ownership
+- Auth UI: `components/modals/AuthModal.tsx`
+- Auth methods: `lib/supabase/auth.ts`
+- Hydration: `lib/babylon/cloud-hydrate.ts`
+- Composition: `hooks/useBabylonEngine.ts`
+- Shell: `components/babylon/app-sidebar.tsx`, `wealth-engine-dashboard.tsx`
+
+## 2026-07-19 — Phase 3 Path A: Frontend cloud connectivity
+
+### What changed
+- **Deps:** `@supabase/supabase-js`, `@tanstack/react-query`
+- **Client:** `lib/supabase/client.ts` — env-gated browser singleton (`NEXT_PUBLIC_SUPABASE_URL` / `NEXT_PUBLIC_SUPABASE_ANON_KEY`); warns and returns null when unset
+- **Types:** `lib/supabase/database.types.ts` — typed table/enum contract for Path A schema
+- **Cache:** `app/providers.tsx` wraps root layout with TanStack Query (`staleTime` 5m, `gcTime` 30m, no focus refetch)
+- **Mappers / sync:** `lib/babylon/cloud-mappers.ts`, `lib/babylon/cloud-sync.ts` — snake_case ↔ camelCase + upsert/update primitives
+- **Dual-write:** `useBabylonEngine` listens via `onAuthStateChange`; when `cloudUserId` is set, `addIncome` / `addExpense` / `toggleExpenseSettled` / `autoScaleBudgetCaps` also fire TanStack mutations; local vault always updates (offline-first)
+- **IDs:** `generateId()` prefers `crypto.randomUUID()` for Postgres PK compatibility
+- **Env template:** `.env.example`
+
+### Ownership
+- Client: `lib/supabase/*`
+- Sync boundary: `lib/babylon/cloud-mappers.ts`, `lib/babylon/cloud-sync.ts`
+- Composition: `hooks/useBabylonEngine.ts`
+- Cache shell: `app/providers.tsx` ← `app/layout.tsx`
+
+## 2026-07-19 — Phase 3 Path A: Cloud schema foundation
+
+### What changed
+- **Init migration:** `supabase/migrations/20260719_init_babylon_schema.sql`
+- **Enums:** `income_stream_kind`, `income_interval` (cloud-normalized intervals including `semi_monthly`), `budget_category_group`
+- **Tables:** `profiles` (auth.users 1:1), `budget_targets`, `income_entries`, `expense_entries`, `activity_logs`
+- **FKs:** user rows cascade on auth delete; expense `category_id` → `budget_targets` ON DELETE SET NULL
+- **RLS:** enabled on all tables; owner policies (`auth.uid() = id` on profiles; `auth.uid() = user_id` elsewhere) for SELECT/INSERT/UPDATE/DELETE
+- **Indexes:** `user_id`, `month_key`, and `(user_id, month_key)` composites for high-frequency month-scoped dashboard reads
+
+### Ownership
+- Schema: `supabase/migrations/20260719_init_babylon_schema.sql`
+- App contracts remain in `types/babylon.ts` (local vault still authoritative until sync cutover)
+- Engine math / presentation unchanged — no client wiring in this step
+
+### Notes
+- Allocation shares (`wealthShare` / `debtShare` / `expenditureShare`) stay engine-computed; not persisted as columns
+- Cloud `income_interval` / activity `type` values are Path A canonical DB bounds; adapters will map local TS unions at sync time
+
 ## 2026-07-19 — Path B: Accessibility & UI polish
 
 ### What changed

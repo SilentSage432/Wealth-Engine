@@ -47,6 +47,13 @@ export function formatRelativeTime(
   });
 }
 
+/** UUID when available (Path A cloud PK-compatible); legacy fallback otherwise. */
 export function generateId(): string {
+  if (
+    typeof crypto !== "undefined" &&
+    typeof crypto.randomUUID === "function"
+  ) {
+    return crypto.randomUUID();
+  }
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`;
 }
