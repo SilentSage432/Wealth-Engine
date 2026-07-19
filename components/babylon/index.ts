@@ -2,6 +2,7 @@ export { AffordabilityAnchor } from "@/components/babylon/affordability-anchor";
 export { AppSidebar } from "@/components/babylon/app-sidebar";
 export { AnalyticsHub } from "@/components/babylon/analytics-hub";
 export { CommandBar } from "@/components/babylon/command-bar";
+export { ConfigureBudgetDialog } from "@/components/babylon/configure-budget-dialog";
 export { EmptyLedger } from "@/components/babylon/empty-ledger";
 export { GoldenTriad } from "@/components/babylon/golden-triad";
 export { LedgerMatrices } from "@/components/babylon/ledger-matrices";

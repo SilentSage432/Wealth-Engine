@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { INTERVAL_LABELS, DISCRETIONARY_BUDGET_ID } from "@/lib/babylon/constants";
+import { INTERVAL_LABELS } from "@/lib/babylon/constants";
 import { todayIso } from "@/lib/babylon/engine";
 import { cn, formatCurrency } from "@/lib/utils";
 import type {
@@ -105,15 +105,15 @@ export function RecordTributeDialog({
   const handleDesireToggle = (isDesire: boolean) => {
     setExpenseIsDesire(isDesire);
     if (isDesire) {
-      const discretionary =
-        budgetTargets.find((t) => t.id === DISCRETIONARY_BUDGET_ID) ??
-        budgetTargets.find((t) => !t.isEssential);
+      const discretionary = budgetTargets.find((t) => !t.isEssential);
       if (discretionary) setExpenseBudgetId(discretionary.id);
       return;
     }
     const essential = budgetTargets.find((t) => t.isEssential);
     if (essential) setExpenseBudgetId(essential.id);
   };
+
+  const hasBudgetCategories = budgetTargets.length > 0;
 
   const handleBudgetCategoryChange = (id: string) => {
     setExpenseBudgetId(id);
@@ -323,21 +323,28 @@ export function RecordTributeDialog({
               </div>
               <div className="space-y-2">
                 <Label>Budget Category</Label>
-                <Select
-                  value={expenseBudgetId}
-                  onValueChange={handleBudgetCategoryChange}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {budgetTargets.map((target) => (
-                      <SelectItem key={target.id} value={target.id}>
-                        {target.categoryName}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {hasBudgetCategories ? (
+                  <Select
+                    value={expenseBudgetId}
+                    onValueChange={handleBudgetCategoryChange}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {budgetTargets.map((target) => (
+                        <SelectItem key={target.id} value={target.id}>
+                          {target.categoryName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <div className="rounded-md border border-dashed border-slate-800 bg-slate-950/50 px-3 py-3 text-xs leading-relaxed text-slate-500">
+                    No budget buckets yet. Use &apos;Manage Categories&apos; to
+                    configure your blueprint before archiving expenses.
+                  </div>
+                )}
                 <p className="text-[11px] text-slate-500">
                   Attributes spend to a Necessary Expenditures bucket for
                   Planned vs. Actual tracking.
@@ -437,7 +444,10 @@ export function RecordTributeDialog({
               >
                 Cancel
               </Button>
-              <Button type="submit">
+              <Button
+                type="submit"
+                disabled={mode === "expense" && !hasBudgetCategories}
+              >
                 {mode === "income" && "Allocate Tribute"}
                 {mode === "expense" && "Archive Expense"}
                 {mode === "debt" && "Enroll Creditor"}

@@ -11,6 +11,7 @@ interface CommandBarProps {
   localizedTime: string;
   onDisplayNameChange: (value: string) => void;
   onOpenSidebar: () => void;
+  onManageCategories: () => void;
   onRecordTribute: () => void;
 }
 
@@ -21,6 +22,7 @@ export function CommandBar({
   localizedTime,
   onDisplayNameChange,
   onOpenSidebar,
+  onManageCategories,
   onRecordTribute,
 }: CommandBarProps) {
   return (
@@ -65,6 +67,15 @@ export function CommandBar({
             className="h-9 w-32 border-slate-800 bg-slate-900/50 text-xs sm:w-40"
             aria-label="Display name"
           />
+          <Button
+            variant="outline"
+            size="lg"
+            className="border-amber-500/35 bg-transparent text-amber-100/90 hover:border-amber-400/55 hover:bg-amber-500/10 hover:text-amber-50"
+            onClick={onManageCategories}
+          >
+            <Plus className="h-4 w-4" />
+            Manage Categories
+          </Button>
           <Button
             variant="amber"
             size="lg"

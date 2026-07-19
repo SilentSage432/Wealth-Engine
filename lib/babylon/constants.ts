@@ -1,9 +1,4 @@
-import type {
-  BudgetTarget,
-  IncomeInterval,
-  NavSection,
-  PersistedState,
-} from "@/types/babylon";
+import type { IncomeInterval, NavSection, PersistedState } from "@/types/babylon";
 import { BookOpen, LayoutDashboard, ScrollText } from "lucide-react";
 import type { ComponentType } from "react";
 
@@ -16,34 +11,10 @@ export const EXPENDITURE_RATE = 0.7;
 /** Amber warning threshold for category spend vs. planned cap. */
 export const BUDGET_WARNING_PCT = 85;
 
-/** Stable default operational buckets within the 70% Necessary Expenditures boundary. */
-export const DEFAULT_BUDGET_TARGETS: readonly BudgetTarget[] = [
-  {
-    id: "budget-housing",
-    categoryName: "Housing & Utilities",
-    plannedAmount: 1400,
-    isEssential: true,
-  },
-  {
-    id: "budget-groceries",
-    categoryName: "Groceries & Sustenance",
-    plannedAmount: 450,
-    isEssential: true,
-  },
-  {
-    id: "budget-transport",
-    categoryName: "Transport",
-    plannedAmount: 250,
-    isEssential: true,
-  },
-  {
-    id: "budget-desires",
-    categoryName: "Discretionary Desires",
-    plannedAmount: 300,
-    isEssential: false,
-  },
-];
-
+/**
+ * Legacy id used only when soft-migrating older desire expenses that lacked
+ * `budgetCategoryId`. New installs start with an empty custom blueprint.
+ */
 export const DISCRETIONARY_BUDGET_ID = "budget-desires";
 
 export const BABYLON_WISDOM: readonly string[] = [
@@ -88,6 +59,6 @@ export const EMPTY_STATE: PersistedState = {
   expenses: [],
   debts: [],
   allocations: [],
-  budgetTargets: DEFAULT_BUDGET_TARGETS.map((t) => ({ ...t })),
+  budgetTargets: [],
   displayName: "Steward",
 };

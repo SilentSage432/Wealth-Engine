@@ -1,5 +1,4 @@
 import {
-  DEFAULT_BUDGET_TARGETS,
   DISCRETIONARY_BUDGET_ID,
   EMPTY_STATE,
   STORAGE_KEY,
@@ -132,10 +131,6 @@ function parseBudgetTarget(value: unknown): BudgetTarget | null {
   };
 }
 
-function defaultBudgetTargets(): BudgetTarget[] {
-  return DEFAULT_BUDGET_TARGETS.map((t) => ({ ...t }));
-}
-
 function parseDebtEntry(value: unknown): DebtEntry | null {
   if (!isRecord(value)) return null;
   if (!isNonEmptyString(value.id)) return null;
@@ -226,13 +221,11 @@ export function normalizePersistedState(raw: unknown): PersistedState {
         .filter((e): e is AllocationEvent => e !== null)
     : [];
 
-  const parsedTargets = Array.isArray(raw.budgetTargets)
+  const budgetTargets = Array.isArray(raw.budgetTargets)
     ? raw.budgetTargets
         .map(parseBudgetTarget)
         .filter((t): t is BudgetTarget => t !== null)
     : [];
-  const budgetTargets =
-    parsedTargets.length > 0 ? parsedTargets : defaultBudgetTargets();
 
   return {
     incomes,
@@ -270,12 +263,12 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
     allocations = parsed;
   }
 
-  // Budget targets optional for older backups; seed operational defaults.
-  let budgetTargets = defaultBudgetTargets();
+  // Budget targets optional for older backups; empty means steward configures later.
+  let budgetTargets: BudgetTarget[] = [];
   if (raw.budgetTargets !== undefined) {
     const parsed = parseArray(raw.budgetTargets, parseBudgetTarget);
     if (!parsed) return null;
-    budgetTargets = parsed.length > 0 ? parsed : defaultBudgetTargets();
+    budgetTargets = parsed;
   }
 
   const displayName =

@@ -1,18 +1,33 @@
 # Development Journal
 
+## 2026-07-19 — Dynamic budget blueprint (steward-configured categories)
+
+### What changed
+- Removed hardcoded `DEFAULT_BUDGET_TARGETS` seeding. Cold start / clear / empty backup now use `budgetTargets: []`.
+- **Mutation:** `addBudgetTarget(Omit<BudgetTarget, "id">)` generates a unique id, appends the bucket, persists via the existing localStorage effect, and closes the configure dialog.
+- **UI:** Command bar secondary `Manage Categories` control launches `ConfigureBudgetDialog` (“Configure Budget Blueprint”) with name, monthly cap, and Essential/Desire classification.
+- **Empty state:** `BudgetBlueprint` prompts stewards to map buckets when none exist; expense tribute disables archive until categories exist and reads the live `budgetTargets` dropdown.
+- Persistence no longer falls back to operational defaults when the stored list is empty.
+
+### Ownership
+- Empty blueprint contract: `lib/babylon/constants.ts` (`EMPTY_STATE`)
+- Soft load / backup parse: `lib/babylon/persistence.ts`
+- State + `addBudgetTarget`: `hooks/useBabylonEngine.ts`
+- Presentation: `configure-budget-dialog.tsx`, `command-bar.tsx`, `BudgetBlueprint.tsx`, tribute dialog, dashboard shell
+
 ## 2026-07-19 — Budget Blueprint (Necessary Expenditures planning)
 
 ### What changed
-- **Budget targets:** Persisted `budgetTargets[]` with stable operational buckets (Housing & Utilities, Groceries & Sustenance, Transport, Discretionary Desires) inside the 70% expenditure boundary.
+- **Budget targets:** Persisted `budgetTargets[]` for operational buckets inside the 70% expenditure boundary (later made fully steward-configured).
 - **Mutation:** `updateBudgetTarget(id, newAmount)` for on-the-fly planned-cap edits with immediate localStorage sync.
 - **Variance selector:** Pure `buildBudgetVariances()` groups current-month spend by `budgetCategoryId` and computes Planned vs. Actual (remaining, used %, emerald→amber at 85%).
 - **UI:** `components/dashboard/BudgetBlueprint.tsx` — compact category workspace with inline cap editor, dual-layer progress, remaining-balance copy. Mounted on Command Deck (before charts) and Ledger Matrices nav.
-- **Attribution:** Expense form requires a budget category; ledger shows bucket under expense name. Desire expenses soft-migrate to Discretionary Desires when missing an id.
+- **Attribution:** Expense form requires a budget category; ledger shows bucket under expense name. Desire expenses soft-migrate to a legacy discretionary id when missing.
 
 ### Ownership
-- Defaults / warning threshold: `lib/babylon/constants.ts`
+- Warning threshold: `lib/babylon/constants.ts`
 - Variance math: `lib/babylon/engine.ts`
-- State + persistence + `updateBudgetTarget`: `hooks/useBabylonEngine.ts`
+- State + persistence + `updateBudgetTarget` / `addBudgetTarget`: `hooks/useBabylonEngine.ts`
 - Presentation: `BudgetBlueprint`, tribute dialog, ledger, dashboard shell
 
 ## 2026-07-19 — Cash-flow utilities (backup, affordability, due dates)

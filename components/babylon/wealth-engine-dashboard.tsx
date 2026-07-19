@@ -4,6 +4,7 @@ import { AffordabilityAnchor } from "@/components/babylon/affordability-anchor";
 import { AnalyticsHub } from "@/components/babylon/analytics-hub";
 import { AppSidebar } from "@/components/babylon/app-sidebar";
 import { CommandBar } from "@/components/babylon/command-bar";
+import { ConfigureBudgetDialog } from "@/components/babylon/configure-budget-dialog";
 import { GoldenTriad } from "@/components/babylon/golden-triad";
 import { LedgerMatrices } from "@/components/babylon/ledger-matrices";
 import { QuickStats } from "@/components/babylon/quick-stats";
@@ -54,6 +55,7 @@ export function WealthEngineDashboard() {
           localizedTime={engine.localizedTime}
           onDisplayNameChange={engine.setDisplayName}
           onOpenSidebar={() => engine.setSidebarOpen(true)}
+          onManageCategories={engine.openBlueprint}
           onRecordTribute={() => engine.openTribute("income")}
         />
 
@@ -165,6 +167,12 @@ export function WealthEngineDashboard() {
         onRecordIncome={engine.addIncome}
         onRecordExpense={engine.addExpense}
         onRecordDebt={engine.addDebt}
+      />
+
+      <ConfigureBudgetDialog
+        open={engine.blueprintOpen}
+        onOpenChange={engine.setBlueprintOpen}
+        onAddTarget={engine.addBudgetTarget}
       />
     </div>
   );

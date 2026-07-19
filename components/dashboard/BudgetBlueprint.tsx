@@ -141,107 +141,119 @@ export function BudgetBlueprint({
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {variances.map((row) => {
-            const barPct = Math.min(100, row.usedPct);
-            const overCap = row.actualAmount > row.plannedAmount;
-            const indicatorClass =
-              row.tone === "amber" ? "bg-amber-500" : "bg-emerald-600";
+          {variances.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-slate-800 bg-slate-950/40 px-4 py-10 text-center">
+              <p className="font-[family-name:var(--font-display)] text-lg text-slate-200">
+                No budget buckets defined yet
+              </p>
+              <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-slate-500">
+                Click &apos;+ Manage Categories&apos; above to map your custom
+                blueprint.
+              </p>
+            </div>
+          ) : (
+            variances.map((row) => {
+              const barPct = Math.min(100, row.usedPct);
+              const overCap = row.actualAmount > row.plannedAmount;
+              const indicatorClass =
+                row.tone === "amber" ? "bg-amber-500" : "bg-emerald-600";
 
-            return (
-              <div
-                key={row.id}
-                className="rounded-lg border border-slate-800/70 bg-slate-950/30 px-3 py-3 sm:px-4"
-              >
-                <div className="flex flex-wrap items-start justify-between gap-2">
-                  <div className="min-w-0 space-y-0.5">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-sm font-medium text-slate-100">
-                        {row.categoryName}
+              return (
+                <div
+                  key={row.id}
+                  className="rounded-lg border border-slate-800/70 bg-slate-950/30 px-3 py-3 sm:px-4"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div className="min-w-0 space-y-0.5">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-sm font-medium text-slate-100">
+                          {row.categoryName}
+                        </p>
+                        <span
+                          className={cn(
+                            "inline-flex rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider",
+                            row.isEssential
+                              ? "bg-emerald-500/10 text-emerald-400/90"
+                              : "bg-amber-500/10 text-amber-400/90"
+                          )}
+                        >
+                          {row.isEssential ? "Essential" : "Discretionary"}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500">
+                        {overCap ? (
+                          <>
+                            <span className="tabular-nums text-amber-400">
+                              {formatCurrency(
+                                row.actualAmount - row.plannedAmount
+                              )}{" "}
+                              over
+                            </span>{" "}
+                            of {formatCurrency(row.plannedAmount)}
+                          </>
+                        ) : (
+                          <>
+                            <span className="tabular-nums text-slate-300">
+                              {formatCurrency(row.remainingAmount)} remaining
+                            </span>{" "}
+                            of {formatCurrency(row.plannedAmount)}
+                          </>
+                        )}
                       </p>
+                    </div>
+                    <div className="flex items-center gap-3 text-right">
+                      <div className="hidden sm:block">
+                        <p className="text-[10px] uppercase tracking-wider text-slate-600">
+                          Actual
+                        </p>
+                        <p className="tabular-nums text-sm text-slate-300">
+                          {formatCurrency(row.actualAmount)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] uppercase tracking-wider text-slate-600">
+                          Cap
+                        </p>
+                        <PlannedAmountEditor
+                          id={row.id}
+                          plannedAmount={row.plannedAmount}
+                          onCommit={onUpdateTarget}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="relative mt-3">
+                    {/* Dual layer: track = planned cap; fill = actual spend ratio */}
+                    <Progress
+                      value={barPct}
+                      className="h-2.5 bg-slate-800/90"
+                      indicatorClassName={cn(
+                        "transition-all duration-500 ease-out",
+                        indicatorClass
+                      )}
+                    />
+                    <div className="mt-1.5 flex items-center justify-between text-[10px] tabular-nums text-slate-600">
+                      <span>
+                        {formatCurrency(row.actualAmount)}
+                        <span className="mx-1 text-slate-700">/</span>
+                        {formatCurrency(row.plannedAmount)}
+                      </span>
                       <span
                         className={cn(
-                          "inline-flex rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider",
-                          row.isEssential
-                            ? "bg-emerald-500/10 text-emerald-400/90"
-                            : "bg-amber-500/10 text-amber-400/90"
+                          row.tone === "amber"
+                            ? "text-amber-500"
+                            : "text-emerald-600"
                         )}
                       >
-                        {row.isEssential ? "Essential" : "Discretionary"}
+                        {row.usedPct}% used
                       </span>
                     </div>
-                    <p className="text-xs text-slate-500">
-                      {overCap ? (
-                        <>
-                          <span className="tabular-nums text-amber-400">
-                            {formatCurrency(
-                              row.actualAmount - row.plannedAmount
-                            )}{" "}
-                            over
-                          </span>{" "}
-                          of {formatCurrency(row.plannedAmount)}
-                        </>
-                      ) : (
-                        <>
-                          <span className="tabular-nums text-slate-300">
-                            {formatCurrency(row.remainingAmount)} remaining
-                          </span>{" "}
-                          of {formatCurrency(row.plannedAmount)}
-                        </>
-                      )}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-3 text-right">
-                    <div className="hidden sm:block">
-                      <p className="text-[10px] uppercase tracking-wider text-slate-600">
-                        Actual
-                      </p>
-                      <p className="tabular-nums text-sm text-slate-300">
-                        {formatCurrency(row.actualAmount)}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] uppercase tracking-wider text-slate-600">
-                        Cap
-                      </p>
-                      <PlannedAmountEditor
-                        id={row.id}
-                        plannedAmount={row.plannedAmount}
-                        onCommit={onUpdateTarget}
-                      />
-                    </div>
                   </div>
                 </div>
-
-                <div className="relative mt-3">
-                  {/* Dual layer: track = planned cap; fill = actual spend ratio */}
-                  <Progress
-                    value={barPct}
-                    className="h-2.5 bg-slate-800/90"
-                    indicatorClassName={cn(
-                      "transition-all duration-500 ease-out",
-                      indicatorClass
-                    )}
-                  />
-                  <div className="mt-1.5 flex items-center justify-between text-[10px] tabular-nums text-slate-600">
-                    <span>
-                      {formatCurrency(row.actualAmount)}
-                      <span className="mx-1 text-slate-700">/</span>
-                      {formatCurrency(row.plannedAmount)}
-                    </span>
-                    <span
-                      className={cn(
-                        row.tone === "amber"
-                          ? "text-amber-500"
-                          : "text-emerald-600"
-                      )}
-                    >
-                      {row.usedPct}% used
-                    </span>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+              );
+            })
+          )}
         </CardContent>
       </Card>
     </section>

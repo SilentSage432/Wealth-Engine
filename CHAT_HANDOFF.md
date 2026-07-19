@@ -26,18 +26,19 @@ Persisted in `localStorage` (`wealth-engine-babylon-v2`) as:
 - `expenses[]` — `need` | `desire`, mandatory `dueDate`, optional `budgetCategoryId`
 - `debts[]` — `totalDebt`, `remainingDebt`, `monthlyAllocation` (required on create)
 - `allocations[]` — historical events for charts
-- `budgetTargets[]` — planned caps for Necessary Expenditures buckets (seeded defaults)
+- `budgetTargets[]` — steward-configured planned caps for Necessary Expenditures buckets (starts empty)
 - `displayName`
 
-Hydration: load from localStorage when present; otherwise empty ledger + default budget targets. No demo seed.
-Legacy expenses without `dueDate` soft-migrate to use `date`. Desire expenses without `budgetCategoryId` map to Discretionary Desires.
+Hydration: load from localStorage when present; otherwise empty ledger + empty budget blueprint. No demo seed.
+Legacy expenses without `dueDate` soft-migrate to use `date`. Desire expenses without `budgetCategoryId` map to the legacy discretionary id when present.
 
 ## Mutations (hook exports)
 - `addIncome` — ID + 10/20/70 allocation (+ debt waterfall when active)
 - `addExpense` — ID + Need/Desire + due date + required `budgetCategoryId`
 - `addDebt` — ID + creditor tracking with mandatory monthly allocation
+- `addBudgetTarget` — ID + custom category name / planned cap / essential flag (persisted)
 - `updateBudgetTarget` — adjust a category planned amount (persisted)
-- `clearAllData` — wipe localStorage and reset in-memory ledger (re-seeds budget defaults)
+- `clearAllData` — wipe localStorage and reset in-memory ledger (including empty blueprint)
 - `exportBackup` — download versioned `LedgerBackup` JSON
 - `importBackup` — strict schema validation, overwrite vault, force state reset
 
@@ -48,14 +49,16 @@ Legacy expenses without `dueDate` soft-migrate to use `date`. Desire expenses wi
 
 ## Command Deck utilities
 - **Affordability Anchor** — discretionary amount → % of remaining Desires pool (`currentMonthRemaining`) + labor hours from `effectiveHourlyRate(incomes)`
-- **Budget Blueprint** — inline planned-cap edits + dual progress (actual vs. planned) on overview and ledgers nav
+- **Budget Blueprint** — steward-defined buckets with inline planned-cap edits + dual progress; empty state until categories are added via Manage Categories
+- **Configure Budget Blueprint** — dialog launched from command bar to append custom buckets
 
 ## Known behaviors
 - Recording income runs `allocateIncome()` and optionally `applyDebtAllocation()`.
 - Deleting an income removes its allocation event but does **not** reverse prior debt reductions (by design for this SPA; reverse-amortization can be added later).
 - Empty ledgers show a single guidance row; empty charts show placeholder copy (no synthetic Recharts data).
 - Expenses due within the next 7 days show an amber “Due soon” tag in the ledger.
-- Changing a budget cap or recording an expense immediately refreshes variances (single hook owner).
+- Changing a budget cap, adding a category, or recording an expense immediately refreshes variances (single hook owner).
+- Expense tribute requires at least one budget category; category dropdown reads live `budgetTargets`.
 
 ## Next candidates
 - Debt payment waterfall visualization
@@ -63,4 +66,5 @@ Legacy expenses without `dueDate` soft-migrate to use `date`. Desire expenses wi
 - Optional multi-profile vaults
 - UI affordance for `clearAllData` (hook already exports it)
 - Paid/settled toggle for expenses (due-soon currently treats all ledger expenses as open)
-- Auto-scale default budget caps from current-month 70% pool
+- Edit / delete budget buckets (add + update-cap already exist)
+- Auto-scale budget caps from current-month 70% pool

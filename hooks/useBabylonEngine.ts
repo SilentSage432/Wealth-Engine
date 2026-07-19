@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   BABYLON_WISDOM,
-  DEFAULT_BUDGET_TARGETS,
   DONUT_COLORS,
   EMPTY_STATE,
 } from "@/lib/babylon/constants";
@@ -43,19 +42,13 @@ import type {
   TributeMode,
 } from "@/types/babylon";
 
-function cloneDefaultBudgetTargets(): BudgetTarget[] {
-  return DEFAULT_BUDGET_TARGETS.map((t) => ({ ...t }));
-}
-
 export function useBabylonEngine() {
   const [hydrated, setHydrated] = useState(false);
   const [incomes, setIncomes] = useState<IncomeEntry[]>([]);
   const [expenses, setExpenses] = useState<ExpenseEntry[]>([]);
   const [debts, setDebts] = useState<DebtEntry[]>([]);
   const [allocations, setAllocations] = useState<AllocationEvent[]>([]);
-  const [budgetTargets, setBudgetTargets] = useState<BudgetTarget[]>(
-    cloneDefaultBudgetTargets
-  );
+  const [budgetTargets, setBudgetTargets] = useState<BudgetTarget[]>([]);
   const [displayName, setDisplayName] = useState("Steward");
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -65,6 +58,7 @@ export function useBabylonEngine() {
 
   const [tributeOpen, setTributeOpen] = useState(false);
   const [tributeMode, setTributeMode] = useState<TributeMode>("income");
+  const [blueprintOpen, setBlueprintOpen] = useState(false);
 
   useEffect(() => {
     const stored = loadPersistedState();
@@ -72,11 +66,7 @@ export function useBabylonEngine() {
     setExpenses(stored.expenses);
     setDebts(stored.debts);
     setAllocations(stored.allocations);
-    setBudgetTargets(
-      stored.budgetTargets.length > 0
-        ? stored.budgetTargets
-        : cloneDefaultBudgetTargets()
-    );
+    setBudgetTargets(stored.budgetTargets);
     setDisplayName(stored.displayName);
     setHydrated(true);
   }, []);
@@ -348,6 +338,14 @@ export function useBabylonEngine() {
     setTributeOpen(false);
   }, []);
 
+  const openBlueprint = useCallback(() => {
+    setBlueprintOpen(true);
+  }, []);
+
+  const closeBlueprint = useCallback(() => {
+    setBlueprintOpen(false);
+  }, []);
+
   const addIncome = useCallback(
     (input: IncomeInput): boolean => {
       if (
@@ -462,16 +460,42 @@ export function useBabylonEngine() {
     );
   }, []);
 
+  const addBudgetTarget = useCallback(
+    (target: Omit<BudgetTarget, "id">): boolean => {
+      const categoryName = target.categoryName.trim();
+      if (
+        !categoryName ||
+        !Number.isFinite(target.plannedAmount) ||
+        target.plannedAmount < 0
+      ) {
+        return false;
+      }
+
+      const entry: BudgetTarget = {
+        id: generateId(),
+        categoryName,
+        plannedAmount: roundMoney(target.plannedAmount),
+        isEssential: target.isEssential,
+      };
+
+      setBudgetTargets((prev) => [...prev, entry]);
+      setBlueprintOpen(false);
+      return true;
+    },
+    []
+  );
+
   const clearAllData = useCallback(() => {
     clearPersistedState();
     setIncomes([]);
     setExpenses([]);
     setDebts([]);
     setAllocations([]);
-    setBudgetTargets(cloneDefaultBudgetTargets());
+    setBudgetTargets([]);
     setDisplayName(EMPTY_STATE.displayName);
     setTributeOpen(false);
     setTributeMode("income");
+    setBlueprintOpen(false);
   }, []);
 
   const exportBackup = useCallback(() => {
@@ -508,10 +532,7 @@ export function useBabylonEngine() {
       expenses: backup.expenses,
       debts: backup.debts,
       allocations: backup.allocations,
-      budgetTargets:
-        backup.budgetTargets.length > 0
-          ? backup.budgetTargets
-          : cloneDefaultBudgetTargets(),
+      budgetTargets: backup.budgetTargets,
       displayName: backup.displayName,
     };
 
@@ -524,6 +545,7 @@ export function useBabylonEngine() {
     setDisplayName(next.displayName);
     setTributeOpen(false);
     setTributeMode("income");
+    setBlueprintOpen(false);
     setActiveNav("overview");
     return null;
   }, []);
@@ -572,6 +594,10 @@ export function useBabylonEngine() {
     setTributeMode,
     openTribute,
     closeTribute,
+    blueprintOpen,
+    setBlueprintOpen,
+    openBlueprint,
+    closeBlueprint,
     hasActiveDebt,
     goldRetained,
     debtAllocated,
@@ -607,6 +633,7 @@ export function useBabylonEngine() {
     addExpense,
     addDebt,
     updateBudgetTarget,
+    addBudgetTarget,
     clearAllData,
     exportBackup,
     importBackup,
