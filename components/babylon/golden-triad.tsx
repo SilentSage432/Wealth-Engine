@@ -54,16 +54,16 @@ export function GoldenTriad({
   expenditurePool,
 }: GoldenTriadProps) {
   return (
-    <section className="grid gap-4 md:grid-cols-3">
+    <section className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
       <Card className="group relative overflow-hidden animate-fade-up border-emerald-900/30">
         <div className="pointer-events-none absolute inset-0 animate-shimmer" />
         <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
-          <div>
+          <div className="min-w-0 pr-2">
             <CardDescription className="flex items-center gap-1.5 text-emerald-400/80">
-              <PiggyBank className="h-3.5 w-3.5" />
-              Thy Purse to Fattening · 10%
+              <PiggyBank className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">Thy Purse to Fattening · 10%</span>
             </CardDescription>
-            <CardTitle className="mt-2 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight text-emerald-300">
+            <CardTitle className="mt-2 font-[family-name:var(--font-display)] text-2xl font-semibold tracking-tight text-emerald-300 sm:text-3xl">
               {formatCurrency(goldRetained)}
             </CardTitle>
           </div>
@@ -95,9 +95,9 @@ export function GoldenTriad({
               <Scale className="h-3.5 w-3.5" />
               Thy Creditors · 20%
             </CardDescription>
-            <CardTitle className="mt-2 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight text-amber-300">
+            <CardTitle className="mt-2 font-[family-name:var(--font-display)] text-2xl font-semibold tracking-tight text-amber-300 sm:text-3xl">
               {formatCurrency(clearedDebt)}
-              <span className="ml-1 text-base font-normal text-slate-500">
+              <span className="ml-1 text-sm font-normal text-slate-500 sm:text-base">
                 / {formatCurrency(originalDebt || 0)}
               </span>
             </CardTitle>
@@ -139,7 +139,7 @@ export function GoldenTriad({
             </CardDescription>
             <CardTitle
               className={cn(
-                "mt-2 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight",
+                "mt-2 font-[family-name:var(--font-display)] text-2xl font-semibold tracking-tight sm:text-3xl",
                 expenditureBarTone === "emerald" && "text-emerald-300",
                 expenditureBarTone === "amber" && "text-amber-300",
                 expenditureBarTone === "crimson" && "text-rose-300"

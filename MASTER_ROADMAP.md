@@ -23,6 +23,7 @@ A premium, single-page budgeting platform that teaches and enforces Babylonian w
 - [x] Steward-configured budget categories (`addBudgetTarget` via Record Tribute)
 - [x] Clear-ledger UI control (confirmed purge via sidebar AlertDialog)
 - [x] Budget bucket edit / delete (`updateBudgetTargetFull` / `deleteBudgetTarget`)
+- [x] Responsive layout audit (mobile drawer, triad/charts wrap, table scroll, touch targets)
 - [ ] Reversible debt amortization on income delete
 - [ ] Monthly close ritual (period summary)
 - [ ] Accessibility audit (keyboard + screen reader)

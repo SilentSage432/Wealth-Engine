@@ -222,9 +222,9 @@ export function RecordTransactionModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto scrollbar-thin sm:max-w-lg">
+      <DialogContent className="max-h-[min(90vh,900px)] overflow-y-auto scrollbar-thin sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle className="font-[family-name:var(--font-display)] text-2xl">
+          <DialogTitle className="font-[family-name:var(--font-display)] text-xl sm:text-2xl">
             Record Tribute
           </DialogTitle>
           <DialogDescription>{copy.description}</DialogDescription>
@@ -236,16 +236,28 @@ export function RecordTransactionModal({
           className="w-full"
         >
           <TabsList className="grid h-auto w-full grid-cols-2 gap-1 p-1 sm:grid-cols-4">
-            <TabsTrigger value="income" className="px-2 text-xs sm:text-sm">
+            <TabsTrigger
+              value="income"
+              className="min-h-11 px-2 text-[11px] leading-tight sm:text-sm"
+            >
               Income stream
             </TabsTrigger>
-            <TabsTrigger value="expense" className="px-2 text-xs sm:text-sm">
+            <TabsTrigger
+              value="expense"
+              className="min-h-11 px-2 text-[11px] leading-tight sm:text-sm"
+            >
               Expense Item
             </TabsTrigger>
-            <TabsTrigger value="debt" className="px-2 text-xs sm:text-sm">
+            <TabsTrigger
+              value="debt"
+              className="min-h-11 px-2 text-[11px] leading-tight sm:text-sm"
+            >
               Debt Obligation
             </TabsTrigger>
-            <TabsTrigger value="budget" className="px-2 text-xs sm:text-sm">
+            <TabsTrigger
+              value="budget"
+              className="min-h-11 px-2 text-[11px] leading-tight sm:text-sm"
+            >
               Budget Category
             </TabsTrigger>
           </TabsList>

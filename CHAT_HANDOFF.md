@@ -61,6 +61,7 @@ Legacy expenses without `dueDate` soft-migrate to use `date`. Desire expenses wi
 - Expenses due within the next 7 days show an amber “Due soon” tag in the ledger.
 - Changing a budget cap, adding/editing/deleting a category, or recording an expense immediately refreshes variances (single hook owner).
 - Expense tribute requires at least one budget category; category dropdown reads live `budgetTargets`.
+- Viewport shell uses a mobile drawer (<1024px) and locked desktop sidebar; ledger tables scroll horizontally on narrow screens.
 
 ## Next candidates
 - Debt payment waterfall visualization

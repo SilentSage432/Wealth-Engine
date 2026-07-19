@@ -74,8 +74,10 @@ export function AppSidebar({
   return (
     <aside
       className={cn(
-        "fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r border-slate-800/80 bg-slate-950/95 backdrop-blur-xl transition-transform duration-300 lg:translate-x-0",
-        open ? "translate-x-0" : "-translate-x-full"
+        "fixed inset-y-0 left-0 z-50 flex w-[min(18rem,100vw)] max-w-full flex-col border-r border-slate-800/80 bg-slate-950/95 backdrop-blur-xl transition-transform duration-300 ease-out lg:translate-x-0",
+        open
+          ? "translate-x-0 pointer-events-auto"
+          : "-translate-x-full pointer-events-none lg:pointer-events-auto"
       )}
     >
       <div className="flex items-center justify-between border-b border-slate-800/80 px-5 py-5">

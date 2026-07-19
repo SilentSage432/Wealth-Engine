@@ -27,7 +27,7 @@ export function WealthEngineDashboard() {
     engine.activeNav === "ledgers" || engine.activeNav === "overview";
 
   return (
-    <div className="relative min-h-screen bg-slate-950 text-slate-100 luxury-grid">
+    <div className="relative min-h-dvh overflow-x-clip bg-slate-950 text-slate-100 luxury-grid">
       {engine.sidebarOpen && (
         <button
           type="button"
@@ -47,7 +47,7 @@ export function WealthEngineDashboard() {
         onClearAllData={engine.clearAllData}
       />
 
-      <div className="lg:pl-72">
+      <div className="min-w-0 lg:pl-72">
         <CommandBar
           greeting={engine.greeting}
           username={engine.username}
@@ -58,7 +58,7 @@ export function WealthEngineDashboard() {
           onRecordTribute={() => engine.openTribute("income")}
         />
 
-        <main className="space-y-6 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+        <main className="mx-auto w-full max-w-screen-2xl space-y-5 px-3 py-5 sm:space-y-6 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
           {(showOverview || showWisdom) && (
             <>
               {showOverview && (
@@ -103,7 +103,7 @@ export function WealthEngineDashboard() {
               <section
                 className={cn(
                   "grid gap-4",
-                  showWisdom ? "lg:grid-cols-1" : "lg:grid-cols-3"
+                  showWisdom ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-3"
                 )}
               >
                 {showOverview && (

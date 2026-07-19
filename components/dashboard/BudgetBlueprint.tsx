@@ -101,9 +101,9 @@ export function BudgetBlueprint({
   return (
     <section className="animate-fade-up">
       <Card className="border-slate-800/80">
-        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <CardTitle className="font-[family-name:var(--font-display)] text-xl">
+        <CardHeader className="flex flex-col gap-3 px-4 sm:flex-row sm:items-start sm:justify-between sm:px-6">
+          <div className="min-w-0">
+            <CardTitle className="font-[family-name:var(--font-display)] text-lg sm:text-xl">
               Budget Blueprint
             </CardTitle>
             <CardDescription>
@@ -111,7 +111,7 @@ export function BudgetBlueprint({
               actual vs. planned for the current month
             </CardDescription>
           </div>
-          <div className="shrink-0 space-y-0.5 text-right text-xs text-slate-500">
+          <div className="shrink-0 space-y-0.5 text-left text-xs text-slate-500 sm:text-right">
             <p>
               Planned{" "}
               <span className="tabular-nums text-slate-300">

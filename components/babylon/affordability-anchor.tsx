@@ -52,7 +52,7 @@ export function AffordabilityAnchor({
           </p>
         </div>
 
-        <div className="w-full shrink-0 space-y-1.5 sm:max-w-[220px]">
+        <div className="w-full shrink-0 space-y-1.5 sm:max-w-[14rem]">
           <Label
             htmlFor="affordability-amount"
             className="text-[11px] uppercase tracking-wider text-slate-500"
@@ -67,7 +67,7 @@ export function AffordabilityAnchor({
             placeholder="0.00"
             value={amountRaw}
             onChange={(e) => setAmountRaw(e.target.value)}
-            className="h-9 border-slate-800 bg-slate-950/60 tabular-nums"
+            className="border-slate-800 bg-slate-950/60 tabular-nums"
           />
         </div>
       </div>

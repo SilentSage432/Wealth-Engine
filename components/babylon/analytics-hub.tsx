@@ -42,24 +42,24 @@ export function AnalyticsHub({
   currentMonthRemaining,
 }: AnalyticsHubProps) {
   return (
-    <section className="grid gap-4 xl:grid-cols-5">
-      <Card className="animate-fade-up xl:col-span-3">
-        <CardHeader>
-          <CardTitle className="font-[family-name:var(--font-display)] text-xl">
+    <section className="flex flex-col gap-4 xl:flex-row">
+      <Card className="min-w-0 flex-1 animate-fade-up xl:flex-[3]">
+        <CardHeader className="px-4 sm:px-6">
+          <CardTitle className="font-[family-name:var(--font-display)] text-lg sm:text-xl">
             Income vs. Pot Allocations
           </CardTitle>
           <CardDescription>
             Gross tribute streams mapped against the Golden Triad over time
           </CardDescription>
         </CardHeader>
-        <CardContent className="h-[320px] pt-2">
+        <CardContent className="h-[240px] px-2 pt-2 sm:h-[280px] sm:px-6 xl:h-[320px]">
           {chartData.length === 0 ? (
             <EmptyLedger message="Charts populate once the first income stream is logged." />
           ) : (
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart
                 data={chartData}
-                margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
+                margin={{ top: 8, right: 4, left: -8, bottom: 0 }}
               >
                 <defs>
                   <linearGradient id="incomeFill" x1="0" y1="0" x2="0" y2="1">
@@ -74,18 +74,19 @@ export function AnalyticsHub({
                 />
                 <XAxis
                   dataKey="label"
-                  tick={{ fill: "#64748b", fontSize: 12 }}
+                  tick={{ fill: "#64748b", fontSize: 11 }}
                   axisLine={{ stroke: "#1e293b" }}
                   tickLine={false}
                 />
                 <YAxis
-                  tick={{ fill: "#64748b", fontSize: 12 }}
+                  width={48}
+                  tick={{ fill: "#64748b", fontSize: 11 }}
                   axisLine={false}
                   tickLine={false}
                   tickFormatter={(v: number) => formatCompactCurrency(v)}
                 />
                 <Tooltip content={<ChartTooltipShell />} />
-                <Legend wrapperStyle={{ fontSize: 12, color: "#94a3b8" }} />
+                <Legend wrapperStyle={{ fontSize: 11, color: "#94a3b8" }} />
                 <Area
                   type="monotone"
                   dataKey="income"
@@ -99,21 +100,21 @@ export function AnalyticsHub({
                   name="Wealth 10%"
                   fill="#10b981"
                   radius={[4, 4, 0, 0]}
-                  barSize={14}
+                  barSize={12}
                 />
                 <Bar
                   dataKey="debt"
                   name="Debt 20%"
                   fill="#f59e0b"
                   radius={[4, 4, 0, 0]}
-                  barSize={14}
+                  barSize={12}
                 />
                 <Bar
                   dataKey="expenditure"
                   name="Live 70%"
                   fill="#475569"
                   radius={[4, 4, 0, 0]}
-                  barSize={14}
+                  barSize={12}
                 />
               </ComposedChart>
             </ResponsiveContainer>
@@ -121,23 +122,23 @@ export function AnalyticsHub({
         </CardContent>
       </Card>
 
-      <Card className="animate-fade-up xl:col-span-2">
-        <CardHeader>
-          <CardTitle className="font-[family-name:var(--font-display)] text-xl">
+      <Card className="min-w-0 w-full animate-fade-up xl:w-auto xl:flex-[2]">
+        <CardHeader className="px-4 sm:px-6">
+          <CardTitle className="font-[family-name:var(--font-display)] text-lg sm:text-xl">
             This Month&apos;s Expenditures
           </CardTitle>
           <CardDescription>
             Needs vs. Desires vs. unspent allowance
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="px-4 sm:px-6">
           {donutData.length === 0 ? (
-            <div className="h-[320px]">
+            <div className="h-[240px] sm:h-[280px] xl:h-[320px]">
               <EmptyLedger message="Expenditure breakdown appears after the first income stream is logged." />
             </div>
           ) : (
             <>
-              <div className="h-[220px]">
+              <div className="h-[200px] sm:h-[220px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
@@ -146,8 +147,8 @@ export function AnalyticsHub({
                       nameKey="name"
                       cx="50%"
                       cy="50%"
-                      innerRadius={58}
-                      outerRadius={84}
+                      innerRadius={52}
+                      outerRadius={76}
                       paddingAngle={3}
                       stroke="none"
                     >

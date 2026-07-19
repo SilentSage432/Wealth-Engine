@@ -1,5 +1,15 @@
 # Development Journal
 
+## 2026-07-19 — Responsive layout audit (320px → ultra-wide)
+
+### What changed
+- Shell: hybrid drawer sidebar (<1024px) + locked `lg:pl-72` desktop rail; main content capped at `max-w-screen-2xl` with safer horizontal padding; `overflow-x-clip` on viewport.
+- Golden Triad: `grid-cols-1 md:grid-cols-2 xl:grid-cols-3` with scaled display type.
+- Analytics Hub: `flex-col xl:flex-row` stacking; ResponsiveContainer retained; mobile chart heights reduced.
+- Ledgers: horizontal scroll wrappers + `min-w` tables; Table primitive uses `overflow-x-auto scrollbar-thin`.
+- Touch: Input/Select `h-11 text-base` on mobile (iOS zoom-safe); buttons/icon targets ≥44px; modal tab triggers `min-h-11`; dialogs inset from screen edges on small viewports.
+- Command bar greeting: `text-xl md:text-2xl lg:text-3xl`; full-width Record Tribute on narrow screens.
+
 ## 2026-07-19 — Universal Record Tribute + blueprint edit/delete
 
 ### What changed
