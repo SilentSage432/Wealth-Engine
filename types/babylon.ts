@@ -7,7 +7,7 @@ export type IncomeInterval =
 
 export type ExpenseKind = "need" | "desire";
 
-export type TributeMode = "income" | "expense" | "debt";
+export type TributeMode = "income" | "expense" | "debt" | "budget";
 
 export type NavSection = "overview" | "ledgers" | "wisdom";
 

@@ -4,14 +4,13 @@ import { AffordabilityAnchor } from "@/components/babylon/affordability-anchor";
 import { AnalyticsHub } from "@/components/babylon/analytics-hub";
 import { AppSidebar } from "@/components/babylon/app-sidebar";
 import { CommandBar } from "@/components/babylon/command-bar";
-import { ConfigureBudgetDialog } from "@/components/babylon/configure-budget-dialog";
 import { GoldenTriad } from "@/components/babylon/golden-triad";
 import { LedgerMatrices } from "@/components/babylon/ledger-matrices";
 import { QuickStats } from "@/components/babylon/quick-stats";
-import { RecordTributeDialog } from "@/components/babylon/record-tribute-dialog";
 import { VaultLoading } from "@/components/babylon/vault-loading";
 import { WisdomBox } from "@/components/babylon/wisdom-box";
 import { BudgetBlueprint } from "@/components/dashboard/BudgetBlueprint";
+import { RecordTransactionModal } from "@/components/modals/RecordTransactionModal";
 import { useBabylonEngine } from "@/hooks/useBabylonEngine";
 import { cn } from "@/lib/utils";
 
@@ -56,7 +55,6 @@ export function WealthEngineDashboard() {
           localizedTime={engine.localizedTime}
           onUsernameChange={engine.setUsername}
           onOpenSidebar={() => engine.setSidebarOpen(true)}
-          onManageCategories={engine.openBlueprint}
           onRecordTribute={() => engine.openTribute("income")}
         />
 
@@ -89,7 +87,8 @@ export function WealthEngineDashboard() {
                     plannedTotal={engine.budgetPlannedTotal}
                     actualTotal={engine.budgetActualTotal}
                     expenditurePool={engine.currentMonthExpenditurePool}
-                    onUpdateTarget={engine.updateBudgetTarget}
+                    onUpdateTargetFull={engine.updateBudgetTargetFull}
+                    onDeleteTarget={engine.deleteBudgetTarget}
                   />
                   <AnalyticsHub
                     chartData={engine.chartData}
@@ -128,7 +127,8 @@ export function WealthEngineDashboard() {
               plannedTotal={engine.budgetPlannedTotal}
               actualTotal={engine.budgetActualTotal}
               expenditurePool={engine.currentMonthExpenditurePool}
-              onUpdateTarget={engine.updateBudgetTarget}
+              onUpdateTargetFull={engine.updateBudgetTargetFull}
+              onDeleteTarget={engine.deleteBudgetTarget}
             />
           )}
 
@@ -157,7 +157,7 @@ export function WealthEngineDashboard() {
         </main>
       </div>
 
-      <RecordTributeDialog
+      <RecordTransactionModal
         open={engine.tributeOpen}
         mode={engine.tributeMode}
         hasActiveDebt={engine.hasActiveDebt}
@@ -168,12 +168,7 @@ export function WealthEngineDashboard() {
         onRecordIncome={engine.addIncome}
         onRecordExpense={engine.addExpense}
         onRecordDebt={engine.addDebt}
-      />
-
-      <ConfigureBudgetDialog
-        open={engine.blueprintOpen}
-        onOpenChange={engine.setBlueprintOpen}
-        onAddTarget={engine.addBudgetTarget}
+        onAddBudgetTarget={engine.addBudgetTarget}
       />
     </div>
   );

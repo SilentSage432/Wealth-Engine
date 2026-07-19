@@ -20,13 +20,13 @@ A premium, single-page budgeting platform that teaches and enforces Babylonian w
 - [x] Affordability Anchor (Desires pool % + labor hours)
 - [x] Expense due dates + due-soon indicator
 - [x] Budget Blueprint (planned caps + Planned vs. Actual within 70%)
-- [x] Steward-configured budget categories (`addBudgetTarget` + Configure dialog)
+- [x] Steward-configured budget categories (`addBudgetTarget` via Record Tribute)
 - [x] Clear-ledger UI control (confirmed purge via sidebar AlertDialog)
+- [x] Budget bucket edit / delete (`updateBudgetTargetFull` / `deleteBudgetTarget`)
 - [ ] Reversible debt amortization on income delete
 - [ ] Monthly close ritual (period summary)
 - [ ] Accessibility audit (keyboard + screen reader)
 - [ ] Expense paid/settled toggle
-- [ ] Edit / delete budget buckets
 - [ ] Auto-scale budget caps from current-month expenditure pool
 
 ## Phase 3 — Platform

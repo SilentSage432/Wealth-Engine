@@ -58,8 +58,10 @@ export function LedgerMatrices({
   onDeleteDebt,
 }: LedgerMatricesProps) {
   const categoryLabel = (id: string | undefined) => {
-    if (!id) return null;
-    return budgetTargets.find((t) => t.id === id)?.categoryName ?? null;
+    if (!id) return "Uncategorized";
+    return (
+      budgetTargets.find((t) => t.id === id)?.categoryName ?? "Uncategorized"
+    );
   };
   return (
     <section className="animate-fade-up">
@@ -262,11 +264,9 @@ export function LedgerMatrices({
                                 </span>
                               )}
                             </span>
-                            {bucket && (
-                              <p className="mt-0.5 text-[11px] font-normal text-slate-500">
-                                {bucket}
-                              </p>
-                            )}
+                            <p className="mt-0.5 text-[11px] font-normal text-slate-500">
+                              {bucket}
+                            </p>
                           </TableCell>
                           <TableCell>
                             <span

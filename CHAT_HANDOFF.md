@@ -36,8 +36,10 @@ Legacy expenses without `dueDate` soft-migrate to use `date`. Desire expenses wi
 - `addIncome` — ID + 10/20/70 allocation (+ debt waterfall when active)
 - `addExpense` — ID + Need/Desire + due date + required `budgetCategoryId`
 - `addDebt` — ID + creditor tracking with mandatory monthly allocation
-- `addBudgetTarget` — ID + custom category name / planned cap / essential flag (persisted)
+- `addBudgetTarget` — ID + custom category name / planned cap / essential flag (persisted); via Record Tribute → Budget Category
 - `updateBudgetTarget` — adjust a category planned amount (persisted)
+- `updateBudgetTargetFull` — edit name / cap / essential flag
+- `deleteBudgetTarget` — remove bucket; linked expenses become Uncategorized
 - `clearAllData` — wipe localStorage and reset in-memory ledger (including empty blueprint); exposed via sidebar AlertDialog confirmation
 - `exportBackup` — download versioned `LedgerBackup` JSON
 - `importBackup` — strict schema validation, overwrite vault, force state reset
@@ -49,15 +51,15 @@ Legacy expenses without `dueDate` soft-migrate to use `date`. Desire expenses wi
 
 ## Command Deck utilities
 - **Affordability Anchor** — discretionary amount → % of remaining Desires pool (`currentMonthRemaining`) + labor hours from `effectiveHourlyRate(incomes)`
-- **Budget Blueprint** — steward-defined buckets with inline planned-cap edits + dual progress; empty state until categories are added via Manage Categories
-- **Configure Budget Blueprint** — dialog launched from command bar to append custom buckets
+- **Budget Blueprint** — steward-defined buckets; pencil opens Modify Budget Bucket (edit / delete)
+- **Record Tribute** — universal entry modal for income, expense, debt, and budget categories
 
 ## Known behaviors
 - Recording income runs `allocateIncome()` and optionally `applyDebtAllocation()`.
 - Deleting an income removes its allocation event but does **not** reverse prior debt reductions (by design for this SPA; reverse-amortization can be added later).
 - Empty ledgers show a single guidance row; empty charts show placeholder copy (no synthetic Recharts data).
 - Expenses due within the next 7 days show an amber “Due soon” tag in the ledger.
-- Changing a budget cap, adding a category, or recording an expense immediately refreshes variances (single hook owner).
+- Changing a budget cap, adding/editing/deleting a category, or recording an expense immediately refreshes variances (single hook owner).
 - Expense tribute requires at least one budget category; category dropdown reads live `budgetTargets`.
 
 ## Next candidates
@@ -65,5 +67,4 @@ Legacy expenses without `dueDate` soft-migrate to use `date`. Desire expenses wi
 - Recurring income scheduling automation
 - Optional multi-profile vaults
 - Paid/settled toggle for expenses (due-soon currently treats all ledger expenses as open)
-- Edit / delete budget buckets (add + update-cap already exist)
 - Auto-scale budget caps from current-month 70% pool

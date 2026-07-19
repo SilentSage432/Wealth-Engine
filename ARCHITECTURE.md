@@ -9,9 +9,10 @@ hooks/useBabylonEngine.ts                   → state, persistence, allocation a
 types/babylon.ts                            → canonical TypeScript contracts
 lib/babylon/engine.ts                       → pure 10/20/70 allocation math + affordability / due / budget variance helpers
 lib/babylon/persistence.ts                  → localStorage load/save/clear + backup validate/build
-lib/babylon/constants.ts                    → rates, wisdom, nav, labels, EMPTY_STATE
-components/babylon/*                        → presentation zones (sidebar, triad, affordability, charts, ledgers, dialogs)
-components/dashboard/BudgetBlueprint.tsx    → Necessary Expenditures planning workspace (Planned vs. Actual)
+lib/babylon/constants.ts                    → rates, wisdom, nav, labels, EMPTY_STATE, username key
+components/babylon/*                        → presentation zones (sidebar, triad, affordability, charts, ledgers)
+components/modals/RecordTransactionModal.tsx → universal entry (income / expense / debt / budget)
+components/dashboard/BudgetBlueprint.tsx    → Necessary Expenditures planning workspace (Planned vs. Actual + edit/delete)
 components/ui/*                             → shadcn-styled Radix primitives
 lib/utils.ts                                → cn, currency, ids
 ```
@@ -33,8 +34,8 @@ Gross Income
 - Budget variance (`buildBudgetVariances`) is owned by the pure engine; the hook selects current-month expenses and persists `budgetTargets`.
 - Charts and tables **consume** derived state; they never recompute splits.
 - Presentation components render only; they never own ledger state.
-- `RecordTributeDialog` owns ephemeral form fields; the hook owns durable ledger mutations (`addIncome` / `addExpense` / `addDebt` / `addBudgetTarget` / `updateBudgetTarget` / `clearAllData` / `exportBackup` / `importBackup`).
-- `ConfigureBudgetDialog` owns ephemeral blueprint form fields; the hook owns `budgetTargets` via `addBudgetTarget`.
+- `RecordTransactionModal` owns ephemeral form fields; the hook owns durable ledger mutations (`addIncome` / `addExpense` / `addDebt` / `addBudgetTarget` / `updateBudgetTarget` / `updateBudgetTargetFull` / `deleteBudgetTarget` / `clearAllData` / `exportBackup` / `importBackup`).
+- Budget Blueprint edit dialog owns ephemeral edit fields; durable changes go through `updateBudgetTargetFull` / `deleteBudgetTarget`.
 
 ## Persistence contract
 Key: `wealth-engine-babylon-v2`  

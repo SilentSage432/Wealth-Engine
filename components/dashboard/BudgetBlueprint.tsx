@@ -1,7 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Pencil } from "lucide-react";
+import { useEffect, useState, type FormEvent } from "react";
+import { Pencil, Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -9,84 +20,31 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
+import { Switch } from "@/components/ui/switch";
 import { cn, formatCurrency } from "@/lib/utils";
-import type { BudgetCategoryVariance } from "@/types/babylon";
+import type { BudgetCategoryVariance, BudgetTarget } from "@/types/babylon";
 
 interface BudgetBlueprintProps {
   variances: BudgetCategoryVariance[];
   plannedTotal: number;
   actualTotal: number;
   expenditurePool: number;
-  onUpdateTarget: (id: string, newAmount: number) => void;
-}
-
-function PlannedAmountEditor({
-  id,
-  plannedAmount,
-  onCommit,
-}: {
-  id: string;
-  plannedAmount: number;
-  onCommit: (id: string, amount: number) => void;
-}) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(String(plannedAmount));
-
-  useEffect(() => {
-    if (!editing) setDraft(String(plannedAmount));
-  }, [plannedAmount, editing]);
-
-  const commit = () => {
-    const parsed = Number.parseFloat(draft);
-    if (Number.isFinite(parsed) && parsed >= 0) {
-      onCommit(id, parsed);
-    } else {
-      setDraft(String(plannedAmount));
-    }
-    setEditing(false);
-  };
-
-  if (!editing) {
-    return (
-      <button
-        type="button"
-        onClick={() => setEditing(true)}
-        className="group inline-flex items-center gap-1.5 rounded-md border border-transparent px-1.5 py-0.5 text-right tabular-nums text-slate-200 transition-colors hover:border-slate-700 hover:bg-slate-950/60"
-        aria-label={`Edit planned amount ${formatCurrency(plannedAmount)}`}
-      >
-        <span className="text-sm font-medium">
-          {formatCurrency(plannedAmount)}
-        </span>
-        <Pencil className="h-3 w-3 text-slate-600 transition-colors group-hover:text-slate-400" />
-      </button>
-    );
-  }
-
-  return (
-    <Input
-      type="number"
-      min="0"
-      step="1"
-      autoFocus
-      value={draft}
-      onChange={(e) => setDraft(e.target.value)}
-      onBlur={commit}
-      onKeyDown={(e) => {
-        if (e.key === "Enter") {
-          e.preventDefault();
-          commit();
-        }
-        if (e.key === "Escape") {
-          setDraft(String(plannedAmount));
-          setEditing(false);
-        }
-      }}
-      className="h-8 w-[7.5rem] text-right tabular-nums"
-      aria-label="Planned monthly amount"
-    />
-  );
+  onUpdateTargetFull: (
+    id: string,
+    updatedData: Partial<Omit<BudgetTarget, "id">>
+  ) => boolean;
+  onDeleteTarget: (id: string) => void;
 }
 
 export function BudgetBlueprint({
@@ -94,13 +52,51 @@ export function BudgetBlueprint({
   plannedTotal,
   actualTotal,
   expenditurePool,
-  onUpdateTarget,
+  onUpdateTargetFull,
+  onDeleteTarget,
 }: BudgetBlueprintProps) {
+  const [editing, setEditing] = useState<BudgetCategoryVariance | null>(null);
+  const [draftName, setDraftName] = useState("");
+  const [draftCap, setDraftCap] = useState("");
+  const [draftEssential, setDraftEssential] = useState(true);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  useEffect(() => {
+    if (!editing) return;
+    setDraftName(editing.categoryName);
+    setDraftCap(String(editing.plannedAmount));
+    setDraftEssential(editing.isEssential);
+    setConfirmDelete(false);
+  }, [editing]);
+
   const remainingTotal = Math.max(0, plannedTotal - actualTotal);
   const poolPressure =
     expenditurePool > 0
       ? Math.round((plannedTotal / expenditurePool) * 100)
       : null;
+
+  const closeEditor = () => {
+    setEditing(null);
+    setConfirmDelete(false);
+  };
+
+  const handleSave = (event: FormEvent) => {
+    event.preventDefault();
+    if (!editing) return;
+    const amount = Number.parseFloat(draftCap);
+    const ok = onUpdateTargetFull(editing.id, {
+      categoryName: draftName,
+      plannedAmount: amount,
+      isEssential: draftEssential,
+    });
+    if (ok) closeEditor();
+  };
+
+  const handleDelete = () => {
+    if (!editing) return;
+    onDeleteTarget(editing.id);
+    closeEditor();
+  };
 
   return (
     <section className="animate-fade-up">
@@ -147,8 +143,8 @@ export function BudgetBlueprint({
                 No budget buckets defined yet
               </p>
               <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-slate-500">
-                Click &apos;+ Manage Categories&apos; above to map your custom
-                blueprint.
+                Use &apos;+ Record Tribute&apos; → Budget Category to map your
+                custom blueprint.
               </p>
             </div>
           ) : (
@@ -214,17 +210,22 @@ export function BudgetBlueprint({
                         <p className="text-[10px] uppercase tracking-wider text-slate-600">
                           Cap
                         </p>
-                        <PlannedAmountEditor
-                          id={row.id}
-                          plannedAmount={row.plannedAmount}
-                          onCommit={onUpdateTarget}
-                        />
+                        <button
+                          type="button"
+                          onClick={() => setEditing(row)}
+                          className="group inline-flex items-center gap-1.5 rounded-md border border-transparent px-1.5 py-0.5 text-right tabular-nums text-slate-200 transition-colors hover:border-slate-700 hover:bg-slate-950/60"
+                          aria-label={`Modify budget bucket ${row.categoryName}`}
+                        >
+                          <span className="text-sm font-medium">
+                            {formatCurrency(row.plannedAmount)}
+                          </span>
+                          <Pencil className="h-3 w-3 text-slate-600 transition-colors group-hover:text-slate-400" />
+                        </button>
                       </div>
                     </div>
                   </div>
 
                   <div className="relative mt-3">
-                    {/* Dual layer: track = planned cap; fill = actual spend ratio */}
                     <Progress
                       value={barPct}
                       className="h-2.5 bg-slate-800/90"
@@ -256,6 +257,132 @@ export function BudgetBlueprint({
           )}
         </CardContent>
       </Card>
+
+      <Dialog
+        open={editing !== null}
+        onOpenChange={(open) => {
+          if (!open) closeEditor();
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-[family-name:var(--font-display)] text-2xl">
+              Modify Budget Bucket
+            </DialogTitle>
+            <DialogDescription>
+              Update this Necessary Expenditures category or remove it from your
+              blueprint.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleSave} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="modify-category-name">Category Name</Label>
+              <Input
+                id="modify-category-name"
+                value={draftName}
+                onChange={(e) => setDraftName(e.target.value)}
+                required
+                autoFocus
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="modify-planned-cap">Planned Cap</Label>
+              <Input
+                id="modify-planned-cap"
+                type="number"
+                min="0"
+                step="0.01"
+                value={draftCap}
+                onChange={(e) => setDraftCap(e.target.value)}
+                required
+              />
+            </div>
+            <div className="flex items-center justify-between rounded-lg border border-slate-800 bg-slate-950/50 px-4 py-3">
+              <div>
+                <p className="text-sm font-medium text-slate-200">
+                  Essential Need vs. Discretionary Desire
+                </p>
+                <p className="text-xs text-slate-500">
+                  {draftEssential
+                    ? "Core Need — housing, food, utilities, life"
+                    : "Discretionary Desire — lifestyle creep watch"}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span
+                  className={cn(
+                    "text-xs font-medium",
+                    draftEssential ? "text-emerald-400" : "text-slate-500"
+                  )}
+                >
+                  Essential
+                </span>
+                <Switch
+                  checked={!draftEssential}
+                  onCheckedChange={(checked) => setDraftEssential(!checked)}
+                  aria-label="Toggle discretionary desire"
+                />
+                <span
+                  className={cn(
+                    "text-xs font-medium",
+                    !draftEssential ? "text-amber-400" : "text-slate-500"
+                  )}
+                >
+                  Desire
+                </span>
+              </div>
+            </div>
+
+            <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-between">
+              <Button
+                type="button"
+                variant="outline"
+                className="border-rose-900/50 text-rose-400 hover:border-rose-700 hover:bg-rose-500/10 hover:text-rose-300"
+                onClick={() => setConfirmDelete(true)}
+              >
+                <Trash2 className="h-4 w-4" />
+                Delete Category
+              </Button>
+              <div className="flex w-full gap-2 sm:w-auto">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="flex-1 sm:flex-none"
+                  onClick={closeEditor}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" className="flex-1 sm:flex-none">
+                  Save Changes
+                </Button>
+              </div>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this budget bucket?</AlertDialogTitle>
+            <AlertDialogDescription>
+              &ldquo;{editing?.categoryName}&rdquo; will be removed from your
+              blueprint. Linked expenses stay in the ledger as Uncategorized.
+              This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep Category</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-rose-600 text-white shadow-sm hover:bg-rose-500 focus-visible:ring-rose-500/60"
+              onClick={handleDelete}
+            >
+              Delete Category
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </section>
   );
 }

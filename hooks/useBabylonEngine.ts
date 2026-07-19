@@ -62,7 +62,6 @@ export function useBabylonEngine() {
 
   const [tributeOpen, setTributeOpen] = useState(false);
   const [tributeMode, setTributeMode] = useState<TributeMode>("income");
-  const [blueprintOpen, setBlueprintOpen] = useState(false);
 
   useEffect(() => {
     const stored = loadPersistedState();
@@ -347,14 +346,6 @@ export function useBabylonEngine() {
     setTributeOpen(false);
   }, []);
 
-  const openBlueprint = useCallback(() => {
-    setBlueprintOpen(true);
-  }, []);
-
-  const closeBlueprint = useCallback(() => {
-    setBlueprintOpen(false);
-  }, []);
-
   const addIncome = useCallback(
     (input: IncomeInput): boolean => {
       if (
@@ -469,6 +460,60 @@ export function useBabylonEngine() {
     );
   }, []);
 
+  const updateBudgetTargetFull = useCallback(
+    (id: string, updatedData: Partial<Omit<BudgetTarget, "id">>): boolean => {
+      const exists = budgetTargets.some((t) => t.id === id);
+      if (!exists) return false;
+
+      if (
+        updatedData.categoryName !== undefined &&
+        !updatedData.categoryName.trim()
+      ) {
+        return false;
+      }
+
+      if (
+        updatedData.plannedAmount !== undefined &&
+        (!Number.isFinite(updatedData.plannedAmount) ||
+          updatedData.plannedAmount < 0)
+      ) {
+        return false;
+      }
+
+      setBudgetTargets((prev) =>
+        prev.map((t) => {
+          if (t.id !== id) return t;
+          return {
+            ...t,
+            ...(updatedData.categoryName !== undefined
+              ? { categoryName: updatedData.categoryName.trim() }
+              : {}),
+            ...(updatedData.plannedAmount !== undefined
+              ? { plannedAmount: roundMoney(updatedData.plannedAmount) }
+              : {}),
+            ...(updatedData.isEssential !== undefined
+              ? { isEssential: updatedData.isEssential }
+              : {}),
+          };
+        })
+      );
+      return true;
+    },
+    [budgetTargets]
+  );
+
+  const deleteBudgetTarget = useCallback((id: string) => {
+    setBudgetTargets((prev) => prev.filter((t) => t.id !== id));
+    // Detach spend from the removed bucket — leave as uncategorized.
+    setExpenses((prev) =>
+      prev.map((e) =>
+        e.budgetCategoryId === id
+          ? { ...e, budgetCategoryId: undefined }
+          : e
+      )
+    );
+  }, []);
+
   const addBudgetTarget = useCallback(
     (target: Omit<BudgetTarget, "id">): boolean => {
       const categoryName = target.categoryName.trim();
@@ -488,7 +533,7 @@ export function useBabylonEngine() {
       };
 
       setBudgetTargets((prev) => [...prev, entry]);
-      setBlueprintOpen(false);
+      setTributeOpen(false);
       return true;
     },
     []
@@ -505,7 +550,6 @@ export function useBabylonEngine() {
     setUsernameState("");
     setTributeOpen(false);
     setTributeMode("income");
-    setBlueprintOpen(false);
     setActiveNav("overview");
     setSidebarOpen(false);
   }, []);
@@ -558,7 +602,6 @@ export function useBabylonEngine() {
     setUsernameState(backup.displayName);
     setTributeOpen(false);
     setTributeMode("income");
-    setBlueprintOpen(false);
     setActiveNav("overview");
     return null;
   }, []);
@@ -609,10 +652,6 @@ export function useBabylonEngine() {
     setTributeMode,
     openTribute,
     closeTribute,
-    blueprintOpen,
-    setBlueprintOpen,
-    openBlueprint,
-    closeBlueprint,
     hasActiveDebt,
     goldRetained,
     debtAllocated,
@@ -648,6 +687,8 @@ export function useBabylonEngine() {
     addExpense,
     addDebt,
     updateBudgetTarget,
+    updateBudgetTargetFull,
+    deleteBudgetTarget,
     addBudgetTarget,
     clearAllData,
     exportBackup,

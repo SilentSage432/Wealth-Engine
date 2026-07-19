@@ -1,5 +1,18 @@
 # Development Journal
 
+## 2026-07-19 — Universal Record Tribute + blueprint edit/delete
+
+### What changed
+- Consolidated all creation flows into `RecordTransactionModal` (Income / Expense / Debt / Budget Category tabs). Removed header “Manage Categories” and `ConfigureBudgetDialog`.
+- **Mutations:** `deleteBudgetTarget(id)` removes a bucket and uncategorized linked expenses; `updateBudgetTargetFull(id, partial)` edits name, cap, and essential flag.
+- **BudgetBlueprint:** Pencil opens “Modify Budget Bucket” dialog with save + confirmed delete (crimson). Empty state points stewards to Record Tribute → Budget Category.
+- Ledger shows “Uncategorized” when an expense has no live budget bucket.
+
+### Ownership
+- Universal entry: `components/modals/RecordTransactionModal.tsx`
+- Mutations: `hooks/useBabylonEngine.ts`
+- Inline edit UI: `components/dashboard/BudgetBlueprint.tsx`
+
 ## 2026-07-19 — Profile username input (emptyable + dedicated persistence)
 
 ### What changed

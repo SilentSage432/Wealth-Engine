@@ -12,7 +12,6 @@ interface CommandBarProps {
   localizedTime: string;
   onUsernameChange: (value: string) => void;
   onOpenSidebar: () => void;
-  onManageCategories: () => void;
   onRecordTribute: () => void;
 }
 
@@ -23,7 +22,6 @@ export function CommandBar({
   localizedTime,
   onUsernameChange,
   onOpenSidebar,
-  onManageCategories,
   onRecordTribute,
 }: CommandBarProps) {
   const greetingName = username.trim() || GREETING_NAME_FALLBACK;
@@ -72,15 +70,6 @@ export function CommandBar({
             className="h-9 w-32 border-slate-800 bg-slate-900/50 text-xs sm:w-40"
             aria-label="Profile name"
           />
-          <Button
-            variant="outline"
-            size="lg"
-            className="border-amber-500/35 bg-transparent text-amber-100/90 hover:border-amber-400/55 hover:bg-amber-500/10 hover:text-amber-50"
-            onClick={onManageCategories}
-          >
-            <Plus className="h-4 w-4" />
-            Manage Categories
-          </Button>
           <Button
             variant="amber"
             size="lg"
