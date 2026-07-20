@@ -92,6 +92,11 @@ export function useBabylonEngine() {
   /** Auth user id when a verified Supabase session is present; null = local-only. */
   const [cloudUserId, setCloudUserId] = useState<string | null>(null);
   const cloudUserIdRef = useRef<string | null>(null);
+  /**
+   * True after the auth client's initial session sweep has been applied
+   * outside its exclusive lock (see onAuthStateChange insulation below).
+   */
+  const [authReady, setAuthReady] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
   const [cloudHydrating, setCloudHydrating] = useState(false);
   const hydrationAttemptedRef = useRef<Set<string>>(new Set());
@@ -225,36 +230,46 @@ export function useBabylonEngine() {
     const supabase = getSupabaseBrowserClient();
     if (!supabase) {
       setCloudUserId(null);
+      setAuthReady(true);
       return;
     }
 
     let active = true;
+    const deferredTimers = new Set<ReturnType<typeof setTimeout>>();
 
-    void supabase.auth.getSession().then(({ data, error }) => {
-      if (!active) return;
-      if (error) {
-        console.error("[supabase] getSession failed", error);
-        setCloudUserId(null);
-        return;
-      }
-      setCloudUserId(data.session?.user.id ?? null);
-    });
-
+    /**
+     * Supabase holds an exclusive auth lock while `onAuthStateChange` runs.
+     * Any nested auth/PostgREST call (including work kicked off by React
+     * effects that read localStorage then hit Supabase) can deadlock the
+     * initial mobile session sweep. Defer all React state application to
+     * the next macrotask so the lock is released first.
+     */
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      setCloudUserId(session?.user.id ?? null);
+      const timer = setTimeout(() => {
+        deferredTimers.delete(timer);
+        if (!active) return;
+        setCloudUserId(session?.user.id ?? null);
+        setAuthReady(true);
+      }, 0);
+      deferredTimers.add(timer);
     });
 
     return () => {
       active = false;
+      for (const timer of deferredTimers) {
+        clearTimeout(timer);
+      }
+      deferredTimers.clear();
       subscription.unsubscribe();
     };
   }, []);
 
   /** One-time local → cloud hydration when a session appears over an empty vault. */
   useEffect(() => {
-    if (!hydrated || !cloudUserId) return;
+    // Wait for authReady so hydration never races the insulated INITIAL_SESSION apply.
+    if (!hydrated || !authReady || !cloudUserId) return;
     if (hydrationAttemptedRef.current.has(cloudUserId)) return;
 
     let cancelled = false;
@@ -297,7 +312,7 @@ export function useBabylonEngine() {
     return () => {
       cancelled = true;
     };
-  }, [hydrated, cloudUserId, pushActivity]);
+  }, [hydrated, authReady, cloudUserId, pushActivity]);
 
   useEffect(() => {
     if (!hydrated) return;

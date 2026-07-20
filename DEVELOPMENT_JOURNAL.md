@@ -1,5 +1,16 @@
 # Development Journal
 
+## 2026-07-19 — Auth listener deadlock insulation
+
+### What changed
+- `useBabylonEngine` `onAuthStateChange` now defers session React state via `setTimeout(0)` so work exits the auth client's exclusive lock before any follow-on effects run
+- Removed parallel `getSession` race; `INITIAL_SESSION` from the listener is the sole bootstrap signal
+- Gated local→cloud hydration on `authReady` so migrate/upsert never races the initial mobile auth sweep
+- Deferred timers cleared on unmount
+
+### Ownership
+- Application composition: `hooks/useBabylonEngine.ts`
+
 ## 2026-07-19 — Architecture handbook
 
 ### What changed
