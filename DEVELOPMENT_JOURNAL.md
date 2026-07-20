@@ -1,5 +1,12 @@
 # Development Journal
 
+## 2026-07-19 — Architecture handbook
+
+### What changed
+- Added root `ARCHITECTURE.md` — layered ownership map (Presentation → Application → Domain → Persistence → Infrastructure)
+- Canonical ownership matrix expanded from Master Roadmap; roadmap now points to the handbook
+- No code or runtime behavior changes
+
 ## 2026-07-19 — Phase 3 Path A: Auth UI + local→cloud hydration (complete)
 
 ### What changed

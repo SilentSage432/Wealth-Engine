@@ -3,6 +3,8 @@
 ## Project
 **Wealth Engine** — executive financial budgeting SPA based on *The Richest Man in Babylon* 10/20/70 formula.
 
+**Architecture map:** [`ARCHITECTURE.md`](./ARCHITECTURE.md) — layers, dependency rules, canonical ownership matrix.
+
 ## Entry points
 - App surface: `app/page.tsx` → `components/babylon/wealth-engine-dashboard.tsx`
 - Domain hook: `hooks/useBabylonEngine.ts` (state, persistence, dual-write, hydration, auth, actions, metrics)

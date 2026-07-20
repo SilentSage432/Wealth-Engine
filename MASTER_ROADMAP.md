@@ -56,6 +56,9 @@ Relational + client bridge fully wired:
 - Ownership: SQL owns schema; `types/babylon.ts` owns app contracts; sync adapters compose the boundary
 
 ## Architectural ownership
+
+Canonical map: [`ARCHITECTURE.md`](./ARCHITECTURE.md) (layers, dependency rules, ownership matrix).
+
 | Concern | Owner |
 |--------|--------|
 | Allocation math | `lib/babylon/engine.ts` |
