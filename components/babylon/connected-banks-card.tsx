@@ -1,17 +1,21 @@
 "use client";
 
-import { Landmark, Loader2, Plus } from "lucide-react";
+import { Landmark, Plus } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { PlaidLinkButton } from "@/components/babylon/plaid-link-button";
+import { VaultErrorBoundary } from "@/components/babylon/vault-error-boundary";
+import { emitVaultToast } from "@/lib/babylon/vault-toast";
 import { cn } from "@/lib/utils";
 
 interface ConnectedBanksCardProps {
   connectedCount: number;
   isLoading?: boolean;
   launching?: boolean;
+  initializing?: boolean;
   isCloudSynced: boolean;
   className?: string;
-  onConnect: () => void;
+  onConnect?: () => void;
   onRequireAuth?: () => void;
 }
 
@@ -24,11 +28,13 @@ function statusCopy(count: number, isCloudSynced: boolean): string {
 
 /**
  * Command Deck quick-action — shows linked institution count and opens Plaid Link.
+ * Always mounts; never hides when Plaid is initializing.
  */
 export function ConnectedBanksCard({
   connectedCount,
   isLoading = false,
   launching = false,
+  initializing = false,
   isCloudSynced,
   className,
   onConnect,
@@ -39,47 +45,63 @@ export function ConnectedBanksCard({
       onRequireAuth?.();
       return;
     }
+    if (!onConnect || initializing) {
+      emitVaultToast({
+        tone: "info",
+        message: "Initializing Plaid connection...",
+        durationMs: 0,
+      });
+      return;
+    }
     onConnect();
   };
 
   return (
-    <Card
-      className={cn(
-        "border-slate-800 bg-slate-900/60 transition-colors hover:border-emerald-800/60",
-        className
-      )}
-    >
-      <CardContent className="flex items-center gap-4 p-5">
-        <div className="rounded-xl bg-emerald-500/10 p-3 text-emerald-300">
-          <Landmark className="h-5 w-5" aria-hidden="true" />
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="text-xs uppercase tracking-wider text-slate-500">
-            Connected Bank Accounts
-          </p>
-          <p className="font-[family-name:var(--font-display)] text-lg font-semibold text-slate-50 sm:text-xl">
-            {isLoading ? "Checking links…" : statusCopy(connectedCount, isCloudSynced)}
-          </p>
-        </div>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="shrink-0"
-          onClick={handleClick}
-          disabled={launching}
-          aria-label={
-            isCloudSynced ? "Link a new bank account" : "Sign in to link a bank"
-          }
-        >
-          {launching ? (
-            <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+    <VaultErrorBoundary compact>
+      <Card
+        className={cn(
+          "border-slate-800 bg-slate-900/60 transition-colors hover:border-emerald-800/60",
+          className
+        )}
+      >
+        <CardContent className="flex flex-wrap items-center gap-4 p-5">
+          <div className="rounded-xl bg-emerald-500/10 p-3 text-emerald-300">
+            <Landmark className="h-5 w-5" aria-hidden="true" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs uppercase tracking-wider text-slate-500">
+              Connected Bank Accounts
+            </p>
+            <p className="font-[family-name:var(--font-display)] text-lg font-semibold text-slate-50 sm:text-xl">
+              {isLoading
+                ? "Checking links…"
+                : statusCopy(connectedCount, isCloudSynced)}
+            </p>
+          </div>
+          {isCloudSynced ? (
+            <PlaidLinkButton
+              variant="button"
+              label="Connect Bank"
+              launching={launching}
+              initializing={initializing}
+              onClick={handleClick}
+              className="shrink-0"
+            />
           ) : (
-            <Plus className="h-4 w-4" aria-hidden="true" />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="shrink-0"
+              onClick={handleClick}
+              aria-label="Sign in to link a bank"
+            >
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              Sign In
+            </Button>
           )}
-          {isCloudSynced ? "Link Bank" : "Sign In"}
-        </Button>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+    </VaultErrorBoundary>
   );
 }

@@ -4,6 +4,7 @@ import { CalendarCheck, CalendarDays, Eye, EyeOff, Menu, Plus } from "lucide-rea
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PlaidLinkButton } from "@/components/babylon/plaid-link-button";
+import { VaultErrorBoundary } from "@/components/babylon/vault-error-boundary";
 import { GREETING_NAME_FALLBACK } from "@/lib/babylon/constants";
 
 interface CommandBarProps {
@@ -14,6 +15,7 @@ interface CommandBarProps {
   monthAlreadyClosed?: boolean;
   isDiscreetMode?: boolean;
   plaidLaunching?: boolean;
+  plaidInitializing?: boolean;
   onUsernameChange: (value: string) => void;
   onOpenSidebar: () => void;
   onRecordTribute: () => void;
@@ -30,6 +32,7 @@ export function CommandBar({
   monthAlreadyClosed = false,
   isDiscreetMode = false,
   plaidLaunching = false,
+  plaidInitializing = false,
   onUsernameChange,
   onOpenSidebar,
   onRecordTribute,
@@ -44,6 +47,7 @@ export function CommandBar({
       <div className="mx-auto flex w-full max-w-screen-2xl flex-col gap-3 px-3 py-3 sm:gap-4 sm:px-6 sm:py-4 lg:flex-row lg:items-center lg:justify-between lg:px-8">
         <div className="flex min-w-0 items-start gap-2 sm:gap-3">
           <Button
+            type="button"
             variant="ghost"
             size="icon"
             className="mt-0.5 shrink-0 lg:hidden"
@@ -96,13 +100,16 @@ export function CommandBar({
               )}
             </Button>
           )}
-          {onLinkBank && (
+
+          <VaultErrorBoundary compact>
             <PlaidLinkButton
               variant="icon"
               launching={plaidLaunching}
+              initializing={plaidInitializing || !onLinkBank}
               onClick={onLinkBank}
             />
-          )}
+          </VaultErrorBoundary>
+
           <Input
             value={username}
             onChange={(e) => onUsernameChange(e.target.value)}
@@ -113,6 +120,7 @@ export function CommandBar({
           />
           {onOpenMonthlyClose && (
             <Button
+              type="button"
               variant="outline"
               size="lg"
               className="min-h-11 w-full flex-1 sm:w-auto sm:flex-none"
@@ -129,6 +137,7 @@ export function CommandBar({
             </Button>
           )}
           <Button
+            type="button"
             variant="amber"
             size="lg"
             className="min-h-11 w-full flex-1 shadow-amber-900/20 sm:w-auto sm:flex-none"

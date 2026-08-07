@@ -8,6 +8,10 @@ export type VaultToastTone = "error" | "info" | "success";
 export type VaultToastPayload = {
   message: string;
   tone?: VaultToastTone;
+  /**
+   * Auto-dismiss delay in ms.
+   * Use `0` to keep the toast until the steward dismisses it.
+   */
   durationMs?: number;
 };
 

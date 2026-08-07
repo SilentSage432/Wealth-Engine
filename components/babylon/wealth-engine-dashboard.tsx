@@ -230,6 +230,7 @@ export function WealthEngineDashboard() {
               monthAlreadyClosed={engine.monthlyCloseSummary.alreadyClosed}
               isDiscreetMode={discreet}
               plaidLaunching={launching}
+              plaidInitializing={!hydrated}
               onUsernameChange={engine.setUsername}
               onOpenSidebar={() => engine.setSidebarOpen(true)}
               onRecordTribute={() => engine.openTribute("income")}
@@ -284,6 +285,7 @@ export function WealthEngineDashboard() {
                     connectedCount={connectedCount}
                     isLoading={isLoading}
                     launching={launching}
+                    initializing={!hydrated}
                     isCloudSynced={isCloudSynced}
                     onConnect={handleLinkBank}
                     onRequireAuth={() => setAuthOpen(true)}
@@ -341,6 +343,7 @@ export function WealthEngineDashboard() {
                         connectedCount={connectedCount}
                         isLoading={isLoading}
                         launching={launching}
+                        initializing={!hydrated}
                         isCloudSynced={isCloudSynced}
                         onConnect={handleLinkBank}
                         onRequireAuth={() => setAuthOpen(true)}

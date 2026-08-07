@@ -19,7 +19,8 @@
 - Monthly close sweeps: `split_50_50` | `wealth_boost` | `rollover` | `emergency_shield` (+ legacy `debt_wealth`)
 - Plaid Link UI: `components/babylon/plaid-link-button.tsx`, `connected-banks-card.tsx`, `hooks/usePlaidConnections.ts` (CommandBar + Command Deck); API routes remain JWT + server-secret only
 - Plaid (hardened prep): `app/api/plaid/*` (JWT + server secrets), `lib/babylon/plaid-server.ts`, `plaid-client.ts`, `plaid-schema.ts`, migration `20260808_plaid_tables.sql` (access_token never client-readable)
-- Fail-soft toasts: `lib/babylon/vault-toast.ts` + `components/ui/vault-toast.tsx`
+- Fail-soft toasts: `lib/babylon/vault-toast.ts` + `components/ui/vault-toast.tsx` (dismissible; `durationMs: 0` sticky)
+- Record Tribute: `components/modals/RecordTransactionModal.tsx` (preventDefault + try/catch; buttons default non-submit)
 - Types: `types/babylon.ts`
 - Shell: `app/layout.tsx` → `app/providers.tsx` (TanStack Query), `app/globals.css`, `app/manifest.ts`
 - Cloud client: `lib/supabase/client.ts`, `lib/supabase/auth.ts`, `lib/supabase/server.ts` (API JWT + service role), `lib/supabase/database.types.ts`

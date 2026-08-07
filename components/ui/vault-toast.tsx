@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { X } from "lucide-react";
 import {
   VAULT_TOAST_EVENT,
   type VaultToastDetail,
@@ -10,6 +11,7 @@ import { cn } from "@/lib/utils";
 /**
  * Lightweight toast host for vault / Plaid fail-soft messaging.
  * Mount once near the app shell (e.g. SecurityGate).
+ * `durationMs: 0` stays until the steward dismisses it.
  */
 export function VaultToastHost() {
   const [toast, setToast] = useState<VaultToastDetail | null>(null);
@@ -24,7 +26,7 @@ export function VaultToastHost() {
   }, []);
 
   useEffect(() => {
-    if (!toast) return;
+    if (!toast || toast.durationMs <= 0) return;
     const timer = window.setTimeout(() => setToast(null), toast.durationMs);
     return () => window.clearTimeout(timer);
   }, [toast]);
@@ -36,13 +38,13 @@ export function VaultToastHost() {
       role="status"
       aria-live="polite"
       className={cn(
-        "pointer-events-none fixed inset-x-0 bottom-6 z-[80] flex justify-center px-4",
+        "fixed inset-x-0 bottom-6 z-[80] flex justify-center px-4",
         "animate-fade-up"
       )}
     >
-      <p
+      <div
         className={cn(
-          "max-w-md rounded-lg border px-4 py-3 text-sm shadow-xl backdrop-blur-md",
+          "flex max-w-md items-start gap-3 rounded-lg border px-4 py-3 text-sm shadow-xl backdrop-blur-md",
           toast.tone === "error" &&
             "border-rose-900/50 bg-rose-950/90 text-rose-100",
           toast.tone === "success" &&
@@ -51,8 +53,16 @@ export function VaultToastHost() {
             "border-slate-700 bg-slate-900/95 text-slate-100"
         )}
       >
-        {toast.message}
-      </p>
+        <p className="min-w-0 flex-1 pt-0.5">{toast.message}</p>
+        <button
+          type="button"
+          onClick={() => setToast(null)}
+          className="shrink-0 rounded-md p-1 opacity-80 transition-opacity hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50"
+          aria-label="Dismiss notification"
+        >
+          <X className="h-4 w-4" aria-hidden="true" />
+        </button>
+      </div>
     </div>
   );
 }

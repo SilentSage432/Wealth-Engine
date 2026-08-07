@@ -2,12 +2,16 @@
 
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
-import { Lock, Shield } from "lucide-react";
+import { Landmark, Lock, Shield } from "lucide-react";
 
 type VaultErrorBoundaryProps = {
   children: ReactNode;
-  /** Optional recovery UI when the gate tree crashes mid-PIN setup. */
+  /** Optional recovery callback after reset. */
   onReset?: () => void;
+  /**
+   * Compact inline recovery (CommandBar / deck cards) instead of full-page vault recovery.
+   */
+  compact?: boolean;
 };
 
 type VaultErrorBoundaryState = {
@@ -16,8 +20,8 @@ type VaultErrorBoundaryState = {
 };
 
 /**
- * Presentation fail-soft shell — catches render/handler crashes inside the vault gate
- * so the steward can recover with PIN setup instead of a white screen.
+ * Presentation fail-soft shell — catches client crashes so the steward can recover
+ * without a white screen.
  */
 export class VaultErrorBoundary extends Component<
   VaultErrorBoundaryProps,
@@ -30,12 +34,12 @@ export class VaultErrorBoundary extends Component<
       hasError: true,
       message:
         error?.message?.trim() ||
-        "Something went wrong securing the vault. You can continue with a PIN.",
+        "Something went wrong. You can continue safely.",
     };
   }
 
   componentDidCatch(error: Error, info: ErrorInfo): void {
-    console.error("[SecurityGate] client crash caught", error, info.componentStack);
+    console.error("[VaultErrorBoundary] client crash caught", error, info.componentStack);
   }
 
   private handleReset = () => {
@@ -45,6 +49,22 @@ export class VaultErrorBoundary extends Component<
 
   render() {
     if (!this.state.hasError) return this.props.children;
+
+    if (this.props.compact) {
+      return (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          onClick={this.handleReset}
+          aria-label="Retry bank link control"
+          title={this.state.message ?? "Retry"}
+          className="shrink-0"
+        >
+          <Landmark className="h-4 w-4 text-amber-300" aria-hidden="true" />
+        </Button>
+      );
+    }
 
     return (
       <div className="relative min-h-dvh overflow-hidden bg-slate-950">
@@ -70,7 +90,7 @@ export class VaultErrorBoundary extends Component<
             <p role="alert" className="mb-4 text-sm text-slate-400">
               {this.state.message}
             </p>
-            <Button className="w-full" onClick={this.handleReset}>
+            <Button type="button" className="w-full" onClick={this.handleReset}>
               <Lock className="h-4 w-4" aria-hidden="true" />
               Continue with PIN
             </Button>

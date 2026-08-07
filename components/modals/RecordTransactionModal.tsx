@@ -23,6 +23,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { INTERVAL_LABELS, STREAM_KIND_LABELS, STREAM_KIND_ORDER } from "@/lib/babylon/constants";
 import { todayIso } from "@/lib/babylon/engine";
+import { emitVaultToast } from "@/lib/babylon/vault-toast";
 import { cn, formatCurrency } from "@/lib/utils";
 import type {
   AllocationSplit,
@@ -244,144 +245,184 @@ export function RecordTransactionModal({
     });
   };
 
-  const handleSubmit = (event: FormEvent) => {
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    event.stopPropagation();
     setFormFeedback(null);
 
-    if (mode === "income") {
-      const amount = Number.parseFloat(incomeAmount);
-      if (!incomeSource.trim() || !Number.isFinite(amount) || amount <= 0) {
-        setFormFeedback({
-          tone: "error",
-          message: "Income needs a source and a positive amount.",
+    try {
+      if (mode === "income") {
+        const amount = Number.parseFloat(incomeAmount);
+        if (!incomeSource.trim() || !Number.isFinite(amount) || amount <= 0) {
+          setFormFeedback({
+            tone: "error",
+            message: "Income needs a source and a positive amount.",
+          });
+          return;
+        }
+        if (!incomeDate) {
+          setFormFeedback({
+            tone: "error",
+            message: "Select a tribute date for this income.",
+          });
+          return;
+        }
+        const ok = onRecordIncome({
+          source: incomeSource,
+          amount,
+          date: incomeDate,
+          interval: incomeInterval,
+          kind: incomeKind,
+        });
+        if (!ok) {
+          setFormFeedback({
+            tone: "error",
+            message:
+              "Income was rejected. Check amount bounds and that the date is valid.",
+          });
+          return;
+        }
+        emitVaultToast({
+          tone: "success",
+          message: "Tribute staged — review the 10/20/70 split.",
+          durationMs: 0,
         });
         return;
       }
-      if (!incomeDate) {
-        setFormFeedback({
-          tone: "error",
-          message: "Select a tribute date for this income.",
-        });
-        return;
-      }
-      const ok = onRecordIncome({
-        source: incomeSource,
-        amount,
-        date: incomeDate,
-        interval: incomeInterval,
-        kind: incomeKind,
-      });
-      if (!ok) {
-        setFormFeedback({
-          tone: "error",
-          message:
-            "Income was rejected. Check amount bounds and that the date is valid.",
-        });
-      }
-      return;
-    }
 
-    if (mode === "expense") {
-      const amount = Number.parseFloat(expenseAmount);
-      if (!expenseName.trim() || !Number.isFinite(amount) || amount <= 0) {
-        setFormFeedback({
-          tone: "error",
-          message: "Expense needs a name and a positive amount.",
+      if (mode === "expense") {
+        const amount = Number.parseFloat(expenseAmount);
+        if (!expenseName.trim() || !Number.isFinite(amount) || amount <= 0) {
+          setFormFeedback({
+            tone: "error",
+            message: "Expense needs a name and a positive amount.",
+          });
+          return;
+        }
+        if (!expenseBudgetId) {
+          setFormFeedback({
+            tone: "error",
+            message:
+              "Select a budget category, or create one inline below the selector.",
+          });
+          return;
+        }
+        if (!expenseDate) {
+          setFormFeedback({
+            tone: "error",
+            message: "Select the transaction date for this expense.",
+          });
+          return;
+        }
+        if (!expenseDueDate) {
+          setFormFeedback({
+            tone: "error",
+            message: "Select a due date for this expense.",
+          });
+          return;
+        }
+        const ok = onRecordExpense({
+          name: expenseName,
+          amount,
+          date: expenseDate,
+          dueDate: expenseDueDate,
+          category: expenseIsDesire ? "desire" : "need",
+          budgetCategoryId: expenseBudgetId,
+        });
+        if (!ok) {
+          setFormFeedback({
+            tone: "error",
+            message:
+              "Expense was rejected. Check amount, dates, and category selection.",
+          });
+          return;
+        }
+        emitVaultToast({
+          tone: "success",
+          message: "Expense archived to the vault.",
+          durationMs: 0,
         });
         return;
       }
-      if (!expenseBudgetId) {
-        setFormFeedback({
-          tone: "error",
-          message:
-            "Select a budget category, or create one inline below the selector.",
-        });
-        return;
-      }
-      if (!expenseDate) {
-        setFormFeedback({
-          tone: "error",
-          message: "Select the transaction date for this expense.",
-        });
-        return;
-      }
-      if (!expenseDueDate) {
-        setFormFeedback({
-          tone: "error",
-          message: "Select a due date for this expense.",
-        });
-        return;
-      }
-      const ok = onRecordExpense({
-        name: expenseName,
-        amount,
-        date: expenseDate,
-        dueDate: expenseDueDate,
-        category: expenseIsDesire ? "desire" : "need",
-        budgetCategoryId: expenseBudgetId,
-      });
-      if (!ok) {
-        setFormFeedback({
-          tone: "error",
-          message:
-            "Expense was rejected. Check amount, dates, and category selection.",
-        });
-      }
-      return;
-    }
 
-    if (mode === "debt") {
-      const total = Number.parseFloat(debtTotal);
-      const monthly = Number.parseFloat(debtMonthly);
-      if (!debtCreditor.trim() || !Number.isFinite(total) || total <= 0) {
-        setFormFeedback({
-          tone: "error",
-          message: "Debt needs a creditor and a positive total.",
+      if (mode === "debt") {
+        const total = Number.parseFloat(debtTotal);
+        const monthly = Number.parseFloat(debtMonthly);
+        if (!debtCreditor.trim() || !Number.isFinite(total) || total <= 0) {
+          setFormFeedback({
+            tone: "error",
+            message: "Debt needs a creditor and a positive total.",
+          });
+          return;
+        }
+        if (!Number.isFinite(monthly) || monthly <= 0) {
+          setFormFeedback({
+            tone: "error",
+            message: "Monthly allocation must be a positive amount.",
+          });
+          return;
+        }
+        const ok = onRecordDebt({
+          creditor: debtCreditor,
+          totalDebt: total,
+          monthlyAllocation: monthly,
+          interestRate: Number.isFinite(Number.parseFloat(debtInterest))
+            ? Math.max(0, Number.parseFloat(debtInterest))
+            : 0,
+        });
+        if (!ok) {
+          setFormFeedback({
+            tone: "error",
+            message:
+              "Debt was rejected. Check totals and monthly allocation bounds.",
+          });
+          return;
+        }
+        emitVaultToast({
+          tone: "success",
+          message: "Creditor enrolled in the vault.",
+          durationMs: 0,
         });
         return;
       }
-      if (!Number.isFinite(monthly) || monthly <= 0) {
-        setFormFeedback({
-          tone: "error",
-          message: "Monthly allocation must be a positive amount.",
-        });
-        return;
-      }
-      const ok = onRecordDebt({
-        creditor: debtCreditor,
-        totalDebt: total,
-        monthlyAllocation: monthly,
-        interestRate: Number.isFinite(Number.parseFloat(debtInterest))
-          ? Math.max(0, Number.parseFloat(debtInterest))
-          : 0,
-      });
-      if (!ok) {
+
+      const cap = Number.parseFloat(budgetCap);
+      if (!budgetName.trim() || !Number.isFinite(cap) || cap < 0) {
         setFormFeedback({
           tone: "error",
           message:
-            "Debt was rejected. Check totals and monthly allocation bounds.",
+            "Budget category needs a name and a non-negative planned cap.",
         });
+        return;
       }
-      return;
-    }
-
-    const cap = Number.parseFloat(budgetCap);
-    if (!budgetName.trim() || !Number.isFinite(cap) || cap < 0) {
+      const newId = onAddBudgetTarget({
+        categoryName: budgetName.trim(),
+        plannedAmount: cap,
+        isEssential: budgetIsEssential,
+      });
+      if (!newId) {
+        setFormFeedback({
+          tone: "error",
+          message:
+            "Could not create budget category. Check the fields and retry.",
+        });
+        return;
+      }
+      emitVaultToast({
+        tone: "success",
+        message: "Budget category added.",
+        durationMs: 0,
+      });
+    } catch (err) {
+      console.error("[RecordTribute] submit failed — vault retained.", err);
       setFormFeedback({
         tone: "error",
-        message: "Budget category needs a name and a non-negative planned cap.",
+        message: "Could not save this tribute. Your vault is unchanged.",
       });
-      return;
-    }
-    const newId = onAddBudgetTarget({
-      categoryName: budgetName.trim(),
-      plannedAmount: cap,
-      isEssential: budgetIsEssential,
-    });
-    if (!newId) {
-      setFormFeedback({
+      emitVaultToast({
         tone: "error",
-        message: "Could not create budget category. Check the fields and retry.",
+        message: "Could not save this tribute. Your vault is unchanged.",
+        durationMs: 0,
       });
     }
   };
@@ -454,7 +495,7 @@ export function RecordTransactionModal({
             </TabsTrigger>
           </TabsList>
 
-          <form onSubmit={handleSubmit}>
+          <form noValidate onSubmit={handleSubmit}>
             <TabsContent value="income" className="mt-4 space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="income-source">Source</Label>

@@ -1,5 +1,17 @@
 # Development Journal
 
+## 2026-08-07 — Record Tribute submit + Plaid button visibility
+
+### What changed
+- **Form reload harden** — `Button` defaults to `type="button"`; Select triggers are `type="button"`; Record Tribute `handleSubmit` always `preventDefault` + try/catch + sticky success toasts (`durationMs: 0`)
+- **Plaid always mounted** — CommandBar / ConnectedBanksCard never hide Link controls; initializing click toasts *"Initializing Plaid connection..."*; compact `VaultErrorBoundary`
+- **Dismissible toasts** — VaultToastHost keeps `durationMs: 0` until steward dismisses
+
+### Ownership
+- UI primitives: `components/ui/button.tsx`, `select.tsx`, `vault-toast.tsx`
+- Tribute form: `components/modals/RecordTransactionModal.tsx`
+- Plaid presentation: `plaid-link-button.tsx`, `command-bar.tsx`, `connected-banks-card.tsx`
+
 ## 2026-08-07 — Plaid Link on Command Deck
 
 ### What changed
