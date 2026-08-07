@@ -5,6 +5,7 @@ import { Fingerprint, Loader2, Lock, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { VaultToastHost } from "@/components/ui/vault-toast";
+import { VaultErrorBoundary } from "@/components/babylon/vault-error-boundary";
 import {
   clearWebAuthnCredential,
   hasWebAuthnCredential,
@@ -13,6 +14,8 @@ import {
   isWebAuthnAvailable,
   lockSession,
   markSessionUnlocked,
+  normalizePinInput,
+  pinsMatch,
   registerWebAuthnCredential,
   setVaultPin,
   unlockWithWebAuthn,
@@ -30,10 +33,17 @@ interface SecurityGateProps {
  * Blocks the Command Deck until PIN or platform authenticator unlocks the session.
  * Also enforces idle auto-lock and multitasking privacy blur.
  *
- * WebAuthn is best-effort: a 1.5s hard timeout + explicit PIN bypass prevent
- * domain-mismatch lockouts (e.g. localhost → Vercel hostname).
+ * PIN setup never awaits WebAuthn — biometrics are optional post-unlock only.
  */
 export function SecurityGate({ children }: SecurityGateProps) {
+  return (
+    <VaultErrorBoundary>
+      <SecurityGateInner>{children}</SecurityGateInner>
+    </VaultErrorBoundary>
+  );
+}
+
+function SecurityGateInner({ children }: SecurityGateProps) {
   const [ready, setReady] = useState(false);
   const [unlocked, setUnlocked] = useState(false);
   const [configured, setConfigured] = useState(false);
@@ -45,9 +55,9 @@ export function SecurityGate({ children }: SecurityGateProps) {
   const [busy, setBusy] = useState(false);
   const [needsBioReenroll, setNeedsBioReenroll] = useState(false);
   const [biometricHint, setBiometricHint] = useState<string | null>(null);
+  const [webauthn, setWebauthn] = useState(false);
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const bioAttemptRef = useRef(0);
-  const webauthn = isWebAuthnAvailable();
 
   const fallThroughToPin = (message?: string) => {
     setPhase("pin_entry");
@@ -55,16 +65,31 @@ export function SecurityGate({ children }: SecurityGateProps) {
     if (message) setError(message);
   };
 
-  const finishUnlock = async (opts?: { reenrollBiometrics?: boolean }) => {
-    markSessionUnlocked();
+  const finishUnlock = () => {
+    try {
+      markSessionUnlocked();
+    } catch {
+      // Session flag is best-effort; still unlock UI.
+    }
     setUnlocked(true);
     setPin("");
     setConfirmPin("");
     setError(null);
     setBusy(false);
+  };
 
-    if (opts?.reenrollBiometrics && webauthn) {
+  /** Optional biometrics after unlock — never blocks PIN success path. */
+  const maybeReenrollBiometrics = () => {
+    if (!needsBioReenroll || !webauthn) return;
+    void (async () => {
       try {
+        if (
+          typeof window === "undefined" ||
+          !("credentials" in navigator) ||
+          !window.PublicKeyCredential
+        ) {
+          return;
+        }
         clearWebAuthnCredential();
         const enrolled = await registerWebAuthnCredential();
         setNeedsBioReenroll(false);
@@ -72,40 +97,67 @@ export function SecurityGate({ children }: SecurityGateProps) {
           setBiometricHint("Biometrics enrolled for this device.");
         }
       } catch {
-        // PIN already unlocked — enrollment is optional.
+        // Enrollment optional — vault already unlocked.
       }
-    }
+    })();
   };
 
   useEffect(() => {
-    const conf = isVaultConfigured();
-    setConfigured(conf);
+    let cancelled = false;
+    try {
+      const bio = isWebAuthnAvailable();
+      const conf = isVaultConfigured();
+      if (cancelled) return;
 
-    if (!conf) {
+      setWebauthn(bio);
+      setConfigured(conf);
+
+      if (!conf) {
+        setPhase("setup");
+        setUnlocked(false);
+        setReady(true);
+        return;
+      }
+
+      if (isSessionUnlocked()) {
+        setUnlocked(true);
+        setReady(true);
+        return;
+      }
+
+      setUnlocked(false);
+      if (bio && hasWebAuthnCredential()) {
+        setPhase("authenticating");
+      } else {
+        setPhase("pin_entry");
+      }
+      setReady(true);
+    } catch {
+      if (cancelled) return;
+      setWebauthn(false);
+      setConfigured(false);
       setPhase("setup");
       setUnlocked(false);
       setReady(true);
-      return;
     }
 
-    if (isSessionUnlocked()) {
-      setUnlocked(true);
-      setReady(true);
-      return;
-    }
-
-    setUnlocked(false);
-    if (webauthn && hasWebAuthnCredential()) {
-      setPhase("authenticating");
-    } else {
-      setPhase("pin_entry");
-    }
-    setReady(true);
-  }, [webauthn]);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Auto-attempt WebAuthn once when entering authenticating; never hang.
   useEffect(() => {
     if (!ready || unlocked || phase !== "authenticating") return;
+
+    if (
+      typeof window === "undefined" ||
+      !("credentials" in navigator) ||
+      !window.PublicKeyCredential
+    ) {
+      fallThroughToPin("Biometrics unavailable. Enter your 4-digit PIN.");
+      return;
+    }
 
     const attemptId = ++bioAttemptRef.current;
     let cancelled = false;
@@ -118,12 +170,10 @@ export function SecurityGate({ children }: SecurityGateProps) {
         if (cancelled || attemptId !== bioAttemptRef.current) return;
 
         if (result === "success") {
-          await finishUnlock();
+          finishUnlock();
           return;
         }
 
-        // Domain / credential failure: drop stale id so we re-enroll after PIN.
-        // Soft timeout: keep credential, just fall through to PIN.
         if (result === "failed" || result === "unavailable") {
           clearWebAuthnCredential();
           setNeedsBioReenroll(true);
@@ -149,7 +199,6 @@ export function SecurityGate({ children }: SecurityGateProps) {
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- gate lifecycle bind
   }, [ready, unlocked, phase]);
 
   useEffect(() => {
@@ -210,15 +259,23 @@ export function SecurityGate({ children }: SecurityGateProps) {
     if (!ready) return;
 
     const syncPrivacy = () => {
-      const hidden =
-        document.visibilityState === "hidden" || !document.hasFocus();
-      setPrivacyObscured(hidden);
+      try {
+        const hidden =
+          document.visibilityState === "hidden" || !document.hasFocus();
+        setPrivacyObscured(hidden);
+      } catch {
+        setPrivacyObscured(false);
+      }
     };
 
     const onVisibility = () => syncPrivacy();
     const onBlur = () => setPrivacyObscured(true);
     const onFocus = () => {
-      if (document.visibilityState === "visible") {
+      try {
+        if (document.visibilityState === "visible") {
+          setPrivacyObscured(false);
+        }
+      } catch {
         setPrivacyObscured(false);
       }
     };
@@ -235,18 +292,40 @@ export function SecurityGate({ children }: SecurityGateProps) {
     };
   }, [ready]);
 
-  const handleSetup = async () => {
+  const handlePinChange = (value: string) => {
+    setPin(normalizePinInput(value));
+  };
+
+  const handleConfirmPinChange = (value: string) => {
+    setConfirmPin(normalizePinInput(value));
+  };
+
+  /** Create + confirm master PIN — unlock immediately; no WebAuthn on this path. */
+  const handleCreatePin = async () => {
     setError(null);
     setBusy(true);
     try {
-      await setVaultPin(pin);
-      setConfigured(true);
-      if (webauthn) {
-        await registerWebAuthnCredential();
+      if (!pinsMatch(pin, confirmPin)) {
+        setError("Enter and confirm matching 4-digit PINs.");
+        setBusy(false);
+        return;
       }
-      await finishUnlock();
+
+      const result = await setVaultPin(pin);
+      if (!result.ok) {
+        setError(result.message);
+        setBusy(false);
+        return;
+      }
+
+      setConfigured(true);
+      setNeedsBioReenroll(false);
+      // Critical: unlock without awaiting navigator.credentials.create().
+      finishUnlock();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not set PIN.");
+      setError(
+        err instanceof Error ? err.message : "Could not set PIN. Try again."
+      );
       setBusy(false);
     }
   };
@@ -255,22 +334,43 @@ export function SecurityGate({ children }: SecurityGateProps) {
     setError(null);
     setBusy(true);
     try {
-      const ok = await verifyVaultPin(pin);
+      const normalized = normalizePinInput(pin);
+      if (normalized.length !== 4) {
+        setError("Enter your 4-digit PIN.");
+        setBusy(false);
+        return;
+      }
+
+      const ok = await verifyVaultPin(normalized);
       if (!ok) {
         setError("Incorrect PIN.");
         setBusy(false);
         return;
       }
-      const shouldReenroll = needsBioReenroll && webauthn;
-      await finishUnlock({ reenrollBiometrics: shouldReenroll });
-    } finally {
+
+      finishUnlock();
+      maybeReenrollBiometrics();
+    } catch {
+      setError("Could not verify PIN. Try again.");
       setBusy(false);
     }
   };
 
   const handleBiometric = () => {
-    setError(null);
-    setPhase("authenticating");
+    try {
+      if (
+        typeof window === "undefined" ||
+        !("credentials" in navigator) ||
+        !window.PublicKeyCredential
+      ) {
+        fallThroughToPin("Biometrics unavailable. Enter your 4-digit PIN.");
+        return;
+      }
+      setError(null);
+      setPhase("authenticating");
+    } catch {
+      fallThroughToPin("Biometrics unavailable. Enter your 4-digit PIN.");
+    }
   };
 
   const bypassToPin = () => {
@@ -286,6 +386,9 @@ export function SecurityGate({ children }: SecurityGateProps) {
       : phase === "authenticating"
         ? "Opening the vault..."
         : "Unlock Vault";
+
+  const setupReady =
+    pinsMatch(pin, confirmPin) && normalizePinInput(pin).length === 4;
 
   return (
     <>
@@ -316,9 +419,8 @@ export function SecurityGate({ children }: SecurityGateProps) {
               {phase === "setup" && (
                 <div className="space-y-4">
                   <p className="text-sm text-slate-400">
-                    Create a 4-digit master PIN for this origin. On supported
-                    devices you can also enroll platform biometrics (Face ID /
-                    fingerprint).
+                    Create a 4-digit master PIN for this origin. Biometrics can
+                    be enrolled later after unlock on supported devices.
                   </p>
                   <Input
                     type="password"
@@ -326,9 +428,7 @@ export function SecurityGate({ children }: SecurityGateProps) {
                     maxLength={4}
                     placeholder="Create PIN"
                     value={pin}
-                    onChange={(e) =>
-                      setPin(e.target.value.replace(/\D/g, "").slice(0, 4))
-                    }
+                    onChange={(e) => handlePinChange(e.target.value)}
                     aria-label="Create 4-digit PIN"
                     className="border-slate-800 bg-slate-900/60 text-center text-lg tracking-[0.4em]"
                   />
@@ -338,18 +438,14 @@ export function SecurityGate({ children }: SecurityGateProps) {
                     maxLength={4}
                     placeholder="Confirm PIN"
                     value={confirmPin}
-                    onChange={(e) =>
-                      setConfirmPin(
-                        e.target.value.replace(/\D/g, "").slice(0, 4)
-                      )
-                    }
+                    onChange={(e) => handleConfirmPinChange(e.target.value)}
                     aria-label="Confirm 4-digit PIN"
                     className="border-slate-800 bg-slate-900/60 text-center text-lg tracking-[0.4em]"
                   />
                   <Button
                     className="w-full"
-                    disabled={busy || pin.length !== 4 || pin !== confirmPin}
-                    onClick={handleSetup}
+                    disabled={busy || !setupReady}
+                    onClick={() => void handleCreatePin()}
                   >
                     <Lock className="h-4 w-4" aria-hidden="true" />
                     Enable Vault Lock
@@ -387,21 +483,22 @@ export function SecurityGate({ children }: SecurityGateProps) {
                     maxLength={4}
                     placeholder="••••"
                     value={pin}
-                    onChange={(e) =>
-                      setPin(e.target.value.replace(/\D/g, "").slice(0, 4))
-                    }
+                    onChange={(e) => handlePinChange(e.target.value)}
                     aria-label="Enter 4-digit PIN"
                     className="border-slate-800 bg-slate-900/60 text-center text-lg tracking-[0.4em]"
                     onKeyDown={(e) => {
-                      if (e.key === "Enter" && pin.length === 4) {
+                      if (
+                        e.key === "Enter" &&
+                        normalizePinInput(pin).length === 4
+                      ) {
                         void handleUnlockPin();
                       }
                     }}
                   />
                   <Button
                     className="w-full"
-                    disabled={busy || pin.length !== 4}
-                    onClick={handleUnlockPin}
+                    disabled={busy || normalizePinInput(pin).length !== 4}
+                    onClick={() => void handleUnlockPin()}
                   >
                     Unlock with PIN
                   </Button>

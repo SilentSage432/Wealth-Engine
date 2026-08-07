@@ -1,5 +1,16 @@
 # Development Journal
 
+## 2026-08-07 — SecurityGate PIN setup crash harden
+
+### What changed
+- **Fail-soft storage/crypto** — localStorage/sessionStorage + `crypto.subtle` wrapped; `setVaultPin` returns `{ ok }` instead of throwing into React
+- **PIN setup path** — `handleCreatePin` unlocks immediately after hash write; never awaits WebAuthn during setup
+- **Defensive WebAuthn** — all `navigator.credentials` / `PublicKeyCredential` access guarded; unavailable → PIN mode
+- **VaultErrorBoundary** — catches client crashes in the gate and offers PIN recovery UI
+
+### Ownership
+- Vault lock policy: `lib/babylon/security.ts`, `components/babylon/security-gate.tsx`, `components/babylon/vault-error-boundary.tsx`
+
 ## 2026-08-07 — SecurityGate WebAuthn domain lockout fix
 
 ### What changed

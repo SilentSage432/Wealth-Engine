@@ -13,7 +13,7 @@
 - Speed-Tribute bar: `components/babylon/speed-tribute-bar.tsx` (chips → open tribute mode; full 1-tap commit pending)
 - Mobile focus: `components/babylon/spending-power-focus.tsx` (70% remaining + labor-hour readout)
 - Mobile deck: below `lg`, Command / Analytics / Ledgers tabs; sticky `CommandBar` + `SpeedTributeBar`; desktop keeps sidebar nav
-- Security: `components/babylon/security-gate.tsx` + `lib/babylon/security.ts` (PIN/WebAuthn with 1.5s timeout + PIN bypass, 3-min idle lock, multitasking privacy blur); Discreet Mode via CommandBar eye toggle
+- Security: `components/babylon/security-gate.tsx` + `vault-error-boundary.tsx` + `lib/babylon/security.ts` (fail-soft PIN setup, 1.5s WebAuthn timeout + PIN bypass, 3-min idle lock, multitasking privacy blur); Discreet Mode via CommandBar eye toggle
 - Paycheck splitter: `components/modals/PaycheckSplitterModal.tsx` — `proposeIncomeSplit` → execute 10/20/70
 - Debt freedom: `components/babylon/debt-freedom-engine.tsx` — Snowball/Avalanche + Freedom Date + velocity chart
 - Monthly close sweeps: `split_50_50` | `wealth_boost` | `rollover` | `emergency_shield` (+ legacy `debt_wealth`)
