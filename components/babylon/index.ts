@@ -13,7 +13,7 @@ export { SpeedTributeBar } from "@/components/babylon/speed-tribute-bar";
 export { SpendingPowerFocus } from "@/components/babylon/spending-power-focus";
 export { PlaidLinkButton } from "@/components/babylon/plaid-link-button";
 export { ConnectedBanksCard } from "@/components/babylon/connected-banks-card";
-export { SecurityGate } from "@/components/babylon/security-gate";
+export { SecurityGate } from "@/components/babylon/security-gate.client";
 export { DebtFreedomEngine } from "@/components/babylon/debt-freedom-engine";
 export { VaultLoading } from "@/components/babylon/vault-loading";
 export { WealthEngineDashboard } from "@/components/babylon/wealth-engine-dashboard";

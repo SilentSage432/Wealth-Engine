@@ -223,7 +223,7 @@ Canonical ownership reference for Wealth Engine:
 | Speed-Tribute quick presets | `lib/babylon/presets.ts` | Domain |
 | Debt freedom / surplus disposition math | `lib/babylon/engine.ts` | Domain |
 | Discreet mask contract | `lib/babylon/discreet.ts` | Domain |
-| Vault PIN / WebAuthn gate | `lib/babylon/security.ts`, `components/babylon/security-gate.tsx`, `components/babylon/vault-error-boundary.tsx` | Infrastructure / Presentation |
+| Vault PIN / WebAuthn gate | `lib/babylon/security.ts`, `components/babylon/security-gate.tsx`, `components/babylon/security-gate.client.tsx` (`ssr: false`), `components/babylon/vault-error-boundary.tsx` | Infrastructure / Presentation |
 | Vault toast bus | `lib/babylon/vault-toast.ts`, `components/ui/vault-toast.tsx` | Infrastructure / Presentation |
 | Plaid public contracts | `lib/babylon/plaid-schema.ts`, `lib/babylon/plaid-errors.ts`, `lib/babylon/plaid-client.ts` | Persistence / Application |
 | Plaid Link workflow | `hooks/usePlaidConnections.ts` | Application |

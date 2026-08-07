@@ -11,7 +11,7 @@ import { DebtFreedomEngine } from "@/components/babylon/debt-freedom-engine";
 import { GoldenTriad } from "@/components/babylon/golden-triad";
 import { LedgerMatrices } from "@/components/babylon/ledger-matrices";
 import { QuickStats } from "@/components/babylon/quick-stats";
-import { SecurityGate } from "@/components/babylon/security-gate";
+import { SecurityGate } from "@/components/babylon/security-gate.client";
 import { SpeedTributeBar } from "@/components/babylon/speed-tribute-bar";
 import { SpendingPowerFocus } from "@/components/babylon/spending-power-focus";
 import { VaultLoading } from "@/components/babylon/vault-loading";
@@ -115,7 +115,11 @@ export function WealthEngineDashboard() {
   }, [engine.allocations, engine.currentMonthKey, engine.debts]);
 
   if (!hydrated) {
-    return <VaultLoading />;
+    return (
+      <SecurityGate>
+        <VaultLoading />
+      </SecurityGate>
+    );
   }
 
   const showWisdom = engine.activeNav === "wisdom";

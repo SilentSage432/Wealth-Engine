@@ -1,5 +1,16 @@
 # Development Journal
 
+## 2026-08-07 — SecurityGate SSR bypass + forced Plaid mount
+
+### What changed
+- **SecurityGate client-only** — `security-gate.client.tsx` mounts via `next/dynamic({ ssr: false })` so WebAuthn/storage never participate in SSR; dashboard imports the client wrapper
+- **No blank gate boot** — `!ready` renders `VaultLoading` instead of `null` (mobile freeze surface)
+- **PlaidLinkButton always on DOM** — never returns null; ConnectedBanksCard always mounts the control (Sign In / Connect Bank labels) instead of swapping it off
+
+### Ownership
+- Gate mount policy: `security-gate.client.tsx` + `security-gate.tsx`
+- Plaid presentation: `plaid-link-button.tsx`, `connected-banks-card.tsx`
+
 ## 2026-08-07 — Record Tribute submit + Plaid button visibility
 
 ### What changed

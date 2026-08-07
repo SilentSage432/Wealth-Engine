@@ -44,6 +44,7 @@ A premium, single-page budgeting platform that teaches and enforces Babylonian w
 - [x] Grand Suite: SecurityGate + Discreet Mode, Paycheck Splitter, Debt Freedom Engine, Monthly Close sweeps, Plaid schema prep
 - [x] Plaid security harden (JWT API routes, access_token isolation, idle lock, privacy blur, fail-soft toasts)
 - [x] Plaid Link Command Deck mounts (CommandBar + ConnectedBanksCard; needs live PLAID_* + service role env)
+- [x] SecurityGate client-only mount (`ssr: false`) + PlaidLinkButton always-on DOM fallbacks
 - [ ] Path A dual-write for debts / period archives / activity_logs + hydrate remint
 - [ ] Speed-Tribute 1-tap commit (presets + bar mount; full amount autofill / zero-modal path still open)
 - [ ] Plaid transaction sync / steward review workflow

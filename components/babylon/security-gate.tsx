@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { VaultToastHost } from "@/components/ui/vault-toast";
 import { VaultErrorBoundary } from "@/components/babylon/vault-error-boundary";
+import { VaultLoading } from "@/components/babylon/vault-loading";
 import {
   clearWebAuthnCredential,
   hasWebAuthnCredential,
@@ -378,7 +379,15 @@ function SecurityGateInner({ children }: SecurityGateProps) {
     fallThroughToPin();
   };
 
-  if (!ready) return null;
+  // Never blank the viewport while client gate boots (mobile freeze surface).
+  if (!ready) {
+    return (
+      <>
+        <VaultLoading />
+        <VaultToastHost />
+      </>
+    );
+  }
 
   const title =
     phase === "setup"

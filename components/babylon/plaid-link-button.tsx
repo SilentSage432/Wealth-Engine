@@ -21,7 +21,8 @@ interface PlaidLinkButtonProps {
 
 /**
  * Presentation control that launches Plaid Link.
- * Always mounts — never returns null for missing tokens / env setup.
+ * Always mounts on the DOM — never returns null for missing tokens / env / SDK readiness.
+ * Graceful fallback: initializing or missing handler → sticky toast, control stays visible.
  */
 export function PlaidLinkButton({
   variant = "button",
@@ -40,6 +41,7 @@ export function PlaidLinkButton({
       : label;
 
   const handleClick = () => {
+    if (disabled) return;
     if (initializing || !onClick) {
       emitVaultToast({
         tone: "info",
@@ -59,6 +61,7 @@ export function PlaidLinkButton({
         size="icon"
         onClick={handleClick}
         disabled={disabled}
+        data-plaid-link-button="icon"
         aria-busy={busy || undefined}
         aria-label={
           initializing
@@ -92,6 +95,7 @@ export function PlaidLinkButton({
       variant="outline"
       onClick={handleClick}
       disabled={disabled}
+      data-plaid-link-button="button"
       aria-busy={busy || undefined}
       aria-label={displayLabel}
       className={cn("gap-2", className)}

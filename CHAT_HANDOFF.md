@@ -13,11 +13,11 @@
 - Speed-Tribute bar: `components/babylon/speed-tribute-bar.tsx` (chips → open tribute mode; full 1-tap commit pending)
 - Mobile focus: `components/babylon/spending-power-focus.tsx` (70% remaining + labor-hour readout)
 - Mobile deck: below `lg`, Command / Analytics / Ledgers tabs; sticky `CommandBar` + `SpeedTributeBar`; desktop keeps sidebar nav
-- Security: `components/babylon/security-gate.tsx` + `vault-error-boundary.tsx` + `lib/babylon/security.ts` (fail-soft PIN setup, 1.5s WebAuthn timeout + PIN bypass, 3-min idle lock, multitasking privacy blur); Discreet Mode via CommandBar eye toggle
+- Security: `components/babylon/security-gate.client.tsx` (`next/dynamic` `ssr: false`) → `security-gate.tsx` + `vault-error-boundary.tsx` + `lib/babylon/security.ts` (fail-soft PIN setup, 1.5s WebAuthn timeout + PIN bypass, 3-min idle lock, multitasking privacy blur); Discreet Mode via CommandBar eye toggle
 - Paycheck splitter: `components/modals/PaycheckSplitterModal.tsx` — `proposeIncomeSplit` → execute 10/20/70
 - Debt freedom: `components/babylon/debt-freedom-engine.tsx` — Snowball/Avalanche + Freedom Date + velocity chart
 - Monthly close sweeps: `split_50_50` | `wealth_boost` | `rollover` | `emergency_shield` (+ legacy `debt_wealth`)
-- Plaid Link UI: `components/babylon/plaid-link-button.tsx`, `connected-banks-card.tsx`, `hooks/usePlaidConnections.ts` (CommandBar + Command Deck); API routes remain JWT + server-secret only
+- Plaid Link UI: `components/babylon/plaid-link-button.tsx` (always mounted; init toast fallback), `connected-banks-card.tsx`, `hooks/usePlaidConnections.ts` (CommandBar + Command Deck); API routes remain JWT + server-secret only
 - Plaid (hardened prep): `app/api/plaid/*` (JWT + server secrets), `lib/babylon/plaid-server.ts`, `plaid-client.ts`, `plaid-schema.ts`, migration `20260808_plaid_tables.sql` (access_token never client-readable)
 - Fail-soft toasts: `lib/babylon/vault-toast.ts` + `components/ui/vault-toast.tsx` (dismissible; `durationMs: 0` sticky)
 - Record Tribute: `components/modals/RecordTransactionModal.tsx` (preventDefault + try/catch; buttons default non-submit)

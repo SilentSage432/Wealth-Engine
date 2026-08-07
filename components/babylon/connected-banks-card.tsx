@@ -1,8 +1,7 @@
 "use client";
 
-import { Landmark, Plus } from "lucide-react";
+import { Landmark } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { PlaidLinkButton } from "@/components/babylon/plaid-link-button";
 import { VaultErrorBoundary } from "@/components/babylon/vault-error-boundary";
 import { emitVaultToast } from "@/lib/babylon/vault-toast";
@@ -28,7 +27,7 @@ function statusCopy(count: number, isCloudSynced: boolean): string {
 
 /**
  * Command Deck quick-action — shows linked institution count and opens Plaid Link.
- * Always mounts; never hides when Plaid is initializing.
+ * Always mounts PlaidLinkButton; never swaps it off the DOM for auth / init states.
  */
 export function ConnectedBanksCard({
   connectedCount,
@@ -78,28 +77,14 @@ export function ConnectedBanksCard({
                 : statusCopy(connectedCount, isCloudSynced)}
             </p>
           </div>
-          {isCloudSynced ? (
-            <PlaidLinkButton
-              variant="button"
-              label="Connect Bank"
-              launching={launching}
-              initializing={initializing}
-              onClick={handleClick}
-              className="shrink-0"
-            />
-          ) : (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="shrink-0"
-              onClick={handleClick}
-              aria-label="Sign in to link a bank"
-            >
-              <Plus className="h-4 w-4" aria-hidden="true" />
-              Sign In
-            </Button>
-          )}
+          <PlaidLinkButton
+            variant="button"
+            label={isCloudSynced ? "Connect Bank" : "Sign In"}
+            launching={launching}
+            initializing={initializing}
+            onClick={handleClick}
+            className="shrink-0"
+          />
         </CardContent>
       </Card>
     </VaultErrorBoundary>
