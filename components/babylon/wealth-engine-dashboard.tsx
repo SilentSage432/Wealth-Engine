@@ -6,6 +6,7 @@ import { AffordabilityAnchor } from "@/components/babylon/affordability-anchor";
 import { AnalyticsHub } from "@/components/babylon/analytics-hub";
 import { AppSidebar } from "@/components/babylon/app-sidebar";
 import { CommandBar } from "@/components/babylon/command-bar";
+import { ConnectedBanksCard } from "@/components/babylon/connected-banks-card";
 import { DebtFreedomEngine } from "@/components/babylon/debt-freedom-engine";
 import { GoldenTriad } from "@/components/babylon/golden-triad";
 import { LedgerMatrices } from "@/components/babylon/ledger-matrices";
@@ -24,6 +25,7 @@ import { PaycheckSplitterModal } from "@/components/modals/PaycheckSplitterModal
 import { RecordTransactionModal } from "@/components/modals/RecordTransactionModal";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useBabylonEngine } from "@/hooks/useBabylonEngine";
+import { usePlaidConnections } from "@/hooks/usePlaidConnections";
 import { useTributeHotkeys } from "@/hooks/useTributeHotkeys";
 import { roundMoney } from "@/lib/babylon/engine";
 import type { QuickPreset } from "@/lib/babylon/presets";
@@ -47,7 +49,20 @@ export function WealthEngineDashboard() {
     monthlyCloseOpen,
     authOpen,
     paycheckOpen,
+    isCloudSynced,
+    setAuthOpen,
   } = engine;
+
+  const plaid = usePlaidConnections({ enabled: hydrated && isCloudSynced });
+  const { launchLink, launching, connectedCount, isLoading } = plaid;
+
+  const handleLinkBank = useCallback(() => {
+    if (!isCloudSynced) {
+      setAuthOpen(true);
+      return;
+    }
+    void launchLink();
+  }, [isCloudSynced, launchLink, setAuthOpen]);
 
   const [mobileTab, setMobileTab] = useState<MobileDeckTab>("command");
 
@@ -214,11 +229,13 @@ export function WealthEngineDashboard() {
               localizedTime={engine.localizedTime}
               monthAlreadyClosed={engine.monthlyCloseSummary.alreadyClosed}
               isDiscreetMode={discreet}
+              plaidLaunching={launching}
               onUsernameChange={engine.setUsername}
               onOpenSidebar={() => engine.setSidebarOpen(true)}
               onRecordTribute={() => engine.openTribute("income")}
               onOpenMonthlyClose={() => engine.setMonthlyCloseOpen(true)}
               onToggleDiscreetMode={engine.toggleDiscreetMode}
+              onLinkBank={handleLinkBank}
             />
             <SpeedTributeBar onSelectPreset={handlePresetSelect} />
           </div>
@@ -263,6 +280,14 @@ export function WealthEngineDashboard() {
                 <TabsContent value="command" className="mt-4 space-y-4">
                   {focusCards}
                   {triad}
+                  <ConnectedBanksCard
+                    connectedCount={connectedCount}
+                    isLoading={isLoading}
+                    launching={launching}
+                    isCloudSynced={isCloudSynced}
+                    onConnect={handleLinkBank}
+                    onRequireAuth={() => setAuthOpen(true)}
+                  />
                   {debtFreedom}
                   <RecentActivityStrip events={engine.recentActivity} />
                   <WisdomBox
@@ -312,6 +337,14 @@ export function WealthEngineDashboard() {
                     <>
                       {focusCards}
                       {triad}
+                      <ConnectedBanksCard
+                        connectedCount={connectedCount}
+                        isLoading={isLoading}
+                        launching={launching}
+                        isCloudSynced={isCloudSynced}
+                        onConnect={handleLinkBank}
+                        onRequireAuth={() => setAuthOpen(true)}
+                      />
                       {debtFreedom}
                       <AffordabilityAnchor
                         desiresPoolRemaining={engine.desiresPoolRemaining}

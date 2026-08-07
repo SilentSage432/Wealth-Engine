@@ -17,6 +17,7 @@
 - Paycheck splitter: `components/modals/PaycheckSplitterModal.tsx` — `proposeIncomeSplit` → execute 10/20/70
 - Debt freedom: `components/babylon/debt-freedom-engine.tsx` — Snowball/Avalanche + Freedom Date + velocity chart
 - Monthly close sweeps: `split_50_50` | `wealth_boost` | `rollover` | `emergency_shield` (+ legacy `debt_wealth`)
+- Plaid Link UI: `components/babylon/plaid-link-button.tsx`, `connected-banks-card.tsx`, `hooks/usePlaidConnections.ts` (CommandBar + Command Deck); API routes remain JWT + server-secret only
 - Plaid (hardened prep): `app/api/plaid/*` (JWT + server secrets), `lib/babylon/plaid-server.ts`, `plaid-client.ts`, `plaid-schema.ts`, migration `20260808_plaid_tables.sql` (access_token never client-readable)
 - Fail-soft toasts: `lib/babylon/vault-toast.ts` + `components/ui/vault-toast.tsx`
 - Types: `types/babylon.ts`

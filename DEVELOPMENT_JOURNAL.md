@@ -1,5 +1,18 @@
 # Development Journal
 
+## 2026-08-07 — Plaid Link on Command Deck
+
+### What changed
+- **PlaidLinkButton** — CommandBar icon control next to Discreet Mode; launches Link via `usePlaidConnections`
+- **ConnectedBanksCard** — Command Deck quick-action showing synced count / empty state; opens Link or Auth
+- **usePlaidConnections** — Application owner for link-token → Link → exchange + public item list (`access_token` never client-side)
+- Dependency: `react-plaid-link`
+
+### Ownership
+- Presentation: `plaid-link-button.tsx`, `connected-banks-card.tsx`, `command-bar.tsx`, dashboard mounts
+- Application: `hooks/usePlaidConnections.ts`
+- Client helpers: `lib/babylon/plaid-client.ts`
+
 ## 2026-08-07 — SecurityGate PIN setup crash harden
 
 ### What changed

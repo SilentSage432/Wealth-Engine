@@ -1,7 +1,12 @@
 "use client";
 
 import { plaidUserMessage } from "@/lib/babylon/plaid-errors";
-import type { PlaidItemPublic } from "@/lib/babylon/plaid-schema";
+import {
+  isPlaidClientConfigured,
+  PLAID_ITEM_PUBLIC_COLUMNS,
+  toPlaidItemPublic,
+  type PlaidItemPublic,
+} from "@/lib/babylon/plaid-schema";
 import { emitVaultToast } from "@/lib/babylon/vault-toast";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
@@ -91,4 +96,62 @@ export async function exchangePlaidPublicToken(
   );
   if (!result.ok) return null;
   return result.data.item ?? null;
+}
+
+export async function createPlaidLinkTokenOrToast(): Promise<string | null> {
+  if (!isPlaidClientConfigured()) {
+    emitVaultToast({
+      tone: "error",
+      message: plaidUserMessage("not_configured"),
+    });
+    return null;
+  }
+  return requestPlaidLinkToken();
+}
+
+export async function startPlaidLinkExchange(
+  publicToken: string,
+  institutionName?: string
+): Promise<PlaidItemPublic | null> {
+  const item = await exchangePlaidPublicToken(publicToken, institutionName);
+  if (item) {
+    emitVaultToast({
+      tone: "success",
+      message: `${item.institutionName} linked. Your vault is up to date.`,
+    });
+  }
+  return item;
+}
+
+/** Load public Plaid item metadata for the signed-in steward (no access_token). */
+export async function listPlaidItems(): Promise<PlaidItemPublic[]> {
+  try {
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) return [];
+
+    const { data, error } = await supabase
+      .from("plaid_items")
+      .select(PLAID_ITEM_PUBLIC_COLUMNS)
+      .order("created_at", { ascending: false });
+
+    if (error || !data) {
+      console.error("[plaid] list items failed — local vault retained.", error);
+      return [];
+    }
+
+    return data.map((row) =>
+      toPlaidItemPublic(
+        row as {
+          id: string;
+          user_id: string;
+          item_id: string;
+          institution_name: string;
+          created_at: string;
+        }
+      )
+    );
+  } catch (err) {
+    console.error("[plaid] list items crashed — local vault retained.", err);
+    return [];
+  }
 }

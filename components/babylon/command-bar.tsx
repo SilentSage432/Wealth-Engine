@@ -3,6 +3,7 @@
 import { CalendarCheck, CalendarDays, Eye, EyeOff, Menu, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PlaidLinkButton } from "@/components/babylon/plaid-link-button";
 import { GREETING_NAME_FALLBACK } from "@/lib/babylon/constants";
 
 interface CommandBarProps {
@@ -12,11 +13,13 @@ interface CommandBarProps {
   localizedTime: string;
   monthAlreadyClosed?: boolean;
   isDiscreetMode?: boolean;
+  plaidLaunching?: boolean;
   onUsernameChange: (value: string) => void;
   onOpenSidebar: () => void;
   onRecordTribute: () => void;
   onOpenMonthlyClose?: () => void;
   onToggleDiscreetMode?: () => void;
+  onLinkBank?: () => void;
 }
 
 export function CommandBar({
@@ -26,11 +29,13 @@ export function CommandBar({
   localizedTime,
   monthAlreadyClosed = false,
   isDiscreetMode = false,
+  plaidLaunching = false,
   onUsernameChange,
   onOpenSidebar,
   onRecordTribute,
   onOpenMonthlyClose,
   onToggleDiscreetMode,
+  onLinkBank,
 }: CommandBarProps) {
   const greetingName = username.trim() || GREETING_NAME_FALLBACK;
 
@@ -90,6 +95,13 @@ export function CommandBar({
                 <Eye className="h-4 w-4" aria-hidden="true" />
               )}
             </Button>
+          )}
+          {onLinkBank && (
+            <PlaidLinkButton
+              variant="icon"
+              launching={plaidLaunching}
+              onClick={onLinkBank}
+            />
           )}
           <Input
             value={username}

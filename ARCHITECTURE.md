@@ -226,6 +226,8 @@ Canonical ownership reference for Wealth Engine:
 | Vault PIN / WebAuthn gate | `lib/babylon/security.ts`, `components/babylon/security-gate.tsx`, `components/babylon/vault-error-boundary.tsx` | Infrastructure / Presentation |
 | Vault toast bus | `lib/babylon/vault-toast.ts`, `components/ui/vault-toast.tsx` | Infrastructure / Presentation |
 | Plaid public contracts | `lib/babylon/plaid-schema.ts`, `lib/babylon/plaid-errors.ts`, `lib/babylon/plaid-client.ts` | Persistence / Application |
+| Plaid Link workflow | `hooks/usePlaidConnections.ts` | Application |
+| Plaid Link UI | `components/babylon/plaid-link-button.tsx`, `components/babylon/connected-banks-card.tsx` | Presentation |
 | Plaid secrets + REST | `lib/babylon/plaid-server.ts`, `app/api/plaid/*` | Infrastructure |
 | Plaid schema + RLS | `supabase/migrations/20260808_plaid_tables.sql` | Persistence |
 | Period close / surplus workflow | `hooks/useBabylonEngine.ts` (`closeMonth`; composes domain surplus helpers) | Application |
