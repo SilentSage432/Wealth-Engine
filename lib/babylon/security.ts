@@ -7,6 +7,9 @@ export const PIN_HASH_KEY = "babylon_vault_pin_hash";
 export const WEBAUTHN_CRED_KEY = "babylon_webauthn_cred_id";
 export const SESSION_UNLOCK_KEY = "babylon_vault_unlocked";
 
+/** Idle duration before SecurityGate re-locks an unlocked session. */
+export const VAULT_IDLE_LOCK_MS = 3 * 60 * 1000;
+
 function toBase64(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer);
   let binary = "";

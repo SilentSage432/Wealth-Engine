@@ -224,7 +224,10 @@ Canonical ownership reference for Wealth Engine:
 | Debt freedom / surplus disposition math | `lib/babylon/engine.ts` | Domain |
 | Discreet mask contract | `lib/babylon/discreet.ts` | Domain |
 | Vault PIN / WebAuthn gate | `lib/babylon/security.ts`, `components/babylon/security-gate.tsx` | Infrastructure / Presentation |
-| Plaid schema prep | `supabase/migrations/20260808_plaid_tables.sql`, `lib/babylon/plaid-schema.ts` | Persistence |
+| Vault toast bus | `lib/babylon/vault-toast.ts`, `components/ui/vault-toast.tsx` | Infrastructure / Presentation |
+| Plaid public contracts | `lib/babylon/plaid-schema.ts`, `lib/babylon/plaid-errors.ts`, `lib/babylon/plaid-client.ts` | Persistence / Application |
+| Plaid secrets + REST | `lib/babylon/plaid-server.ts`, `app/api/plaid/*` | Infrastructure |
+| Plaid schema + RLS | `supabase/migrations/20260808_plaid_tables.sql` | Persistence |
 | Period close / surplus workflow | `hooks/useBabylonEngine.ts` (`closeMonth`; composes domain surplus helpers) | Application |
 | Ledger state coordination | `hooks/useBabylonEngine.ts` | Application |
 | Interaction composition (e.g. hotkeys) | `hooks/useTributeHotkeys.ts` (composed by dashboard) | Application |
@@ -235,6 +238,7 @@ Canonical ownership reference for Wealth Engine:
 | Local → cloud hydration | `lib/babylon/cloud-hydrate.ts` | Persistence |
 | Typed DB contract | `lib/supabase/database.types.ts` | Persistence |
 | Supabase browser client | `lib/supabase/client.ts` | Infrastructure |
+| Supabase server auth / service role | `lib/supabase/server.ts` | Infrastructure |
 | Auth session methods | `lib/supabase/auth.ts` | Infrastructure |
 | Server-state cache | `app/providers.tsx` (TanStack Query) | Infrastructure |
 | Presentation surfaces | `components/babylon/*`, `components/dashboard/*`, `components/modals/*` | Presentation |

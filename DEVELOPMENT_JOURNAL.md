@@ -1,5 +1,20 @@
 # Development Journal
 
+## 2026-08-07 — Plaid security & architecture harden
+
+### What changed
+- **Secret isolation** — `PLAID_SECRET` / service role confined to `lib/babylon/plaid-server.ts` + `lib/supabase/server.ts` (`server-only`); JWT-gated `/api/plaid/link-token` + `/api/plaid/exchange-token`; responses return `PlaidItemPublic` only (never `access_token`)
+- **RLS harden** — `20260808_plaid_tables.sql`: column grants hide `access_token`; JWT clients SELECT/DELETE item metadata only; transactions SELECT + UPDATE(`is_processed`); inserts via service role
+- **SecurityGate** — 3-minute idle auto-lock (`VAULT_IDLE_LOCK_MS`) + multitasking privacy blur (`visibilitychange` / `blur` / `focus`)
+- **Fail-soft** — `plaid-errors` / `plaid-client` + `VaultToastHost`; Plaid failures toast without crashing the offline vault or leaking stack traces
+
+### Ownership
+- Server auth + service client: `lib/supabase/server.ts`
+- Plaid REST + secrets: `lib/babylon/plaid-server.ts`
+- Client Plaid helpers: `lib/babylon/plaid-client.ts`
+- Toast bus: `lib/babylon/vault-toast.ts` → host `components/ui/vault-toast.tsx`
+- Vault lock policy: `lib/babylon/security.ts` + `components/babylon/security-gate.tsx`
+
 ## 2026-08-06 — Babylon Ledger Grand Suite (features 1–5 foundation)
 
 ### What changed

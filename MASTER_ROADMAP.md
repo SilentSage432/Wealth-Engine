@@ -42,9 +42,10 @@ A premium, single-page budgeting platform that teaches and enforces Babylonian w
 - [x] Mobile Command Deck streamlining (focus cards, compact Golden Triad, Command/Analytics/Ledgers tabs)
 - [x] Path A entity parity schema (`debt_entries`, `period_archives` — `20260807_add_debts_archives_logs.sql`)
 - [x] Grand Suite: SecurityGate + Discreet Mode, Paycheck Splitter, Debt Freedom Engine, Monthly Close sweeps, Plaid schema prep
+- [x] Plaid security harden (JWT API routes, access_token isolation, idle lock, privacy blur, fail-soft toasts)
 - [ ] Path A dual-write for debts / period archives / activity_logs + hydrate remint
 - [ ] Speed-Tribute 1-tap commit (presets + bar mount; full amount autofill / zero-modal path still open)
-- [ ] Plaid Link live sync (schema ready; SDK + server tokens not wired)
+- [ ] Plaid Link UI wiring (routes + schema hardened; Link SDK / product surface still open)
 - [ ] Multi-currency
 - [ ] Shared household vaults
 - [ ] Institutional knowledge composition (read-only Observatory views)
