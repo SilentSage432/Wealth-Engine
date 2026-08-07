@@ -1,6 +1,8 @@
 /**
  * Hand-maintained Supabase Database contract for Path A schema.
- * Mirrors `supabase/migrations/20260719_init_babylon_schema.sql`.
+ * Mirrors:
+ * - `supabase/migrations/20260719_init_babylon_schema.sql`
+ * - `supabase/migrations/20260807_add_debts_archives_logs.sql`
  */
 
 export type IncomeStreamKindDb =
@@ -28,6 +30,18 @@ export type Json =
   | null
   | { [key: string]: Json | undefined }
   | Json[];
+
+/** Sealed-month payload stored in period_archives.snapshot_data. */
+export type PeriodArchiveSnapshotDb = {
+  totalIncome: number;
+  totalSpent: number;
+  wealthAllocated: number;
+  debtAllocated: number;
+  expenditurePool: number;
+  expenditureRemaining: number;
+  surplusDisposition: "debt_wealth" | "emergency_shield";
+  surplusAmount: number;
+};
 
 export interface Database {
   public: {
@@ -170,6 +184,69 @@ export interface Database {
         };
         Relationships: [];
       };
+      debt_entries: {
+        Row: {
+          id: string;
+          user_id: string;
+          name: string;
+          total_balance: number;
+          minimum_payment: number;
+          interest_rate: number;
+          current_balance: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          name: string;
+          total_balance?: number;
+          minimum_payment?: number;
+          interest_rate?: number;
+          current_balance?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          name?: string;
+          total_balance?: number;
+          minimum_payment?: number;
+          interest_rate?: number;
+          current_balance?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      period_archives: {
+        Row: {
+          id: string;
+          user_id: string;
+          month_key: string;
+          closed_at: string;
+          snapshot_data: PeriodArchiveSnapshotDb | Json;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          month_key: string;
+          closed_at?: string;
+          snapshot_data: PeriodArchiveSnapshotDb | Json;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          month_key?: string;
+          closed_at?: string;
+          snapshot_data?: PeriodArchiveSnapshotDb | Json;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
     Functions: Record<string, never>;
@@ -191,6 +268,9 @@ export type ExpenseEntryRow =
   Database["public"]["Tables"]["expense_entries"]["Row"];
 export type ActivityLogRow =
   Database["public"]["Tables"]["activity_logs"]["Row"];
+export type DebtEntryRow = Database["public"]["Tables"]["debt_entries"]["Row"];
+export type PeriodArchiveRow =
+  Database["public"]["Tables"]["period_archives"]["Row"];
 
 export type BudgetTargetInsert =
   Database["public"]["Tables"]["budget_targets"]["Insert"];
@@ -198,3 +278,9 @@ export type IncomeEntryInsert =
   Database["public"]["Tables"]["income_entries"]["Insert"];
 export type ExpenseEntryInsert =
   Database["public"]["Tables"]["expense_entries"]["Insert"];
+export type ActivityLogInsert =
+  Database["public"]["Tables"]["activity_logs"]["Insert"];
+export type DebtEntryInsert =
+  Database["public"]["Tables"]["debt_entries"]["Insert"];
+export type PeriodArchiveInsert =
+  Database["public"]["Tables"]["period_archives"]["Insert"];

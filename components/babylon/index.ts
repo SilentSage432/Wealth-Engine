@@ -9,6 +9,8 @@ export { MiniSparkline } from "@/components/babylon/mini-sparkline";
 export { QuickStats } from "@/components/babylon/quick-stats";
 export { RecordTributeDialog } from "@/components/babylon/record-tribute-dialog";
 export { RecordTransactionModal } from "@/components/modals/RecordTransactionModal";
+export { SpeedTributeBar } from "@/components/babylon/speed-tribute-bar";
+export { SpendingPowerFocus } from "@/components/babylon/spending-power-focus";
 export { VaultLoading } from "@/components/babylon/vault-loading";
 export { WealthEngineDashboard } from "@/components/babylon/wealth-engine-dashboard";
 export { WisdomBox } from "@/components/babylon/wisdom-box";

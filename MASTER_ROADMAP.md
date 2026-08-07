@@ -39,6 +39,10 @@ A premium, single-page budgeting platform that teaches and enforces Babylonian w
 - [x] Path A cloud schema foundation (`supabase/migrations/20260719_init_babylon_schema.sql`)
 - [x] Path A client connectivity (Supabase SDK + TanStack Query + dual-write mutations)
 - [x] Path A auth UI + local→cloud hydration (AuthModal, sidebar vault anchor, one-time migrate)
+- [x] Mobile Command Deck streamlining (focus cards, compact Golden Triad, Command/Analytics/Ledgers tabs)
+- [x] Path A entity parity schema (`debt_entries`, `period_archives` — `20260807_add_debts_archives_logs.sql`)
+- [ ] Path A dual-write for debts / period archives / activity_logs + hydrate remint
+- [ ] Speed-Tribute 1-tap commit (presets + bar mount; full amount autofill / zero-modal path still open)
 - [ ] Multi-currency
 - [ ] Shared household vaults
 - [ ] Institutional knowledge composition (read-only Observatory views)
@@ -66,6 +70,7 @@ Canonical map: [`ARCHITECTURE.md`](./ARCHITECTURE.md) (layers, dependency rules,
 | Period close / surplus | `hooks/useBabylonEngine.ts` (`closeMonth`, `splitSurplusToDebtWealth`) |
 | Ledger state + persistence | `hooks/useBabylonEngine.ts` |
 | Type contracts | `types/babylon.ts` |
+| Speed-Tribute presets | `lib/babylon/presets.ts` |
 | Cloud relational schema | `supabase/migrations/*` |
 | Supabase browser client | `lib/supabase/client.ts` |
 | Auth session methods | `lib/supabase/auth.ts` |

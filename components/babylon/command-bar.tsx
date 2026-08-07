@@ -31,7 +31,7 @@ export function CommandBar({
   const greetingName = username.trim() || GREETING_NAME_FALLBACK;
 
   return (
-    <header className="sticky top-0 z-30 border-b border-slate-800/60 bg-slate-950/80 backdrop-blur-xl">
+    <header className="border-b border-slate-800/60 bg-slate-950/80 backdrop-blur-xl">
       <div className="mx-auto flex w-full max-w-screen-2xl flex-col gap-3 px-3 py-3 sm:gap-4 sm:px-6 sm:py-4 lg:flex-row lg:items-center lg:justify-between lg:px-8">
         <div className="flex min-w-0 items-start gap-2 sm:gap-3">
           <Button

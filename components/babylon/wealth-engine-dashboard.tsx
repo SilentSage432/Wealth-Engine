@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { BarChart3, ScrollText, Zap } from "lucide-react";
 import { AffordabilityAnchor } from "@/components/babylon/affordability-anchor";
 import { AnalyticsHub } from "@/components/babylon/analytics-hub";
 import { AppSidebar } from "@/components/babylon/app-sidebar";
@@ -8,6 +9,8 @@ import { CommandBar } from "@/components/babylon/command-bar";
 import { GoldenTriad } from "@/components/babylon/golden-triad";
 import { LedgerMatrices } from "@/components/babylon/ledger-matrices";
 import { QuickStats } from "@/components/babylon/quick-stats";
+import { SpeedTributeBar } from "@/components/babylon/speed-tribute-bar";
+import { SpendingPowerFocus } from "@/components/babylon/spending-power-focus";
 import { VaultLoading } from "@/components/babylon/vault-loading";
 import { WisdomBox } from "@/components/babylon/wisdom-box";
 import { BudgetBlueprint } from "@/components/dashboard/BudgetBlueprint";
@@ -16,14 +19,27 @@ import { TributeEnginesPanel } from "@/components/dashboard/TributeEnginesPanel"
 import { MonthlyCloseModal } from "@/components/modals/MonthlyCloseModal";
 import { AuthModal } from "@/components/modals/AuthModal";
 import { RecordTransactionModal } from "@/components/modals/RecordTransactionModal";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useBabylonEngine } from "@/hooks/useBabylonEngine";
 import { useTributeHotkeys } from "@/hooks/useTributeHotkeys";
+import type { QuickPreset } from "@/lib/babylon/presets";
 import { cn } from "@/lib/utils";
+import type { NavSection } from "@/types/babylon";
+
+type MobileDeckTab = "command" | "analytics" | "ledgers";
+
+function navToMobileTab(nav: NavSection): MobileDeckTab | null {
+  if (nav === "overview") return "command";
+  if (nav === "ledgers") return "ledgers";
+  return null;
+}
 
 export function WealthEngineDashboard() {
   const engine = useBabylonEngine();
   const { openTribute, hydrated, tributeOpen, monthlyCloseOpen, authOpen } =
     engine;
+
+  const [mobileTab, setMobileTab] = useState<MobileDeckTab>("command");
 
   const openTributeHotkey = useCallback(() => {
     openTribute("income");
@@ -33,13 +49,94 @@ export function WealthEngineDashboard() {
     enabled: hydrated && !tributeOpen && !monthlyCloseOpen && !authOpen,
   });
 
+  useEffect(() => {
+    const mapped = navToMobileTab(engine.activeNav);
+    if (mapped) setMobileTab(mapped);
+  }, [engine.activeNav]);
+
+  const handleMobileTabChange = useCallback(
+    (value: string) => {
+      const tab = value as MobileDeckTab;
+      setMobileTab(tab);
+      if (tab === "command") engine.selectNav("overview");
+      if (tab === "ledgers") engine.selectNav("ledgers");
+      if (tab === "analytics") engine.selectNav("overview");
+    },
+    [engine.selectNav]
+  );
+
+  const handlePresetSelect = useCallback(
+    (preset: QuickPreset) => {
+      openTribute(preset.type === "income" ? "income" : "expense");
+    },
+    [openTribute]
+  );
+
   if (!hydrated) {
     return <VaultLoading />;
   }
 
-  const showOverview = engine.activeNav === "overview";
   const showWisdom = engine.activeNav === "wisdom";
+  const showOverview = engine.activeNav === "overview";
   const showLedgers = engine.activeNav === "ledgers";
+
+  const triad = (
+    <GoldenTriad
+      goldRetained={engine.goldRetained}
+      wealthSpark={engine.wealthSpark}
+      clearedDebt={engine.clearedDebt}
+      originalDebt={engine.originalDebt}
+      remainingDebt={engine.remainingDebt}
+      debtClearPct={engine.debtClearPct}
+      hasActiveDebt={engine.hasActiveDebt}
+      expenditureRemaining={engine.expenditureRemaining}
+      expenditureRemainingPct={engine.expenditureRemainingPct}
+      expenditureBarTone={engine.expenditureBarTone}
+      progressIndicatorClass={engine.progressIndicatorClass}
+      totalSpent={engine.totalSpent}
+      expenditurePool={engine.expenditurePool}
+    />
+  );
+
+  const focusCards = (
+    <SpendingPowerFocus
+      expenditureRemaining={engine.expenditureRemaining}
+      expenditurePool={engine.expenditurePool}
+      expenditureRemainingPct={engine.expenditureRemainingPct}
+      expenditureBarTone={engine.expenditureBarTone}
+      hourlyLaborRate={engine.hourlyLaborRate}
+    />
+  );
+
+  const budgetBlueprint = (
+    <BudgetBlueprint
+      variances={engine.budgetVariances}
+      budgetTargets={engine.budgetTargets}
+      plannedTotal={engine.budgetPlannedTotal}
+      actualTotal={engine.budgetActualTotal}
+      expenditurePool={engine.currentMonthExpenditurePool}
+      onUpdateTargetFull={engine.updateBudgetTargetFull}
+      onDeleteTarget={engine.deleteBudgetTarget}
+      onAutoScaleCaps={engine.autoScaleBudgetCaps}
+    />
+  );
+
+  const ledgers = (
+    <LedgerMatrices
+      incomes={engine.incomes}
+      expenses={engine.expenses}
+      debts={engine.debts}
+      needSpend={engine.needSpend}
+      desireSpend={engine.desireSpend}
+      totalSpent={engine.lifetimeSpent}
+      budgetTargets={engine.budgetTargets}
+      onOpenTribute={engine.openTribute}
+      onDeleteIncome={engine.deleteIncome}
+      onDeleteExpense={engine.deleteExpense}
+      onDeleteDebt={engine.deleteDebt}
+      onToggleExpenseSettled={engine.toggleExpenseSettled}
+    />
+  );
 
   return (
     <div className="relative min-h-dvh overflow-x-clip bg-slate-950 text-slate-100 luxury-grid">
@@ -68,113 +165,157 @@ export function WealthEngineDashboard() {
       />
 
       <div className="min-w-0 lg:pl-72">
-        <CommandBar
-          greeting={engine.greeting}
-          username={engine.username}
-          localizedDate={engine.localizedDate}
-          localizedTime={engine.localizedTime}
-          monthAlreadyClosed={engine.monthlyCloseSummary.alreadyClosed}
-          onUsernameChange={engine.setUsername}
-          onOpenSidebar={() => engine.setSidebarOpen(true)}
-          onRecordTribute={() => engine.openTribute("income")}
-          onOpenMonthlyClose={() => engine.setMonthlyCloseOpen(true)}
-        />
+        <div className="sticky top-0 z-30 bg-slate-950/90 backdrop-blur-xl">
+          <CommandBar
+            greeting={engine.greeting}
+            username={engine.username}
+            localizedDate={engine.localizedDate}
+            localizedTime={engine.localizedTime}
+            monthAlreadyClosed={engine.monthlyCloseSummary.alreadyClosed}
+            onUsernameChange={engine.setUsername}
+            onOpenSidebar={() => engine.setSidebarOpen(true)}
+            onRecordTribute={() => engine.openTribute("income")}
+            onOpenMonthlyClose={() => engine.setMonthlyCloseOpen(true)}
+          />
+          <SpeedTributeBar onSelectPreset={handlePresetSelect} />
+        </div>
 
-        <main className="mx-auto w-full max-w-screen-2xl space-y-5 px-3 py-5 sm:space-y-6 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
-          {(showOverview || showWisdom) && (
-            <>
-              {showOverview && (
-                <>
-                  <GoldenTriad
-                    goldRetained={engine.goldRetained}
-                    wealthSpark={engine.wealthSpark}
-                    clearedDebt={engine.clearedDebt}
-                    originalDebt={engine.originalDebt}
-                    remainingDebt={engine.remainingDebt}
-                    debtClearPct={engine.debtClearPct}
-                    hasActiveDebt={engine.hasActiveDebt}
-                    expenditureRemaining={engine.expenditureRemaining}
-                    expenditureRemainingPct={engine.expenditureRemainingPct}
-                    expenditureBarTone={engine.expenditureBarTone}
-                    progressIndicatorClass={engine.progressIndicatorClass}
-                    totalSpent={engine.totalSpent}
-                    expenditurePool={engine.expenditurePool}
+        <main className="mx-auto w-full max-w-screen-2xl space-y-4 px-3 py-4 sm:space-y-6 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
+          {/* —— Mobile Command Deck (tabs) —— */}
+          <div className={cn(showWisdom ? "hidden" : "lg:hidden")}>
+            <Tabs
+              value={mobileTab}
+              onValueChange={handleMobileTabChange}
+              className="w-full"
+            >
+              <TabsList className="grid h-auto w-full grid-cols-3 gap-1 bg-slate-900/80 p-1">
+                <TabsTrigger
+                  value="command"
+                  className="gap-1.5 px-2 py-2.5 text-xs sm:text-sm"
+                >
+                  <Zap className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                  Command
+                </TabsTrigger>
+                <TabsTrigger
+                  value="analytics"
+                  className="gap-1.5 px-2 py-2.5 text-xs sm:text-sm"
+                >
+                  <BarChart3
+                    className="h-3.5 w-3.5 shrink-0"
+                    aria-hidden="true"
                   />
-                  <AffordabilityAnchor
-                    desiresPoolRemaining={engine.desiresPoolRemaining}
-                    hourlyLaborRate={engine.hourlyLaborRate}
+                  Analytics
+                </TabsTrigger>
+                <TabsTrigger
+                  value="ledgers"
+                  className="gap-1.5 px-2 py-2.5 text-xs sm:text-sm"
+                >
+                  <ScrollText
+                    className="h-3.5 w-3.5 shrink-0"
+                    aria-hidden="true"
                   />
-                  <TributeEnginesPanel snapshot={engine.tributeEngines} />
-                  <BudgetBlueprint
-                    variances={engine.budgetVariances}
-                    budgetTargets={engine.budgetTargets}
-                    plannedTotal={engine.budgetPlannedTotal}
-                    actualTotal={engine.budgetActualTotal}
-                    expenditurePool={engine.currentMonthExpenditurePool}
-                    onUpdateTargetFull={engine.updateBudgetTargetFull}
-                    onDeleteTarget={engine.deleteBudgetTarget}
-                    onAutoScaleCaps={engine.autoScaleBudgetCaps}
-                  />
-                  <AnalyticsHub
-                    chartData={engine.chartData}
-                    donutData={engine.donutData}
-                    currentMonthNeed={engine.currentMonthNeed}
-                    currentMonthDesire={engine.currentMonthDesire}
-                    currentMonthRemaining={engine.currentMonthRemaining}
-                  />
-                  <RecentActivityStrip events={engine.recentActivity} />
-                </>
-              )}
+                  Ledgers
+                </TabsTrigger>
+              </TabsList>
 
-              <section
-                className={cn(
-                  "grid gap-4",
-                  showWisdom ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-3"
-                )}
-              >
-                {showOverview && (
-                  <QuickStats
-                    totalIncome={engine.totalIncome}
-                    debtAllocated={engine.debtAllocated}
-                  />
-                )}
+              <TabsContent value="command" className="mt-4 space-y-4">
+                {focusCards}
+                {triad}
+                <RecentActivityStrip events={engine.recentActivity} />
                 <WisdomBox
                   wisdomIndex={engine.wisdomIndex}
-                  expanded={showWisdom}
+                  expanded={false}
                   onSelectIndex={engine.setWisdomIndex}
                 />
-              </section>
-            </>
+              </TabsContent>
+
+              <TabsContent value="analytics" className="mt-4 space-y-4">
+                <TributeEnginesPanel snapshot={engine.tributeEngines} />
+                {budgetBlueprint}
+                <AnalyticsHub
+                  chartData={engine.chartData}
+                  donutData={engine.donutData}
+                  currentMonthNeed={engine.currentMonthNeed}
+                  currentMonthDesire={engine.currentMonthDesire}
+                  currentMonthRemaining={engine.currentMonthRemaining}
+                />
+                <AffordabilityAnchor
+                  desiresPoolRemaining={engine.desiresPoolRemaining}
+                  hourlyLaborRate={engine.hourlyLaborRate}
+                />
+              </TabsContent>
+
+              <TabsContent value="ledgers" className="mt-4 space-y-4">
+                {budgetBlueprint}
+                {ledgers}
+              </TabsContent>
+            </Tabs>
+          </div>
+
+          {/* —— Mobile wisdom (sidebar) —— */}
+          {showWisdom && (
+            <div className="lg:hidden">
+              <WisdomBox
+                wisdomIndex={engine.wisdomIndex}
+                expanded
+                onSelectIndex={engine.setWisdomIndex}
+              />
+            </div>
           )}
 
-          {showLedgers && (
-            <>
-              <BudgetBlueprint
-                variances={engine.budgetVariances}
-                budgetTargets={engine.budgetTargets}
-                plannedTotal={engine.budgetPlannedTotal}
-                actualTotal={engine.budgetActualTotal}
-                expenditurePool={engine.currentMonthExpenditurePool}
-                onUpdateTargetFull={engine.updateBudgetTargetFull}
-                onDeleteTarget={engine.deleteBudgetTarget}
-                onAutoScaleCaps={engine.autoScaleBudgetCaps}
-              />
-              <LedgerMatrices
-                incomes={engine.incomes}
-                expenses={engine.expenses}
-                debts={engine.debts}
-                needSpend={engine.needSpend}
-                desireSpend={engine.desireSpend}
-                totalSpent={engine.lifetimeSpent}
-                budgetTargets={engine.budgetTargets}
-                onOpenTribute={engine.openTribute}
-                onDeleteIncome={engine.deleteIncome}
-                onDeleteExpense={engine.deleteExpense}
-                onDeleteDebt={engine.deleteDebt}
-                onToggleExpenseSettled={engine.toggleExpenseSettled}
-              />
-            </>
-          )}
+          {/* —— Desktop layout (sidebar nav) —— */}
+          <div className="hidden space-y-6 lg:block">
+            {(showOverview || showWisdom) && (
+              <>
+                {showOverview && (
+                  <>
+                    {focusCards}
+                    {triad}
+                    <AffordabilityAnchor
+                      desiresPoolRemaining={engine.desiresPoolRemaining}
+                      hourlyLaborRate={engine.hourlyLaborRate}
+                    />
+                    <TributeEnginesPanel snapshot={engine.tributeEngines} />
+                    {budgetBlueprint}
+                    <AnalyticsHub
+                      chartData={engine.chartData}
+                      donutData={engine.donutData}
+                      currentMonthNeed={engine.currentMonthNeed}
+                      currentMonthDesire={engine.currentMonthDesire}
+                      currentMonthRemaining={engine.currentMonthRemaining}
+                    />
+                    <RecentActivityStrip events={engine.recentActivity} />
+                  </>
+                )}
+
+                <section
+                  className={cn(
+                    "grid gap-4",
+                    showWisdom ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-3"
+                  )}
+                >
+                  {showOverview && (
+                    <QuickStats
+                      totalIncome={engine.totalIncome}
+                      debtAllocated={engine.debtAllocated}
+                    />
+                  )}
+                  <WisdomBox
+                    wisdomIndex={engine.wisdomIndex}
+                    expanded={showWisdom}
+                    onSelectIndex={engine.setWisdomIndex}
+                  />
+                </section>
+              </>
+            )}
+
+            {showLedgers && (
+              <>
+                {budgetBlueprint}
+                {ledgers}
+              </>
+            )}
+          </div>
 
           <footer className="border-t border-slate-800/60 pt-6 pb-2 text-center text-xs text-slate-600">
             Wealth Engine · Powered by the Laws of Gold ·{" "}

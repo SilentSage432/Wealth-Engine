@@ -68,7 +68,7 @@ Infrastructure Layer
 
 **Owns**
 
-- `components/babylon/*`
+- `components/babylon/*` (including `SpeedTributeBar`, `SpendingPowerFocus`, mobile Command Deck tabs)
 - `components/dashboard/*`
 - `components/modals/*`
 - `components/ui/*`
@@ -126,6 +126,7 @@ This is the heart of Wealth Engine.
 - `lib/babylon/engine.ts` — allocation, variance, affordability, and related pure calculations
 - `types/babylon.ts` — canonical type contracts for ledger and derived models
 - Domain constants that bound system vocabulary (`lib/babylon/constants.ts`)
+- Speed-Tribute quick presets (`lib/babylon/presets.ts`) — chip vocabulary; resolvers map onto canonical kinds
 
 **Responsible for**
 
@@ -217,6 +218,7 @@ Canonical ownership reference for Wealth Engine:
 | Affordability and tribute aggregations | `lib/babylon/engine.ts` | Domain |
 | Type contracts | `types/babylon.ts` | Domain |
 | Domain vocabulary / bounds | `lib/babylon/constants.ts` | Domain |
+| Speed-Tribute quick presets | `lib/babylon/presets.ts` | Domain |
 | Period close / surplus workflow | `hooks/useBabylonEngine.ts` (`closeMonth`; composes domain surplus helpers) | Application |
 | Ledger state coordination | `hooks/useBabylonEngine.ts` | Application |
 | Interaction composition (e.g. hotkeys) | `hooks/useTributeHotkeys.ts` (composed by dashboard) | Application |

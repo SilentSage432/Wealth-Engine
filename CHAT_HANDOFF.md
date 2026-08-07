@@ -9,11 +9,15 @@
 - App surface: `app/page.tsx` → `components/babylon/wealth-engine-dashboard.tsx`
 - Domain hook: `hooks/useBabylonEngine.ts` (state, persistence, dual-write, hydration, auth, actions, metrics)
 - Pure engine: `lib/babylon/engine.ts`
+- Speed-Tribute presets: `lib/babylon/presets.ts` (`QuickPreset`, `DEFAULT_PRESETS`, kind resolvers → domain)
+- Speed-Tribute bar: `components/babylon/speed-tribute-bar.tsx` (chips → open tribute mode; full 1-tap commit pending)
+- Mobile focus: `components/babylon/spending-power-focus.tsx` (70% remaining + labor-hour readout)
+- Mobile deck: below `lg`, Command / Analytics / Ledgers tabs; sticky `CommandBar` + `SpeedTributeBar`; desktop keeps sidebar nav
 - Types: `types/babylon.ts`
 - Shell: `app/layout.tsx` → `app/providers.tsx` (TanStack Query), `app/globals.css`, `app/manifest.ts`
 - Cloud client: `lib/supabase/client.ts`, `lib/supabase/auth.ts`, `lib/supabase/database.types.ts`
 - Cloud sync: `lib/babylon/cloud-mappers.ts`, `lib/babylon/cloud-sync.ts`, `lib/babylon/cloud-hydrate.ts`
-- Schema: `supabase/migrations/20260719_init_babylon_schema.sql`
+- Schema: `supabase/migrations/20260719_init_babylon_schema.sql`, `supabase/migrations/20260807_add_debts_archives_logs.sql` (`debt_entries`, `period_archives`; `activity_logs` from init)
 - Auth UI: `components/modals/AuthModal.tsx`
 - PWA: `public/sw.js`, `components/layout/ServiceWorkerRegistrar.tsx`, `public/icons/*`
 - Primitives: `components/ui/*`

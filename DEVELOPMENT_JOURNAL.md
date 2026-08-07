@@ -1,5 +1,43 @@
 # Development Journal
 
+## 2026-08-07 — Path A entity parity schema (debts + archives)
+
+### What changed
+- Migration `supabase/migrations/20260807_add_debts_archives_logs.sql` — `debt_entries` + `period_archives` with RLS (`FOR ALL` owner policies), indexes, and comments mapping to domain `DebtEntry` / `PeriodArchive`
+- `period_archives.snapshot_data` JSONB holds sealed-month totals; `activity_logs` already covers `ActivityEvent` from init migration (no duplicate table)
+- `lib/supabase/database.types.ts` extended with debt/archive Row/Insert contracts + `PeriodArchiveSnapshotDb`
+- Dual-write primitives / hydrate / hook composition for debts, archives, and activity logs **not yet wired** (schema + types only)
+
+### Ownership
+- Schema: `supabase/migrations/20260807_add_debts_archives_logs.sql`
+- Typed DB contract: `lib/supabase/database.types.ts`
+- Domain models unchanged: `types/babylon.ts`
+
+## 2026-08-06 — Mobile Command Deck redesign
+
+### What changed
+- **SpendingPowerFocus** (`components/babylon/spending-power-focus.tsx`) — big 70% living-pool remaining + labor-hour equivalent via domain `laborHoursForAmount`
+- **SpeedTributeBar** (`components/babylon/speed-tribute-bar.tsx`) — sticky preset chips from `DEFAULT_PRESETS`; currently opens Record Tribute in income/expense mode (1-tap commit still open)
+- **GoldenTriad** — mobile horizontal scroll strip with compact 10/20/70 labels; fuller cards from `sm` up
+- **WealthEngineDashboard** — mobile (`lg:hidden`) Command / Analytics / Ledgers tabs; focus cards + triad + activity on Command; analytics/blueprint/engines on Analytics; ledgers tab for matrices; desktop sidebar layout retained with focus cards promoted to top
+- Sticky stack: CommandBar + SpeedTributeBar share one sticky header zone
+
+### Ownership
+- Presentation: dashboard + new babylon surfaces
+- Preset vocabulary: `lib/babylon/presets.ts`
+- Metrics still from `useBabylonEngine` / `lib/babylon/engine.ts`
+
+## 2026-08-06 — Speed-Tribute presets foundation
+
+### What changed
+- Added `lib/babylon/presets.ts` — `QuickPreset` contract, `DEFAULT_PRESETS` (Lowe's paycheck, groceries, gas, coffee/treat, rent/housing), and resolvers that map preset kinds onto canonical `IncomeStreamKind` / `ExpenseKind` without duplicating domain unions
+- Docs: ownership rows in `ARCHITECTURE.md` / `MASTER_ROADMAP.md`; handoff entry for presets path
+- UI Speed-Tribute Bar / chip wiring not yet mounted (config-only step)
+
+### Ownership
+- Preset vocabulary: `lib/babylon/presets.ts` (Domain)
+- Canonical stream/expense kinds remain: `types/babylon.ts`
+
 ## 2026-07-19 — Auth listener deadlock insulation
 
 ### What changed
