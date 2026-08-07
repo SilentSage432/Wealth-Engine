@@ -1,5 +1,23 @@
 # Development Journal
 
+## 2026-08-06 — Babylon Ledger Grand Suite (features 1–5 foundation)
+
+### What changed
+- **SecurityGate** + `lib/babylon/security.ts` — WebAuthn + hashed 4-digit PIN vault lock; session unlock via `sessionStorage`
+- **Discreet Mode** — `isDiscreetMode` in `useBabylonEngine`, Eye toggle in CommandBar, masks on focus cards / triad / freedom / paycheck / monthly close
+- **PaycheckSplitterModal** — income tribute stages via `proposeIncomeSplit` → review 10/20/70 → `executePaycheckSplit` commits vault + cloud dual-write
+- **DebtFreedomEngine** — Snowball/Avalanche, Freedom Date projection (`projectDebtFreedom`), extra tribute slider, velocity chart from `periodArchives`
+- **MonthlyCloseModal** — surplus sweeps: 50/50, 100% wealth, rollover to next month pool, emergency shield; domain `resolveSurplusDisposition`
+- **DebtEntry.interestRate** — soft-migrate + debt form APR for Avalanche
+- **Plaid prep** — `supabase/migrations/20260808_plaid_tables.sql`, `lib/babylon/plaid-schema.ts`, DB types + `.env.example` keys (no live Link yet)
+
+### Ownership
+- Domain: `lib/babylon/engine.ts`, `types/babylon.ts`, `lib/babylon/discreet.ts`
+- Security infra: `lib/babylon/security.ts`
+- Plaid schema prep: migration + `plaid-schema.ts`
+- Application: `hooks/useBabylonEngine.ts`
+- Presentation: security gate, paycheck modal, debt freedom, command bar, monthly close
+
 ## 2026-08-07 — Path A entity parity schema (debts + archives)
 
 ### What changed

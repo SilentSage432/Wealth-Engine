@@ -172,6 +172,11 @@ function parseDebtEntry(value: unknown): DebtEntry | null {
   }
   if (!isIsoDate(value.createdAt)) return null;
 
+  const interestRate =
+    isFiniteNumber(value.interestRate) && value.interestRate >= 0
+      ? value.interestRate
+      : 0;
+
   return {
     id: value.id,
     creditor: value.creditor.trim(),
@@ -179,6 +184,7 @@ function parseDebtEntry(value: unknown): DebtEntry | null {
     remainingDebt: Math.min(value.totalDebt, Math.max(0, value.remainingDebt)),
     monthlyAllocation: value.monthlyAllocation,
     createdAt: value.createdAt,
+    interestRate,
   };
 }
 
@@ -218,6 +224,9 @@ const ACTIVITY_KINDS: ReadonlySet<string> = new Set([
 const SURPLUS_DISPOSITIONS: ReadonlySet<string> = new Set([
   "debt_wealth",
   "emergency_shield",
+  "split_50_50",
+  "wealth_boost",
+  "rollover",
 ]);
 
 function parseActivityEvent(value: unknown): ActivityEvent | null {

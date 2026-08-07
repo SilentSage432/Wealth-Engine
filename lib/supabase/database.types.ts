@@ -39,7 +39,12 @@ export type PeriodArchiveSnapshotDb = {
   debtAllocated: number;
   expenditurePool: number;
   expenditureRemaining: number;
-  surplusDisposition: "debt_wealth" | "emergency_shield";
+  surplusDisposition:
+    | "debt_wealth"
+    | "emergency_shield"
+    | "split_50_50"
+    | "wealth_boost"
+    | "rollover";
   surplusAmount: number;
 };
 
@@ -244,6 +249,72 @@ export interface Database {
           closed_at?: string;
           snapshot_data?: PeriodArchiveSnapshotDb | Json;
           created_at?: string;
+        };
+        Relationships: [];
+      };
+      plaid_items: {
+        Row: {
+          id: string;
+          user_id: string;
+          access_token: string;
+          item_id: string;
+          institution_name: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          access_token: string;
+          item_id: string;
+          institution_name: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          access_token?: string;
+          item_id?: string;
+          institution_name?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      plaid_transactions: {
+        Row: {
+          id: string;
+          user_id: string;
+          plaid_transaction_id: string;
+          account_id: string;
+          amount: number;
+          name: string;
+          category: string | null;
+          date: string;
+          pending: boolean;
+          is_processed: boolean;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          plaid_transaction_id: string;
+          account_id: string;
+          amount: number;
+          name: string;
+          category?: string | null;
+          date: string;
+          pending?: boolean;
+          is_processed?: boolean;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          plaid_transaction_id?: string;
+          account_id?: string;
+          amount?: number;
+          name?: string;
+          category?: string | null;
+          date?: string;
+          pending?: boolean;
+          is_processed?: boolean;
         };
         Relationships: [];
       };

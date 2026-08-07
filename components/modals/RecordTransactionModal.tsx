@@ -117,6 +117,7 @@ export function RecordTransactionModal({
   const [debtCreditor, setDebtCreditor] = useState("");
   const [debtTotal, setDebtTotal] = useState("");
   const [debtMonthly, setDebtMonthly] = useState("");
+  const [debtInterest, setDebtInterest] = useState("");
 
   const [budgetName, setBudgetName] = useState("");
   const [budgetCap, setBudgetCap] = useState("");
@@ -147,6 +148,7 @@ export function RecordTransactionModal({
     setDebtCreditor("");
     setDebtTotal("");
     setDebtMonthly("");
+    setDebtInterest("");
     setBudgetName("");
     setBudgetCap("");
     setBudgetIsEssential(true);
@@ -349,6 +351,9 @@ export function RecordTransactionModal({
         creditor: debtCreditor,
         totalDebt: total,
         monthlyAllocation: monthly,
+        interestRate: Number.isFinite(Number.parseFloat(debtInterest))
+          ? Math.max(0, Number.parseFloat(debtInterest))
+          : 0,
       });
       if (!ok) {
         setFormFeedback({
@@ -803,6 +808,21 @@ export function RecordTransactionModal({
                 />
                 <p className="text-xs text-slate-500">
                   Fixed amount reserved each month toward this creditor.
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="debt-apr">Interest Rate (APR %)</Label>
+                <Input
+                  id="debt-apr"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="0"
+                  value={debtInterest}
+                  onChange={(e) => setDebtInterest(e.target.value)}
+                />
+                <p className="text-xs text-slate-500">
+                  Used by Avalanche ordering in the Freedom Date engine.
                 </p>
               </div>
               <p className="text-xs leading-relaxed text-slate-500">

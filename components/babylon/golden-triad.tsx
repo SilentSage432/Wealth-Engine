@@ -19,6 +19,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { formatDiscreetCurrency } from "@/lib/babylon/discreet";
 import { cn, formatCurrency } from "@/lib/utils";
 import type { ExpenditureBarTone, SparkPoint } from "@/types/babylon";
 
@@ -36,6 +37,7 @@ interface GoldenTriadProps {
   progressIndicatorClass: string;
   totalSpent: number;
   expenditurePool: number;
+  discreet?: boolean;
 }
 
 export function GoldenTriad({
@@ -52,7 +54,10 @@ export function GoldenTriad({
   progressIndicatorClass,
   totalSpent,
   expenditurePool,
+  discreet = false,
 }: GoldenTriadProps) {
+  const money = (n: number) =>
+    formatDiscreetCurrency(n, discreet, formatCurrency);
   return (
     <section
       aria-label="Golden Triad 10 20 70 summary"
@@ -72,7 +77,7 @@ export function GoldenTriad({
               </span>
             </CardDescription>
             <CardTitle className="mt-1.5 font-[family-name:var(--font-display)] text-xl font-semibold tracking-tight text-emerald-300 sm:mt-2 sm:text-2xl md:text-3xl">
-              {formatCurrency(goldRetained)}
+              {money(goldRetained)}
             </CardTitle>
           </div>
           <div className="hidden rounded-lg bg-emerald-500/10 p-2 text-emerald-400 transition-transform duration-300 group-hover:scale-110 sm:block">
@@ -109,9 +114,9 @@ export function GoldenTriad({
               </span>
             </CardDescription>
             <CardTitle className="mt-1.5 font-[family-name:var(--font-display)] text-xl font-semibold tracking-tight text-amber-300 sm:mt-2 sm:text-2xl md:text-3xl">
-              {formatCurrency(clearedDebt)}
+              {money(clearedDebt)}
               <span className="ml-1 text-xs font-normal text-slate-500 sm:text-sm md:text-base">
-                / {formatCurrency(originalDebt || 0)}
+                / {money(originalDebt || 0)}
               </span>
             </CardTitle>
           </div>
@@ -128,7 +133,7 @@ export function GoldenTriad({
           <div className="flex items-center justify-between text-[10px] sm:text-xs">
             <span className="text-slate-500">{debtClearPct}% liquidated</span>
             <span className="tabular-nums text-amber-400/90">
-              {formatCurrency(remainingDebt)} remaining
+              {money(remainingDebt)} remaining
             </span>
           </div>
           {!hasActiveDebt && (
@@ -163,7 +168,7 @@ export function GoldenTriad({
                 expenditureBarTone === "crimson" && "text-rose-300"
               )}
             >
-              {formatCurrency(expenditureRemaining)}
+              {money(expenditureRemaining)}
             </CardTitle>
           </div>
           <div
@@ -191,7 +196,7 @@ export function GoldenTriad({
               {expenditureRemainingPct}% left
             </span>
             <span className="tabular-nums text-slate-400">
-              {formatCurrency(totalSpent)} / {formatCurrency(expenditurePool)}
+              {money(totalSpent)} / {money(expenditurePool)}
             </span>
           </div>
         </CardContent>

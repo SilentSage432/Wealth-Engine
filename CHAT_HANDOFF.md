@@ -13,6 +13,11 @@
 - Speed-Tribute bar: `components/babylon/speed-tribute-bar.tsx` (chips → open tribute mode; full 1-tap commit pending)
 - Mobile focus: `components/babylon/spending-power-focus.tsx` (70% remaining + labor-hour readout)
 - Mobile deck: below `lg`, Command / Analytics / Ledgers tabs; sticky `CommandBar` + `SpeedTributeBar`; desktop keeps sidebar nav
+- Security: `components/babylon/security-gate.tsx` + `lib/babylon/security.ts` (PIN hash + WebAuthn); Discreet Mode via CommandBar eye toggle
+- Paycheck splitter: `components/modals/PaycheckSplitterModal.tsx` — `proposeIncomeSplit` → execute 10/20/70
+- Debt freedom: `components/babylon/debt-freedom-engine.tsx` — Snowball/Avalanche + Freedom Date + velocity chart
+- Monthly close sweeps: `split_50_50` | `wealth_boost` | `rollover` | `emergency_shield` (+ legacy `debt_wealth`)
+- Plaid prep: `lib/babylon/plaid-schema.ts`, `supabase/migrations/20260808_plaid_tables.sql`
 - Types: `types/babylon.ts`
 - Shell: `app/layout.tsx` → `app/providers.tsx` (TanStack Query), `app/globals.css`, `app/manifest.ts`
 - Cloud client: `lib/supabase/client.ts`, `lib/supabase/auth.ts`, `lib/supabase/database.types.ts`

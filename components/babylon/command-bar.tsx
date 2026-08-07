@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarCheck, CalendarDays, Menu, Plus } from "lucide-react";
+import { CalendarCheck, CalendarDays, Eye, EyeOff, Menu, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { GREETING_NAME_FALLBACK } from "@/lib/babylon/constants";
@@ -11,10 +11,12 @@ interface CommandBarProps {
   localizedDate: string;
   localizedTime: string;
   monthAlreadyClosed?: boolean;
+  isDiscreetMode?: boolean;
   onUsernameChange: (value: string) => void;
   onOpenSidebar: () => void;
   onRecordTribute: () => void;
   onOpenMonthlyClose?: () => void;
+  onToggleDiscreetMode?: () => void;
 }
 
 export function CommandBar({
@@ -23,10 +25,12 @@ export function CommandBar({
   localizedDate,
   localizedTime,
   monthAlreadyClosed = false,
+  isDiscreetMode = false,
   onUsernameChange,
   onOpenSidebar,
   onRecordTribute,
   onOpenMonthlyClose,
+  onToggleDiscreetMode,
 }: CommandBarProps) {
   const greetingName = username.trim() || GREETING_NAME_FALLBACK;
 
@@ -67,6 +71,26 @@ export function CommandBar({
         </div>
 
         <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:gap-3 lg:justify-end">
+          {onToggleDiscreetMode && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={onToggleDiscreetMode}
+              aria-pressed={isDiscreetMode}
+              aria-label={
+                isDiscreetMode ? "Disable discreet mode" : "Enable discreet mode"
+              }
+              title="Discreet Mode"
+              className="shrink-0"
+            >
+              {isDiscreetMode ? (
+                <EyeOff className="h-4 w-4 text-amber-300" aria-hidden="true" />
+              ) : (
+                <Eye className="h-4 w-4" aria-hidden="true" />
+              )}
+            </Button>
+          )}
           <Input
             value={username}
             onChange={(e) => onUsernameChange(e.target.value)}

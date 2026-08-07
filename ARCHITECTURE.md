@@ -127,6 +127,8 @@ This is the heart of Wealth Engine.
 - `types/babylon.ts` — canonical type contracts for ledger and derived models
 - Domain constants that bound system vocabulary (`lib/babylon/constants.ts`)
 - Speed-Tribute quick presets (`lib/babylon/presets.ts`) — chip vocabulary; resolvers map onto canonical kinds
+- Debt freedom / surplus disposition math (`projectDebtFreedom`, `resolveSurplusDisposition` in `lib/babylon/engine.ts`)
+- Discreet mask contract (`lib/babylon/discreet.ts`)
 
 **Responsible for**
 
@@ -219,6 +221,10 @@ Canonical ownership reference for Wealth Engine:
 | Type contracts | `types/babylon.ts` | Domain |
 | Domain vocabulary / bounds | `lib/babylon/constants.ts` | Domain |
 | Speed-Tribute quick presets | `lib/babylon/presets.ts` | Domain |
+| Debt freedom / surplus disposition math | `lib/babylon/engine.ts` | Domain |
+| Discreet mask contract | `lib/babylon/discreet.ts` | Domain |
+| Vault PIN / WebAuthn gate | `lib/babylon/security.ts`, `components/babylon/security-gate.tsx` | Infrastructure / Presentation |
+| Plaid schema prep | `supabase/migrations/20260808_plaid_tables.sql`, `lib/babylon/plaid-schema.ts` | Persistence |
 | Period close / surplus workflow | `hooks/useBabylonEngine.ts` (`closeMonth`; composes domain surplus helpers) | Application |
 | Ledger state coordination | `hooks/useBabylonEngine.ts` | Application |
 | Interaction composition (e.g. hotkeys) | `hooks/useTributeHotkeys.ts` (composed by dashboard) | Application |

@@ -11,10 +11,13 @@ import type {
   BudgetTarget,
   ChartMonthPoint,
   DebtEntry,
+  DebtFreedomProjection,
+  DebtPayoffStrategy,
   ExpenseEntry,
   IncomeEntry,
   IncomeInterval,
   IncomeStreamKind,
+  SurplusDisposition,
   TributeEngineKindRow,
   TributeEngineSnapshot,
 } from "@/types/babylon";
@@ -110,6 +113,15 @@ export function scaleBudgetCapsToPool(
   return scaled;
 }
 
+/** Next calendar month key (YYYY-MM). */
+export function nextMonthKey(monthKey: string): string {
+  const [year, month] = monthKey.split("-").map(Number);
+  const date = new Date(year, month, 1);
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  return `${y}-${m}`;
+}
+
 /**
  * Split living-allowance surplus into the 10/20 Debt/Wealth multiplier.
  * With active debt: 1/3 wealth, 2/3 debt. Without debt: 100% wealth.
@@ -124,6 +136,48 @@ export function splitSurplusToDebtWealth(
   const wealth = roundMoney(amount / 3);
   const debt = roundMoney(amount - wealth);
   return { wealth, debt };
+}
+
+/** Equal 50/50 wealth–debt surplus sweep (debt share is 0 when debt-free). */
+export function splitSurplusFiftyFifty(
+  surplus: number,
+  hasActiveDebt: boolean
+): { wealth: number; debt: number } {
+  const amount = roundMoney(Math.max(0, surplus));
+  if (amount <= 0) return { wealth: 0, debt: 0 };
+  if (!hasActiveDebt) return { wealth: amount, debt: 0 };
+  const wealth = roundMoney(amount / 2);
+  const debt = roundMoney(amount - wealth);
+  return { wealth, debt };
+}
+
+/** Resolve Monthly Close surplus into wealth/debt shares (rollover returns zeros). */
+export function resolveSurplusDisposition(
+  surplus: number,
+  disposition: SurplusDisposition,
+  hasActiveDebt: boolean
+): { wealth: number; debt: number; shield: number; rollover: number } {
+  const amount = roundMoney(Math.max(0, surplus));
+  if (amount <= 0) {
+    return { wealth: 0, debt: 0, shield: 0, rollover: 0 };
+  }
+  switch (disposition) {
+    case "emergency_shield":
+      return { wealth: 0, debt: 0, shield: amount, rollover: 0 };
+    case "wealth_boost":
+      return { wealth: amount, debt: 0, shield: 0, rollover: 0 };
+    case "rollover":
+      return { wealth: 0, debt: 0, shield: 0, rollover: amount };
+    case "split_50_50": {
+      const split = splitSurplusFiftyFifty(amount, hasActiveDebt);
+      return { ...split, shield: 0, rollover: 0 };
+    }
+    case "debt_wealth":
+    default: {
+      const split = splitSurplusToDebtWealth(amount, hasActiveDebt);
+      return { ...split, shield: 0, rollover: 0 };
+    }
+  }
 }
 
 /** Normalize a recurring income amount to a monthly equivalent. One-time excluded. */
@@ -251,6 +305,7 @@ export function clampDebtBalances(debts: DebtEntry[]): DebtEntry[] {
       Math.min(Math.max(0, d.totalDebt), Math.max(0, d.remainingDebt))
     ),
     monthlyAllocation: roundMoney(Math.max(0, d.monthlyAllocation)),
+    interestRate: roundMoney(Math.max(0, d.interestRate ?? 0)),
   }));
 }
 
@@ -449,5 +504,128 @@ export function buildTributeEngineSnapshot(
         ? 0
         : Math.round((secondaryAmount / monthTotal) * 1000) / 10,
     byKind,
+  };
+}
+
+const MAX_PAYOFF_MONTHS = 600;
+
+/** Order debts for Snowball (lowest balance) or Avalanche (highest APR). */
+export function orderDebtsForStrategy(
+  debts: DebtEntry[],
+  strategy: DebtPayoffStrategy
+): DebtEntry[] {
+  const active = debts
+    .filter((d) => d.remainingDebt > 0)
+    .map((d) => ({ ...d }));
+  if (strategy === "snowball") {
+    return active.sort((a, b) => a.remainingDebt - b.remainingDebt);
+  }
+  return active.sort((a, b) => {
+    const rateDiff = (b.interestRate ?? 0) - (a.interestRate ?? 0);
+    if (rateDiff !== 0) return rateDiff;
+    return a.remainingDebt - b.remainingDebt;
+  });
+}
+
+/**
+ * Project debt-free month from minimum payments + monthly 20% firepower + extra tribute.
+ * Interest compounds monthly using each debt's APR before payments apply.
+ */
+export function projectDebtFreedom(
+  debts: DebtEntry[],
+  monthlyDebtBudget: number,
+  extraTribute: number,
+  strategy: DebtPayoffStrategy,
+  startMonthKey: string
+): DebtFreedomProjection {
+  const ordered = orderDebtsForStrategy(debts, strategy);
+  const orderedDebtIds = ordered.map((d) => d.id);
+
+  if (ordered.length === 0) {
+    return {
+      strategy,
+      debtFreeMonthKey: startMonthKey,
+      debtFreeLabel: formatMonthLabel(startMonthKey),
+      monthsRemaining: 0,
+      totalInterestPaid: 0,
+      orderedDebtIds,
+    };
+  }
+
+  const balances = new Map(
+    ordered.map((d) => [d.id, roundMoney(Math.max(0, d.remainingDebt))])
+  );
+  const rates = new Map(
+    ordered.map((d) => [d.id, Math.max(0, d.interestRate ?? 0) / 100 / 12])
+  );
+  const mins = new Map(
+    ordered.map((d) => [d.id, roundMoney(Math.max(0, d.monthlyAllocation))])
+  );
+
+  const firepower = roundMoney(
+    Math.max(0, monthlyDebtBudget) + Math.max(0, extraTribute)
+  );
+  let monthKey = startMonthKey;
+  let months = 0;
+  let totalInterestPaid = 0;
+
+  while (months < MAX_PAYOFF_MONTHS) {
+    let remainingTotal = 0;
+    for (const bal of balances.values()) remainingTotal += bal;
+    if (remainingTotal <= 0.009) break;
+
+    // Accrue interest
+    for (const id of orderedDebtIds) {
+      const bal = balances.get(id) ?? 0;
+      if (bal <= 0) continue;
+      const interest = roundMoney(bal * (rates.get(id) ?? 0));
+      totalInterestPaid = roundMoney(totalInterestPaid + interest);
+      balances.set(id, roundMoney(bal + interest));
+    }
+
+    let budget = firepower;
+    // Minimums first (in strategy order)
+    for (const id of orderedDebtIds) {
+      if (budget <= 0) break;
+      const bal = balances.get(id) ?? 0;
+      if (bal <= 0) continue;
+      const minPay = Math.min(bal, mins.get(id) ?? 0, budget);
+      balances.set(id, roundMoney(bal - minPay));
+      budget = roundMoney(budget - minPay);
+    }
+    // Extra to priority target (first with balance)
+    for (const id of orderedDebtIds) {
+      if (budget <= 0) break;
+      const bal = balances.get(id) ?? 0;
+      if (bal <= 0) continue;
+      const pay = Math.min(bal, budget);
+      balances.set(id, roundMoney(bal - pay));
+      budget = roundMoney(budget - pay);
+      break;
+    }
+
+    months += 1;
+    monthKey = nextMonthKey(monthKey);
+  }
+
+  if (months >= MAX_PAYOFF_MONTHS) {
+    return {
+      strategy,
+      debtFreeMonthKey: null,
+      debtFreeLabel: null,
+      monthsRemaining: null,
+      totalInterestPaid,
+      orderedDebtIds,
+    };
+  }
+
+  const freeKey = monthKey;
+  return {
+    strategy,
+    debtFreeMonthKey: freeKey,
+    debtFreeLabel: formatMonthLabel(freeKey),
+    monthsRemaining: months,
+    totalInterestPaid,
+    orderedDebtIds,
   };
 }

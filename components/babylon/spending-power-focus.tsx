@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { Briefcase, Wallet } from "lucide-react";
 import { laborHoursForAmount } from "@/lib/babylon/engine";
+import { formatDiscreetCurrency } from "@/lib/babylon/discreet";
 import { cn, formatCurrency } from "@/lib/utils";
 import type { ExpenditureBarTone } from "@/types/babylon";
 
@@ -12,6 +13,7 @@ interface SpendingPowerFocusProps {
   expenditureRemainingPct: number;
   expenditureBarTone: ExpenditureBarTone;
   hourlyLaborRate: number;
+  discreet?: boolean;
 }
 
 /**
@@ -24,7 +26,10 @@ export function SpendingPowerFocus({
   expenditureRemainingPct,
   expenditureBarTone,
   hourlyLaborRate,
+  discreet = false,
 }: SpendingPowerFocusProps) {
+  const money = (n: number) =>
+    formatDiscreetCurrency(n, discreet, formatCurrency);
   const laborHours = useMemo(
     () => laborHoursForAmount(expenditureRemaining, hourlyLaborRate),
     [expenditureRemaining, hourlyLaborRate]
@@ -65,12 +70,12 @@ export function SpendingPowerFocus({
             toneClass
           )}
         >
-          {formatCurrency(expenditureRemaining)}
+          {money(expenditureRemaining)}
         </p>
         <p className="mt-2 text-xs text-slate-500">
           {expenditureRemainingPct}% of{" "}
           <span className="tabular-nums text-slate-400">
-            {formatCurrency(expenditurePool)}
+            {money(expenditurePool)}
           </span>{" "}
           this month
         </p>
@@ -94,7 +99,7 @@ export function SpendingPowerFocus({
         </p>
         <p className="mt-2 text-xs text-slate-500">
           {hourlyLaborRate > 0
-            ? `Primary labor · ${formatCurrency(hourlyLaborRate)}/hr`
+            ? `Primary labor · ${money(hourlyLaborRate)}/hr`
             : "Add recurring primary income to compute labor hours"}
         </p>
       </div>

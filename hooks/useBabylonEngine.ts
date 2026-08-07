@@ -26,15 +26,17 @@ import {
   computeDesiresPoolRemaining,
   formatMonthLabel,
   monthKeyFromDate,
+  nextMonthKey,
   primaryHourlyRate,
+  resolveSurplusDisposition,
   reverseDebtAllocation,
   roundMoney,
   scaleBudgetCapsToPool,
-  splitSurplusToDebtWealth,
   todayIso,
   totalOriginalDebt,
   totalRemainingDebt,
 } from "@/lib/babylon/engine";
+import { DISCREET_STORAGE_KEY } from "@/lib/babylon/discreet";
 import {
   buildLedgerBackup,
   clearPersistedState,
@@ -116,6 +118,11 @@ export function useBabylonEngine() {
   const [tributeOpen, setTributeOpen] = useState(false);
   const [tributeMode, setTributeMode] = useState<TributeMode>("income");
   const [monthlyCloseOpen, setMonthlyCloseOpen] = useState(false);
+  const [isDiscreetMode, setIsDiscreetMode] = useState(false);
+  const [paycheckPending, setPaycheckPending] = useState<IncomeInput | null>(
+    null
+  );
+  const [paycheckOpen, setPaycheckOpen] = useState(false);
 
   useEffect(() => {
     cloudUserIdRef.current = cloudUserId;
@@ -223,8 +230,28 @@ export function useBabylonEngine() {
     setPeriodArchives(stored.periodArchives);
     setLastClosedMonthKey(stored.lastClosedMonthKey);
     setUsernameState(loadUsername(stored.displayName));
+    try {
+      setIsDiscreetMode(
+        window.localStorage.getItem(DISCREET_STORAGE_KEY) === "1"
+      );
+    } catch {
+      setIsDiscreetMode(false);
+    }
     setHydrated(true);
   }, []);
+
+  const setDiscreetMode = useCallback((value: boolean) => {
+    setIsDiscreetMode(value);
+    try {
+      window.localStorage.setItem(DISCREET_STORAGE_KEY, value ? "1" : "0");
+    } catch {
+      /* ignore quota */
+    }
+  }, []);
+
+  const toggleDiscreetMode = useCallback(() => {
+    setDiscreetMode(!isDiscreetMode);
+  }, [isDiscreetMode, setDiscreetMode]);
 
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
@@ -713,7 +740,6 @@ export function useBabylonEngine() {
         expenditure: split.expenditureShare,
       };
 
-      // Local path — always mutate vault state (offline-capable).
       setIncomes((prev) => [entry, ...prev]);
       setAllocations((prev) => [event, ...prev]);
 
@@ -729,7 +755,6 @@ export function useBabylonEngine() {
         streamKind: entry.kind,
       });
 
-      // Cloud path — dual-write when a verified session exists.
       queueCloudWrite((userId) => {
         mutateUpsertIncome({ userId, entry });
       });
@@ -739,6 +764,48 @@ export function useBabylonEngine() {
     },
     [hasActiveDebt, pushActivity, queueCloudWrite, mutateUpsertIncome]
   );
+
+  /** Stage income for Paycheck Auto-Splitter review before vault commit. */
+  const proposeIncomeSplit = useCallback(
+    (input: IncomeInput): boolean => {
+      if (
+        !input.source.trim() ||
+        !Number.isFinite(input.amount) ||
+        input.amount <= 0 ||
+        !input.kind
+      ) {
+        return false;
+      }
+      setPaycheckPending({
+        ...input,
+        source: input.source.trim(),
+        amount: roundMoney(input.amount),
+        date: input.date || todayIso(),
+      });
+      setTributeOpen(false);
+      setPaycheckOpen(true);
+      return true;
+    },
+    []
+  );
+
+  const cancelPaycheckSplit = useCallback(() => {
+    setPaycheckPending(null);
+    setPaycheckOpen(false);
+  }, []);
+
+  const executePaycheckSplit = useCallback((): boolean => {
+    if (!paycheckPending) return false;
+    const pending = paycheckPending;
+    setPaycheckPending(null);
+    setPaycheckOpen(false);
+    return addIncome(pending);
+  }, [paycheckPending, addIncome]);
+
+  const paycheckPreview = useMemo(() => {
+    if (!paycheckPending) return null;
+    return allocateIncome(paycheckPending.amount, hasActiveDebt);
+  }, [paycheckPending, hasActiveDebt]);
 
   const addExpense = useCallback(
     (input: ExpenseInput): boolean => {
@@ -805,6 +872,7 @@ export function useBabylonEngine() {
       remainingDebt: roundMoney(input.totalDebt),
       monthlyAllocation: roundMoney(input.monthlyAllocation),
       createdAt: todayIso(),
+      interestRate: roundMoney(Math.max(0, input.interestRate ?? 0)),
     };
 
     setDebts((prev) => [entry, ...prev]);
@@ -1033,23 +1101,42 @@ export function useBabylonEngine() {
       };
 
       if (surplus > 0) {
-        if (disposition === "emergency_shield") {
-          setEmergencyShield((prev) => roundMoney(prev + surplus));
-        } else {
-          const split = splitSurplusToDebtWealth(surplus, hasActiveDebt);
+        const resolved = resolveSurplusDisposition(
+          surplus,
+          disposition,
+          hasActiveDebt
+        );
+
+        if (resolved.shield > 0) {
+          setEmergencyShield((prev) => roundMoney(prev + resolved.shield));
+        }
+
+        if (resolved.rollover > 0) {
+          const rollEvent: AllocationEvent = {
+            id: generateId(),
+            incomeId: `period-rollover-${currentMonthKey}`,
+            date: todayIso(),
+            monthKey: nextMonthKey(currentMonthKey),
+            gross: resolved.rollover,
+            wealth: 0,
+            debt: 0,
+            expenditure: resolved.rollover,
+          };
+          setAllocations((prev) => [rollEvent, ...prev]);
+        } else if (resolved.wealth > 0 || resolved.debt > 0) {
           const event: AllocationEvent = {
             id: generateId(),
             incomeId: `period-close-${currentMonthKey}`,
             date: todayIso(),
             monthKey: currentMonthKey,
             gross: surplus,
-            wealth: split.wealth,
-            debt: split.debt,
+            wealth: resolved.wealth,
+            debt: resolved.debt,
             expenditure: 0,
           };
           setAllocations((prev) => [event, ...prev]);
-          if (split.debt > 0) {
-            setDebts((prev) => applyDebtAllocation(prev, split.debt));
+          if (resolved.debt > 0) {
+            setDebts((prev) => applyDebtAllocation(prev, resolved.debt));
           }
         }
       }
@@ -1063,13 +1150,22 @@ export function useBabylonEngine() {
       );
       setPeriodArchives((prev) => [archive, ...prev]);
       setLastClosedMonthKey(currentMonthKey);
+
+      const subtitle =
+        disposition === "emergency_shield"
+          ? "Surplus tucked into emergency shield"
+          : disposition === "wealth_boost"
+            ? "Surplus boosted Wealth Engine 100%"
+            : disposition === "split_50_50"
+              ? "Surplus swept 50/50 Wealth / Debt"
+              : disposition === "rollover"
+                ? "Surplus rolled into next month living pool"
+                : "Surplus directed to Debt/Wealth multiplier";
+
       pushActivity({
         kind: "close",
         title: `${monthlyCloseSummary.monthLabel} closed`,
-        subtitle:
-          disposition === "emergency_shield"
-            ? "Surplus tucked into emergency shield"
-            : "Surplus directed to Debt/Wealth multiplier",
+        subtitle,
         amount: surplus,
       });
       setMonthlyCloseOpen(false);
@@ -1245,6 +1341,15 @@ export function useBabylonEngine() {
     closeTribute,
     monthlyCloseOpen,
     setMonthlyCloseOpen,
+    paycheckOpen,
+    paycheckPending,
+    paycheckPreview,
+    proposeIncomeSplit,
+    executePaycheckSplit,
+    cancelPaycheckSplit,
+    isDiscreetMode,
+    setDiscreetMode,
+    toggleDiscreetMode,
     hasActiveDebt,
     goldRetained,
     debtAllocated,
@@ -1271,6 +1376,8 @@ export function useBabylonEngine() {
     monthlyCloseSummary,
     emergencyShield,
     lastClosedMonthKey,
+    periodArchives,
+    currentMonthKey,
     budgetVariances,
     budgetPlannedTotal,
     budgetActualTotal,

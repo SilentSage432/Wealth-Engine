@@ -75,8 +75,23 @@ export interface ExpenseEntry {
   isSettled: boolean;
 }
 
-/** Surplus disposition chosen during the Monthly Close Ritual. */
-export type SurplusDisposition = "debt_wealth" | "emergency_shield";
+/**
+ * Surplus disposition chosen during the Monthly Close Ritual.
+ * - debt_wealth: legacy ⅓ wealth / ⅔ debt (archives may still carry this)
+ * - emergency_shield: tuck into shield reservoir
+ * - split_50_50: equal wealth / debt sweep
+ * - wealth_boost: 100% wealth archive
+ * - rollover: carry unused 70% into next month's expenditure pool
+ */
+export type SurplusDisposition =
+  | "debt_wealth"
+  | "emergency_shield"
+  | "split_50_50"
+  | "wealth_boost"
+  | "rollover";
+
+/** Debt payoff strategy for the Freedom Date engine. */
+export type DebtPayoffStrategy = "snowball" | "avalanche";
 
 /** Lightweight Command Deck activity feed item. */
 export type ActivityKind =
@@ -135,6 +150,8 @@ export interface DebtEntry {
   remainingDebt: number;
   monthlyAllocation: number;
   createdAt: string;
+  /** Annual percentage rate (0–100). Soft-migrates to 0 when absent. */
+  interestRate: number;
 }
 
 export interface AllocationEvent {
@@ -229,6 +246,18 @@ export interface DebtInput {
   creditor: string;
   totalDebt: number;
   monthlyAllocation: number;
+  /** Optional APR % for Avalanche ordering; defaults to 0. */
+  interestRate?: number;
+}
+
+/** Projected debt freedom snapshot from domain payoff math. */
+export interface DebtFreedomProjection {
+  strategy: DebtPayoffStrategy;
+  debtFreeMonthKey: string | null;
+  debtFreeLabel: string | null;
+  monthsRemaining: number | null;
+  totalInterestPaid: number;
+  orderedDebtIds: string[];
 }
 
 export interface AllocationSplit {
