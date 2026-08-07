@@ -1,5 +1,16 @@
 # Development Journal
 
+## 2026-08-07 — SecurityGate WebAuthn domain lockout fix
+
+### What changed
+- **1.5s WebAuthn race** — `unlockWithWebAuthn` returns `success | timeout | failed | unavailable`; never hangs the gate
+- **Gate phases** — `setup` | `authenticating` | `pin_entry` with always-visible **Use 4-Digit PIN** under the spinner
+- **Master PIN setup** — origin without `babylon_vault_pin_hash` shows **Set Vault Master PIN**
+- **Domain recovery** — failed biometrics clear stale cred + `needsBioReenroll`; PIN unlock re-registers for the current hostname
+
+### Ownership
+- Vault lock policy: `lib/babylon/security.ts` + `components/babylon/security-gate.tsx`
+
 ## 2026-08-07 — Plaid security & architecture harden
 
 ### What changed

@@ -10,6 +10,12 @@ export const SESSION_UNLOCK_KEY = "babylon_vault_unlocked";
 /** Idle duration before SecurityGate re-locks an unlocked session. */
 export const VAULT_IDLE_LOCK_MS = 3 * 60 * 1000;
 
+/**
+ * Hard cap for `navigator.credentials.get()` so domain mismatch / hung
+ * platform prompts cannot leave the gate on "Opening the vault...".
+ */
+export const WEBAUTHN_UNLOCK_TIMEOUT_MS = 1500;
+
 function toBase64(buffer: ArrayBuffer): string {
   const bytes = new Uint8Array(buffer);
   let binary = "";
@@ -73,8 +79,19 @@ export function isWebAuthnAvailable(): boolean {
   return (
     typeof window !== "undefined" &&
     typeof window.PublicKeyCredential !== "undefined" &&
-    typeof navigator.credentials?.get === "function"
+    typeof navigator.credentials?.get === "function" &&
+    typeof navigator.credentials?.create === "function"
   );
+}
+
+export function hasWebAuthnCredential(): boolean {
+  if (typeof window === "undefined") return false;
+  return Boolean(window.localStorage.getItem(WEBAUTHN_CRED_KEY));
+}
+
+export function clearWebAuthnCredential(): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.removeItem(WEBAUTHN_CRED_KEY);
 }
 
 export async function registerWebAuthnCredential(): Promise<boolean> {
@@ -111,28 +128,60 @@ export async function registerWebAuthnCredential(): Promise<boolean> {
   }
 }
 
-export async function unlockWithWebAuthn(): Promise<boolean> {
-  if (!isWebAuthnAvailable()) return false;
+/**
+ * Attempt platform authenticator unlock with a hard timeout.
+ * Never throws — callers switch to PIN on any non-success result.
+ */
+export type WebAuthnUnlockResult =
+  | "success"
+  | "timeout"
+  | "unavailable"
+  | "failed";
+
+export async function unlockWithWebAuthn(
+  timeoutMs: number = WEBAUTHN_UNLOCK_TIMEOUT_MS
+): Promise<WebAuthnUnlockResult> {
+  if (!isWebAuthnAvailable()) return "unavailable";
   const storedId = window.localStorage.getItem(WEBAUTHN_CRED_KEY);
-  if (!storedId) return false;
+  if (!storedId) return "unavailable";
 
   try {
     const challenge = crypto.getRandomValues(new Uint8Array(32));
-    const credential = await navigator.credentials.get({
-      publicKey: {
-        challenge,
-        timeout: 60_000,
-        userVerification: "required",
-        allowCredentials: [
-          {
-            type: "public-key",
-            id: fromBase64(storedId),
-          },
-        ],
-      },
-    });
-    return Boolean(credential);
+    let timedOut = false;
+
+    const getPromise = navigator.credentials
+      .get({
+        publicKey: {
+          challenge,
+          // Browser prompt budget; app-level race below is stricter.
+          timeout: Math.max(timeoutMs, 5_000),
+          userVerification: "required",
+          allowCredentials: [
+            {
+              type: "public-key",
+              id: fromBase64(storedId),
+            },
+          ],
+        },
+      })
+      .then((credential) => ({ ok: true as const, credential }))
+      .catch(() => ({ ok: false as const, credential: null }));
+
+    const timeoutPromise = new Promise<{ ok: false; credential: null }>(
+      (resolve) => {
+        window.setTimeout(() => {
+          timedOut = true;
+          resolve({ ok: false, credential: null });
+        }, timeoutMs);
+      }
+    );
+
+    const result = await Promise.race([getPromise, timeoutPromise]);
+    if (result.ok && result.credential) return "success";
+    if (timedOut) return "timeout";
+    return "failed";
   } catch {
-    return false;
+    // InvalidStateError, NotAllowedError, SecurityError, AbortError, etc.
+    return "failed";
   }
 }

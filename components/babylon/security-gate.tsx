@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Fingerprint, Lock, Shield } from "lucide-react";
+import { Fingerprint, Loader2, Lock, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { VaultToastHost } from "@/components/ui/vault-toast";
 import {
+  clearWebAuthnCredential,
+  hasWebAuthnCredential,
   isSessionUnlocked,
   isVaultConfigured,
   isWebAuthnAvailable,
@@ -18,6 +20,8 @@ import {
   verifyVaultPin,
 } from "@/lib/babylon/security";
 
+type GatePhase = "setup" | "authenticating" | "pin_entry";
+
 interface SecurityGateProps {
   children: React.ReactNode;
 }
@@ -25,25 +29,134 @@ interface SecurityGateProps {
 /**
  * Blocks the Command Deck until PIN or platform authenticator unlocks the session.
  * Also enforces idle auto-lock and multitasking privacy blur.
+ *
+ * WebAuthn is best-effort: a 1.5s hard timeout + explicit PIN bypass prevent
+ * domain-mismatch lockouts (e.g. localhost → Vercel hostname).
  */
 export function SecurityGate({ children }: SecurityGateProps) {
   const [ready, setReady] = useState(false);
   const [unlocked, setUnlocked] = useState(false);
   const [configured, setConfigured] = useState(false);
+  const [phase, setPhase] = useState<GatePhase>("pin_entry");
   const [privacyObscured, setPrivacyObscured] = useState(false);
   const [pin, setPin] = useState("");
   const [confirmPin, setConfirmPin] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [needsBioReenroll, setNeedsBioReenroll] = useState(false);
+  const [biometricHint, setBiometricHint] = useState<string | null>(null);
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const bioAttemptRef = useRef(0);
   const webauthn = isWebAuthnAvailable();
+
+  const fallThroughToPin = (message?: string) => {
+    setPhase("pin_entry");
+    setBusy(false);
+    if (message) setError(message);
+  };
+
+  const finishUnlock = async (opts?: { reenrollBiometrics?: boolean }) => {
+    markSessionUnlocked();
+    setUnlocked(true);
+    setPin("");
+    setConfirmPin("");
+    setError(null);
+    setBusy(false);
+
+    if (opts?.reenrollBiometrics && webauthn) {
+      try {
+        clearWebAuthnCredential();
+        const enrolled = await registerWebAuthnCredential();
+        setNeedsBioReenroll(false);
+        if (enrolled) {
+          setBiometricHint("Biometrics enrolled for this device.");
+        }
+      } catch {
+        // PIN already unlocked — enrollment is optional.
+      }
+    }
+  };
 
   useEffect(() => {
     const conf = isVaultConfigured();
     setConfigured(conf);
-    setUnlocked(!conf || isSessionUnlocked());
+
+    if (!conf) {
+      setPhase("setup");
+      setUnlocked(false);
+      setReady(true);
+      return;
+    }
+
+    if (isSessionUnlocked()) {
+      setUnlocked(true);
+      setReady(true);
+      return;
+    }
+
+    setUnlocked(false);
+    if (webauthn && hasWebAuthnCredential()) {
+      setPhase("authenticating");
+    } else {
+      setPhase("pin_entry");
+    }
     setReady(true);
-  }, []);
+  }, [webauthn]);
+
+  // Auto-attempt WebAuthn once when entering authenticating; never hang.
+  useEffect(() => {
+    if (!ready || unlocked || phase !== "authenticating") return;
+
+    const attemptId = ++bioAttemptRef.current;
+    let cancelled = false;
+
+    const run = async () => {
+      setError(null);
+      setBusy(true);
+      try {
+        const result = await unlockWithWebAuthn();
+        if (cancelled || attemptId !== bioAttemptRef.current) return;
+
+        if (result === "success") {
+          await finishUnlock();
+          return;
+        }
+
+        // Domain / credential failure: drop stale id so we re-enroll after PIN.
+        // Soft timeout: keep credential, just fall through to PIN.
+        if (result === "failed" || result === "unavailable") {
+          clearWebAuthnCredential();
+          setNeedsBioReenroll(true);
+          fallThroughToPin(
+            "Biometrics unavailable on this domain. Enter your 4-digit PIN."
+          );
+          return;
+        }
+
+        fallThroughToPin(
+          "Biometrics timed out. Enter your 4-digit PIN, or try biometrics again."
+        );
+      } catch {
+        if (cancelled || attemptId !== bioAttemptRef.current) return;
+        clearWebAuthnCredential();
+        setNeedsBioReenroll(true);
+        fallThroughToPin("Biometrics unavailable. Enter your 4-digit PIN.");
+      }
+    };
+
+    void run();
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- gate lifecycle bind
+  }, [ready, unlocked, phase]);
+
+  useEffect(() => {
+    if (!biometricHint) return;
+    const timer = window.setTimeout(() => setBiometricHint(null), 4000);
+    return () => window.clearTimeout(timer);
+  }, [biometricHint]);
 
   const lockVault = () => {
     if (!isVaultConfigured()) return;
@@ -52,6 +165,11 @@ export function SecurityGate({ children }: SecurityGateProps) {
     setPin("");
     setConfirmPin("");
     setError(null);
+    if (webauthn && hasWebAuthnCredential()) {
+      setPhase("authenticating");
+    } else {
+      setPhase("pin_entry");
+    }
   };
 
   // Idle auto-lock (3 minutes of no pointer / keyboard / touch activity).
@@ -84,7 +202,8 @@ export function SecurityGate({ children }: SecurityGateProps) {
         window.removeEventListener(eventName, resetIdle);
       }
     };
-  }, [ready, unlocked, configured]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- lockVault closes over phase helpers
+  }, [ready, unlocked, configured, webauthn]);
 
   // Multitasking / background privacy: blur balances in app switcher previews.
   useEffect(() => {
@@ -116,27 +235,18 @@ export function SecurityGate({ children }: SecurityGateProps) {
     };
   }, [ready]);
 
-  const finishUnlock = () => {
-    markSessionUnlocked();
-    setUnlocked(true);
-    setPin("");
-    setConfirmPin("");
-    setError(null);
-  };
-
   const handleSetup = async () => {
     setError(null);
     setBusy(true);
     try {
       await setVaultPin(pin);
+      setConfigured(true);
       if (webauthn) {
         await registerWebAuthnCredential();
       }
-      setConfigured(true);
-      finishUnlock();
+      await finishUnlock();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not set PIN.");
-    } finally {
       setBusy(false);
     }
   };
@@ -148,30 +258,34 @@ export function SecurityGate({ children }: SecurityGateProps) {
       const ok = await verifyVaultPin(pin);
       if (!ok) {
         setError("Incorrect PIN.");
+        setBusy(false);
         return;
       }
-      finishUnlock();
+      const shouldReenroll = needsBioReenroll && webauthn;
+      await finishUnlock({ reenrollBiometrics: shouldReenroll });
     } finally {
       setBusy(false);
     }
   };
 
-  const handleBiometric = async () => {
+  const handleBiometric = () => {
     setError(null);
-    setBusy(true);
-    try {
-      const ok = await unlockWithWebAuthn();
-      if (!ok) {
-        setError("Biometric unlock unavailable. Use your PIN.");
-        return;
-      }
-      finishUnlock();
-    } finally {
-      setBusy(false);
-    }
+    setPhase("authenticating");
+  };
+
+  const bypassToPin = () => {
+    bioAttemptRef.current += 1;
+    fallThroughToPin();
   };
 
   if (!ready) return null;
+
+  const title =
+    phase === "setup"
+      ? "Set Vault Master PIN"
+      : phase === "authenticating"
+        ? "Opening the vault..."
+        : "Unlock Vault";
 
   return (
     <>
@@ -194,15 +308,15 @@ export function SecurityGate({ children }: SecurityGateProps) {
                     Privacy Shield
                   </p>
                   <h1 className="font-[family-name:var(--font-display)] text-2xl text-slate-50">
-                    {configured ? "Unlock Vault" : "Secure Your Vault"}
+                    {title}
                   </h1>
                 </div>
               </div>
 
-              {!configured ? (
+              {phase === "setup" && (
                 <div className="space-y-4">
                   <p className="text-sm text-slate-400">
-                    Set a 4-digit PIN to gate the Command Deck. On supported
+                    Create a 4-digit master PIN for this origin. On supported
                     devices you can also enroll platform biometrics (Face ID /
                     fingerprint).
                   </p>
@@ -225,7 +339,9 @@ export function SecurityGate({ children }: SecurityGateProps) {
                     placeholder="Confirm PIN"
                     value={confirmPin}
                     onChange={(e) =>
-                      setConfirmPin(e.target.value.replace(/\D/g, "").slice(0, 4))
+                      setConfirmPin(
+                        e.target.value.replace(/\D/g, "").slice(0, 4)
+                      )
                     }
                     aria-label="Confirm 4-digit PIN"
                     className="border-slate-800 bg-slate-900/60 text-center text-lg tracking-[0.4em]"
@@ -239,7 +355,31 @@ export function SecurityGate({ children }: SecurityGateProps) {
                     Enable Vault Lock
                   </Button>
                 </div>
-              ) : (
+              )}
+
+              {phase === "authenticating" && (
+                <div className="space-y-4">
+                  <div className="flex flex-col items-center gap-3 py-4 text-slate-300">
+                    <Loader2
+                      className="h-8 w-8 animate-spin text-emerald-400"
+                      aria-hidden="true"
+                    />
+                    <p className="text-sm text-slate-400">
+                      Waiting for biometrics…
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={bypassToPin}
+                  >
+                    <Lock className="h-4 w-4" aria-hidden="true" />
+                    Use 4-Digit PIN
+                  </Button>
+                </div>
+              )}
+
+              {phase === "pin_entry" && (
                 <div className="space-y-4">
                   <Input
                     type="password"
@@ -265,7 +405,7 @@ export function SecurityGate({ children }: SecurityGateProps) {
                   >
                     Unlock with PIN
                   </Button>
-                  {webauthn && (
+                  {webauthn && hasWebAuthnCredential() && (
                     <Button
                       variant="outline"
                       className="w-full"
@@ -298,6 +438,17 @@ export function SecurityGate({ children }: SecurityGateProps) {
           aria-hidden="true"
           data-privacy-obscure="true"
         />
+      )}
+
+      {biometricHint && unlocked && (
+        <div
+          role="status"
+          className="pointer-events-none fixed inset-x-0 bottom-20 z-[75] flex justify-center px-4"
+        >
+          <p className="rounded-lg border border-emerald-800/50 bg-emerald-950/90 px-4 py-2 text-sm text-emerald-100 shadow-xl backdrop-blur-md">
+            {biometricHint}
+          </p>
+        </div>
       )}
 
       <VaultToastHost />
