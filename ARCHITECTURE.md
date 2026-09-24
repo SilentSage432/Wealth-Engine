@@ -143,6 +143,8 @@ This is the heart of Wealth Engine.
 
 Allocation shares are penny-exact: wealth + debt + expenditure equals the gross deposit, including when the 20% redirects into wealth. `todayIso` is the user's local calendar day. The labor rate used by Affordability Anchor is the latest recurring deposit per income `source`, not the sum of historical deposits.
 
+Financial Position (`lib/babylon/financial-position.ts`) is separate from that split. A manual account balance is money that already exists. Money Available is the rounded sum of those balances. It is not income, not Living Budget, and not safe-to-spend. Saving a balance does not call `allocateIncome`.
+
 **Never owns**
 
 - React rendering
@@ -221,6 +223,7 @@ Canonical ownership reference for Wealth Engine:
 | Concern | Owner | Layer |
 |--------|--------|--------|
 | Allocation math | `lib/babylon/engine.ts` | Domain |
+| Financial Position | `lib/babylon/financial-position.ts` (`sumAccountBalances`); local `accounts[]` via `lib/babylon/persistence.ts` | Domain / Persistence |
 | Budget variance math | `lib/babylon/engine.ts` (`buildBudgetVariances`, `scaleBudgetCapsToPool`) | Domain |
 | Affordability and income-type totals | `lib/babylon/engine.ts` | Domain |
 | Type contracts | `types/babylon.ts` | Domain |

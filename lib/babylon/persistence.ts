@@ -4,6 +4,11 @@ import {
   STORAGE_KEY,
   USERNAME_STORAGE_KEY,
 } from "@/lib/babylon/constants";
+import { roundMoney } from "@/lib/babylon/engine";
+import {
+  isFinancialAccountKind,
+  isLocalIsoDate,
+} from "@/lib/babylon/financial-position";
 import type {
   AllocationEvent,
   ActivityEvent,
@@ -12,6 +17,7 @@ import type {
   DebtEntry,
   ExpenseEntry,
   ExpenseKind,
+  FinancialAccount,
   IncomeEntry,
   IncomeInterval,
   IncomeStreamKind,
@@ -20,6 +26,9 @@ import type {
   PersistedState,
   SurplusDisposition,
 } from "@/types/babylon";
+
+/** Current export version. Version 1 backups have no account list. */
+export const LEDGER_BACKUP_VERSION = 2 as const;
 
 const INCOME_INTERVALS: ReadonlySet<string> = new Set([
   "one-time",
@@ -188,6 +197,23 @@ function parseDebtEntry(value: unknown): DebtEntry | null {
   };
 }
 
+function parseFinancialAccount(value: unknown): FinancialAccount | null {
+  if (!isRecord(value)) return null;
+  if (!isNonEmptyString(value.id)) return null;
+  if (!isNonEmptyString(value.name)) return null;
+  if (!isFinancialAccountKind(value.kind)) return null;
+  if (!isFiniteNumber(value.balance) || value.balance < 0) return null;
+  if (!isLocalIsoDate(value.asOf)) return null;
+
+  return {
+    id: value.id,
+    name: value.name.trim(),
+    kind: value.kind,
+    balance: roundMoney(value.balance),
+    asOf: value.asOf,
+  };
+}
+
 function parseAllocationEvent(value: unknown): AllocationEvent | null {
   if (!isRecord(value)) return null;
   if (!isNonEmptyString(value.id)) return null;
@@ -347,6 +373,13 @@ export function normalizePersistedState(raw: unknown): PersistedState {
         .filter((t): t is BudgetTarget => t !== null)
     : [];
 
+  // Older vaults omit accounts. Never infer balances from income or spending.
+  const accounts = Array.isArray(raw.accounts)
+    ? raw.accounts
+        .map(parseFinancialAccount)
+        .filter((account): account is FinancialAccount => account !== null)
+    : [];
+
   const activityLog = Array.isArray(raw.activityLog)
     ? raw.activityLog
         .map(parseActivityEvent)
@@ -376,6 +409,7 @@ export function normalizePersistedState(raw: unknown): PersistedState {
     debts,
     allocations,
     budgetTargets,
+    accounts,
     displayName: typeof raw.displayName === "string" ? raw.displayName : "",
     activityLog,
     emergencyShield,
@@ -391,7 +425,7 @@ export function normalizePersistedState(raw: unknown): PersistedState {
 export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
   if (!isRecord(raw)) return null;
 
-  if (raw.version !== 1) return null;
+  if (raw.version !== 1 && raw.version !== 2) return null;
   if (typeof raw.exportedAt !== "string" || !raw.exportedAt.trim()) return null;
 
   const incomes = parseArray(raw.incomes, parseIncomeEntry);
@@ -451,8 +485,19 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
   const displayName =
     typeof raw.displayName === "string" ? raw.displayName : "";
 
+  // Version 1 has no account contract. Ignore any stray `accounts` field so a
+  // version-1 file cannot smuggle balances. Version 2 requires a valid list;
+  // one bad row rejects the whole backup.
+  let accounts: FinancialAccount[] = [];
+  if (raw.version === 2) {
+    if (raw.accounts === undefined) return null;
+    const parsed = parseArray(raw.accounts, parseFinancialAccount);
+    if (!parsed) return null;
+    accounts = parsed;
+  }
+
   return {
-    version: 1,
+    version: raw.version,
     exportedAt: raw.exportedAt,
     incomes,
     expenses,
@@ -464,12 +509,13 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
     emergencyShield,
     periodArchives,
     lastClosedMonthKey,
+    accounts,
   };
 }
 
 export function buildLedgerBackup(state: PersistedState): LedgerBackup {
   return {
-    version: 1,
+    version: LEDGER_BACKUP_VERSION,
     exportedAt: new Date().toISOString(),
     incomes: state.incomes,
     expenses: state.expenses,
@@ -481,6 +527,7 @@ export function buildLedgerBackup(state: PersistedState): LedgerBackup {
     emergencyShield: state.emergencyShield,
     periodArchives: state.periodArchives,
     lastClosedMonthKey: state.lastClosedMonthKey,
+    accounts: state.accounts,
   };
 }
 

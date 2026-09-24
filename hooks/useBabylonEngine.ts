@@ -39,6 +39,13 @@ import {
 } from "@/lib/babylon/engine";
 import { DISCREET_STORAGE_KEY } from "@/lib/babylon/discreet";
 import {
+  normalizeAccountDraft,
+  prependAccount,
+  replaceAccount,
+  sumAccountBalances,
+  withoutAccount,
+} from "@/lib/babylon/financial-position";
+import {
   buildLedgerBackup,
   clearPersistedState,
   clearUsername,
@@ -61,6 +68,8 @@ import type {
   ExpenditureBarTone,
   ExpenseEntry,
   ExpenseInput,
+  FinancialAccount,
+  FinancialAccountInput,
   IncomeEntry,
   IncomeInput,
   MonthlyCloseSummary,
@@ -84,6 +93,7 @@ export function useBabylonEngine() {
   const [debts, setDebts] = useState<DebtEntry[]>([]);
   const [allocations, setAllocations] = useState<AllocationEvent[]>([]);
   const [budgetTargets, setBudgetTargets] = useState<BudgetTarget[]>([]);
+  const [accounts, setAccounts] = useState<FinancialAccount[]>([]);
   const [activityLog, setActivityLog] = useState<ActivityEvent[]>([]);
   const [emergencyShield, setEmergencyShield] = useState(0);
   const [periodArchives, setPeriodArchives] = useState<PeriodArchive[]>([]);
@@ -224,6 +234,7 @@ export function useBabylonEngine() {
     setDebts(stored.debts);
     setAllocations(stored.allocations);
     setBudgetTargets(stored.budgetTargets);
+    setAccounts(stored.accounts);
     setActivityLog(stored.activityLog);
     setEmergencyShield(stored.emergencyShield);
     setPeriodArchives(stored.periodArchives);
@@ -348,6 +359,7 @@ export function useBabylonEngine() {
       debts,
       allocations,
       budgetTargets,
+      accounts,
       displayName: username,
       activityLog,
       emergencyShield,
@@ -362,6 +374,7 @@ export function useBabylonEngine() {
     debts,
     allocations,
     budgetTargets,
+    accounts,
     username,
     activityLog,
     emergencyShield,
@@ -459,6 +472,12 @@ export function useBabylonEngine() {
   const totalIncome = useMemo(
     () => roundMoney(incomes.reduce((sum, i) => sum + i.amount, 0)),
     [incomes]
+  );
+
+  /** Sum of manual account balances. Not Living Budget and not safe-to-spend. */
+  const moneyAvailable = useMemo(
+    () => sumAccountBalances(accounts),
+    [accounts]
   );
 
   const needSpend = useMemo(
@@ -1181,6 +1200,7 @@ export function useBabylonEngine() {
     setDebts([]);
     setAllocations([]);
     setBudgetTargets([]);
+    setAccounts([]);
     setActivityLog([]);
     setEmergencyShield(0);
     setPeriodArchives([]);
@@ -1200,6 +1220,7 @@ export function useBabylonEngine() {
       debts,
       allocations,
       budgetTargets,
+      accounts,
       displayName: username,
       activityLog,
       emergencyShield,
@@ -1224,6 +1245,7 @@ export function useBabylonEngine() {
     debts,
     allocations,
     budgetTargets,
+    accounts,
     username,
     activityLog,
     emergencyShield,
@@ -1243,6 +1265,7 @@ export function useBabylonEngine() {
       debts: backup.debts,
       allocations: backup.allocations,
       budgetTargets: backup.budgetTargets,
+      accounts: backup.accounts ?? [],
       displayName: backup.displayName,
       activityLog: backup.activityLog ?? [],
       emergencyShield: backup.emergencyShield ?? 0,
@@ -1257,6 +1280,7 @@ export function useBabylonEngine() {
     setDebts(next.debts);
     setAllocations(next.allocations);
     setBudgetTargets(next.budgetTargets);
+    setAccounts(next.accounts);
     setActivityLog(next.activityLog);
     setEmergencyShield(next.emergencyShield);
     setPeriodArchives(next.periodArchives);
@@ -1267,6 +1291,28 @@ export function useBabylonEngine() {
     setMonthlyCloseOpen(false);
     setActiveNav("overview");
     return null;
+  }, []);
+
+  const addAccount = useCallback((input: FinancialAccountInput): boolean => {
+    const account = normalizeAccountDraft(input, generateId());
+    if (!account) return false;
+    setAccounts((prev) => prependAccount(prev, account));
+    return true;
+  }, []);
+
+  const updateAccount = useCallback(
+    (id: string, input: FinancialAccountInput): boolean => {
+      const next = normalizeAccountDraft(input, id);
+      if (!next) return false;
+      if (!accounts.some((account) => account.id === id)) return false;
+      setAccounts((prev) => replaceAccount(prev, id, next) ?? prev);
+      return true;
+    },
+    [accounts]
+  );
+
+  const removeAccount = useCallback((id: string) => {
+    setAccounts((prev) => withoutAccount(prev, id));
   }, []);
 
   const deleteIncome = useCallback((id: string) => {
@@ -1315,6 +1361,8 @@ export function useBabylonEngine() {
     debts,
     allocations,
     budgetTargets,
+    accounts,
+    moneyAvailable,
     username,
     setUsername,
     /** Visual greeting name — never locks the input value. */
@@ -1378,6 +1426,9 @@ export function useBabylonEngine() {
     chartData,
     wealthSpark,
     donutData,
+    addAccount,
+    updateAccount,
+    removeAccount,
     addIncome,
     addExpense,
     addDebt,

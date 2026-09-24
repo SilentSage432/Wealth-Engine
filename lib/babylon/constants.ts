@@ -1,4 +1,5 @@
 import type {
+  FinancialAccountKind,
   IncomeInterval,
   IncomeStreamKind,
   NavSection,
@@ -62,6 +63,12 @@ export const STREAM_KIND_ORDER: readonly IncomeStreamKind[] = [
   "other",
 ] as const;
 
+export const ACCOUNT_KIND_LABELS: Record<FinancialAccountKind, string> = {
+  checking: "Checking",
+  savings: "Savings",
+  cash: "Cash",
+};
+
 export const NAV_ITEMS: ReadonlyArray<{
   id: NavSection;
   label: string;
@@ -84,6 +91,7 @@ export const EMPTY_STATE: PersistedState = {
   debts: [],
   allocations: [],
   budgetTargets: [],
+  accounts: [],
   displayName: "",
   activityLog: [],
   emergencyShield: 0,

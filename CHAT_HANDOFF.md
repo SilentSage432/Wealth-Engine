@@ -46,6 +46,7 @@ Persisted in `localStorage` (`wealth-engine-babylon-v2`) as:
 - `debts[]` — `totalDebt`, `remainingDebt`, `monthlyAllocation` (required on create)
 - `allocations[]` — historical events for charts (includes synthetic period-close rows)
 - `budgetTargets[]` — planned caps inside the Living Budget (starts empty)
+- `accounts[]` — manual Financial Position (checking / savings / cash, balance, local `asOf`). Missing on older vaults; loads as `[]`. Never inferred from income or spending. Not cloud-backed.
 - `activityLog[]` — mutation feed for Recent Activity (newest first, capped)
 - `emergencyShield` — reservoir from Monthly Close surplus
 - `periodArchives[]` — sealed month snapshots
@@ -56,6 +57,7 @@ Hydration: load ledger from localStorage when present; username from `babylon_us
 Legacy expenses without `dueDate` soft-migrate to use `date`. Want expenses (`category: "desire"`) without `budgetCategoryId` map to the legacy discretionary id when present. Expenses without `isSettled` soft-migrate to `true`.
 
 ## Mutations (hook exports)
+- `addAccount` / `updateAccount` / `removeAccount` — Financial Position only. Never calls `addIncome`, `proposeIncomeSplit`, or `allocateIncome`
 - `addIncome` — ID + 10/20/70 allocation (+ debt waterfall when active); appends activity log
 - `addExpense` — ID + Need/Want (`need` / `desire`) + due date + required `budgetCategoryId`; new rows start `isSettled: false`
 - `addDebt` — ID + creditor tracking with mandatory monthly allocation
@@ -66,7 +68,14 @@ Legacy expenses without `dueDate` soft-migrate to use `date`. Want expenses (`ca
 - `autoScaleBudgetCaps()` — proportionally fit planned caps to `currentMonthExpenditurePool`
 - `closeMonth(disposition)` — archive period, dispose 70% surplus (`debt_wealth` | `emergency_shield`), settle month expenses, seal `lastClosedMonthKey`
 - `clearAllData` — wipe vault + reset workspace
-- `exportBackup` / `importBackup` — versioned vault including activity log, shield, and period archives
+- `exportBackup` / `importBackup` — versioned vault including activity log, shield, period archives, and accounts. New exports are version 2. Version 1 imports with an empty account list. Older builds reject version 2 rather than dropping balances.
+
+## Financial Position vs allocation
+- **Financial Position** — manually entered current account balances
+- **Income** — newly received money that enters the 10/20/70 Allocation Engine
+- **Living Budget** — the 70% allocation produced from new income
+- **Money Available** — sum of current manual account balances. It is not safe-to-spend, not Living Budget remaining, and not net worth
+- Overview places Financial Position above the Living Budget cards. Month close does not change account balances
 
 ## Derived budget metrics
 - `budgetVariances` / `budgetPlannedTotal` / `budgetActualTotal`

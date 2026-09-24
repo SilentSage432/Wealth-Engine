@@ -93,6 +93,29 @@ export type SurplusDisposition =
 /** Debt payoff strategy for the Freedom Date engine. */
 export type DebtPayoffStrategy = "snowball" | "avalanche";
 
+/** Where manually entered money sits. Not a bank feed and not an income type. */
+export type FinancialAccountKind = "checking" | "savings" | "cash";
+
+/**
+ * Current balance the user says exists in one place.
+ * This is financial position. It is not income and it does not allocate.
+ */
+export interface FinancialAccount {
+  id: string;
+  name: string;
+  kind: FinancialAccountKind;
+  balance: number;
+  /** Local calendar date (YYYY-MM-DD) the balance was last known to be accurate. */
+  asOf: string;
+}
+
+export interface FinancialAccountInput {
+  name: string;
+  kind: FinancialAccountKind;
+  balance: number;
+  asOf: string;
+}
+
 /** Lightweight Command Deck activity feed item. */
 export type ActivityKind =
   | "income"
@@ -171,6 +194,8 @@ export interface PersistedState {
   debts: DebtEntry[];
   allocations: AllocationEvent[];
   budgetTargets: BudgetTarget[];
+  /** Manually entered account balances. Missing on older vaults; never inferred. */
+  accounts: FinancialAccount[];
   displayName: string;
   /** Chronological mutation feed for the Command Deck (newest first). */
   activityLog: ActivityEvent[];
@@ -219,9 +244,16 @@ export interface ExpenseInput {
   budgetCategoryId: string;
 }
 
-/** Portable ledger snapshot for export / import backups. */
+/**
+ * Portable ledger snapshot for export / import backups.
+ * Version 1 predates Financial Position and has no accounts.
+ * Version 2 includes `accounts`. Older builds reject version 2 instead of
+ * dropping those balances.
+ */
+export type LedgerBackupVersion = 1 | 2;
+
 export interface LedgerBackup {
-  version: 1;
+  version: LedgerBackupVersion;
   exportedAt: string;
   incomes: IncomeEntry[];
   expenses: ExpenseEntry[];
@@ -233,6 +265,8 @@ export interface LedgerBackup {
   emergencyShield?: number;
   periodArchives?: PeriodArchive[];
   lastClosedMonthKey?: string | null;
+  /** Present on version 2. Version 1 imports as an empty list. */
+  accounts?: FinancialAccount[];
 }
 
 export interface AffordabilitySnapshot {

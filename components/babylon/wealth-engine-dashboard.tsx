@@ -8,6 +8,7 @@ import { AppSidebar } from "@/components/babylon/app-sidebar";
 import { CommandBar } from "@/components/babylon/command-bar";
 import { ConnectedBanksCard } from "@/components/babylon/connected-banks-card";
 import { DebtFreedomEngine } from "@/components/babylon/debt-freedom-engine";
+import { FinancialPosition } from "@/components/babylon/financial-position";
 import { GoldenTriad } from "@/components/babylon/golden-triad";
 import { LedgerMatrices } from "@/components/babylon/ledger-matrices";
 import { QuickStats } from "@/components/babylon/quick-stats";
@@ -67,6 +68,7 @@ export function WealthEngineDashboard() {
   }, [isCloudSynced, launchLink, setAuthOpen]);
 
   const [mobileTab, setMobileTab] = useState<MobileDeckTab>("command");
+  const [accountEditorOpen, setAccountEditorOpen] = useState(false);
   const desktopLayout = useDesktopLayout();
 
   const openTributeHotkey = useCallback(() => {
@@ -79,7 +81,8 @@ export function WealthEngineDashboard() {
       !tributeOpen &&
       !monthlyCloseOpen &&
       !authOpen &&
-      !paycheckOpen,
+      !paycheckOpen &&
+      !accountEditorOpen,
   });
 
   useEffect(() => {
@@ -129,6 +132,18 @@ export function WealthEngineDashboard() {
   const showOverview = engine.activeNav === "overview";
   const showLedgers = engine.activeNav === "ledgers";
   const discreet = engine.isDiscreetMode;
+
+  const financialPosition = (
+    <FinancialPosition
+      accounts={engine.accounts}
+      moneyAvailable={engine.moneyAvailable}
+      discreet={discreet}
+      onAddAccount={engine.addAccount}
+      onUpdateAccount={engine.updateAccount}
+      onRemoveAccount={engine.removeAccount}
+      onEditorOpenChange={setAccountEditorOpen}
+    />
+  );
 
   const triad = (
     <GoldenTriad
@@ -283,6 +298,7 @@ export function WealthEngineDashboard() {
                 </TabsList>
 
                 <TabsContent value="command" className="mt-4 space-y-4">
+                  {financialPosition}
                   {focusCards}
                   {triad}
                   <ConnectedBanksCard
@@ -340,6 +356,7 @@ export function WealthEngineDashboard() {
                 <>
                   {showOverview && (
                     <>
+                      {financialPosition}
                       {focusCards}
                       {triad}
                       <ConnectedBanksCard

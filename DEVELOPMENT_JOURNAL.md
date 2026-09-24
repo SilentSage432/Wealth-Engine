@@ -1,5 +1,26 @@
 # Development Journal
 
+## 2026-09-24 — WE-BUDGET-002 financial position
+
+### What changed
+- The local ledger can store manually entered accounts: name, kind (checking, savings, or cash), balance, and the local calendar date that balance was accurate.
+- Money Available is the rounded sum of those balances. It is not saved as its own field.
+- Adding, editing, or removing an account changes only that list. It does not create income, allocations, expenses, or debt payments.
+- Overview shows Financial Position above the Living Budget cards on both the mobile Command tab and the desktop overview. Account balances are local only.
+
+### Ownership
+- Types: `types/babylon.ts` (`FinancialAccount`)
+- Sum, date label, and list edits: `lib/babylon/financial-position.ts`
+- Local vault and backup version 2: `lib/babylon/persistence.ts`
+- Mutations: `hooks/useBabylonEngine.ts`
+- Presentation: `components/babylon/financial-position.tsx`
+
+### Distinction
+- Financial Position is money the user says currently exists.
+- Income is newly received money and still runs 10/20/70.
+- Living Budget is the 70% produced from that income.
+- Money Available is not safe-to-spend. Upcoming bills and protected starting amounts are later work.
+
 ## 2026-09-24 — WE-LANGUAGE-002 modern financial language
 
 ### What changed
