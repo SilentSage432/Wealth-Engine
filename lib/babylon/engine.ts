@@ -55,6 +55,17 @@ export function todayIso(now: Date = new Date()): string {
   return `${year}-${month}-${day}`;
 }
 
+/**
+ * Milliseconds until the next local midnight.
+ * A 1s floor avoids a tight loop if the clock is already on the boundary.
+ * Local hours match `todayIso`; this is not a UTC-day timer.
+ */
+export function msUntilNextLocalMidnight(now: Date = new Date()): number {
+  const next = new Date(now.getTime());
+  next.setHours(24, 0, 0, 0);
+  return Math.max(1000, next.getTime() - now.getTime());
+}
+
 export function roundMoney(value: number): number {
   return Math.round(value * 100) / 100;
 }

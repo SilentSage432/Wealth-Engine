@@ -30,6 +30,7 @@ import {
   primaryHourlyRate,
   resolveSurplusDisposition,
   reverseDebtAllocation,
+  msUntilNextLocalMidnight,
   roundMoney,
   scaleBudgetCapsToPool,
   todayIso,
@@ -112,7 +113,7 @@ export function useBabylonEngine() {
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeNav, setActiveNav] = useState<NavSection>("overview");
-  const [clock, setClock] = useState(() => new Date());
+  const [financialToday, setFinancialToday] = useState(() => todayIso());
   const [wisdomIndex, setWisdomIndex] = useState(0);
 
   const [tributeOpen, setTributeOpen] = useState(false);
@@ -129,10 +130,8 @@ export function useBabylonEngine() {
   }, [cloudUserId]);
 
   const currentMonthKey = useMemo(
-    () => monthKeyFromDate(todayIso()),
-    // Recompute when the calendar day may roll over with the live clock.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [clock]
+    () => monthKeyFromDate(financialToday),
+    [financialToday]
   );
 
   useEffect(() => {
@@ -396,8 +395,30 @@ export function useBabylonEngine() {
   }, []);
 
   useEffect(() => {
-    const timer = window.setInterval(() => setClock(new Date()), 1000);
-    return () => window.clearInterval(timer);
+    let timeoutId = 0;
+
+    const alignToLocalDay = () => {
+      const next = todayIso();
+      setFinancialToday((prev) => (prev === next ? prev : next));
+    };
+
+    const scheduleMidnight = () => {
+      timeoutId = window.setTimeout(() => {
+        alignToLocalDay();
+        scheduleMidnight();
+      }, msUntilNextLocalMidnight());
+    };
+
+    const onVisible = () => {
+      if (document.visibilityState === "visible") alignToLocalDay();
+    };
+
+    scheduleMidnight();
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.clearTimeout(timeoutId);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, []);
 
   useEffect(() => {
@@ -666,34 +687,6 @@ export function useBabylonEngine() {
       },
     ].filter((s) => s.value > 0);
   }, [currentMonthNeed, currentMonthDesire, currentMonthRemaining]);
-
-  const greeting = useMemo(() => {
-    const hour = clock.getHours();
-    if (hour < 12) return "Good morning";
-    if (hour < 17) return "Good afternoon";
-    return "Good evening";
-  }, [clock]);
-
-  const localizedDate = useMemo(
-    () =>
-      clock.toLocaleDateString("en-US", {
-        weekday: "long",
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      }),
-    [clock]
-  );
-
-  const localizedTime = useMemo(
-    () =>
-      clock.toLocaleTimeString("en-US", {
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-      }),
-    [clock]
-  );
 
   const openTribute = useCallback((mode: TributeMode = "income") => {
     setTributeMode(mode);
@@ -1386,9 +1379,6 @@ export function useBabylonEngine() {
     chartData,
     wealthSpark,
     donutData,
-    greeting,
-    localizedDate,
-    localizedTime,
     addIncome,
     addExpense,
     addDebt,

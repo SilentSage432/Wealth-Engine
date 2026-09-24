@@ -12,7 +12,7 @@
 - Speed-Tribute presets: `lib/babylon/presets.ts` (`QuickPreset`, `DEFAULT_PRESETS`, kind resolvers → domain)
 - Speed-Tribute bar: `components/babylon/speed-tribute-bar.tsx` (chips → open tribute mode; full 1-tap commit pending)
 - Mobile focus: `components/babylon/spending-power-focus.tsx` (70% remaining + labor-hour readout)
-- Mobile deck: below `lg`, Command / Analytics / Ledgers tabs; sticky `CommandBar` + `SpeedTributeBar`; desktop keeps sidebar nav
+- Mobile deck: below `lg` (1024px), only the Command / Analytics / Ledgers tree mounts; at `lg` and above only the desktop tree mounts (`hooks/useDesktopLayout.ts`). Sticky `CommandBar` + `SpeedTributeBar` are opaque slate (no backdrop blur on those surfaces or on `Card`)
 - Security: `components/babylon/security-gate.client.tsx` (`next/dynamic` `ssr: false`) → `security-gate.tsx` + `vault-error-boundary.tsx` + `lib/babylon/security.ts` (fail-soft PIN setup, 1.5s WebAuthn timeout + PIN bypass, 3-min idle lock, multitasking privacy blur); Discreet Mode via CommandBar eye toggle
 - Paycheck splitter: `components/modals/PaycheckSplitterModal.tsx` — `proposeIncomeSplit` → execute 10/20/70
 - Debt freedom: `components/babylon/debt-freedom-engine.tsx` — Snowball/Avalanche + Freedom Date + velocity chart
@@ -85,7 +85,7 @@ Legacy expenses without `dueDate` soft-migrate to use `date`. Desire expenses wi
 
 ## Known behaviors
 - Recording income runs `allocateIncome()` (penny-exact 10/20/70; shares sum to gross) and optionally `applyDebtAllocation()`.
-- Financial "today" is the local calendar day (`todayIso`), not UTC.
+- Financial "today" is the local calendar day (`todayIso`), not UTC. The ledger hook advances that day at the next local midnight (and when a backgrounded tab returns on a new day). The visible CommandBar clock is a local one-second timer and does not rerender the dashboard.
 - Primary labor rate is the latest recurring deposit per income source. Repeated paychecks from the same source do not stack into extra wages. `source` is the only way two simultaneous jobs stay separate.
 - Sidebar cloud state reads "Cloud connected" (session present). It does not mean the ledger is fully mirrored.
 - Plaid success means the institution link was saved. Transactions are not imported.

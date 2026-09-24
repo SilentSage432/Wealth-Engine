@@ -1,5 +1,18 @@
 # Development Journal
 
+## 2026-09-24 — WE-PERF-002 mobile runtime
+
+### What changed
+- **Scroll paint** — sticky header, CommandBar, SpeedTributeBar, and shared Card no longer use backdrop blur. Those surfaces are opaque slate. Dialog and sidebar blur are unchanged.
+- **Clock** — the one-second wall clock lives in `CommandBar`. `useBabylonEngine` keeps a local-calendar day and advances it at the next local midnight, or when the tab becomes visible on a new day. It does not rerender the dashboard every second.
+- **Mounting** — below Tailwind `lg` (1024px) only the mobile tab tree mounts. At `lg` and above only the desktop tree mounts. `useSyncExternalStore` plus `matchMedia` stays aligned with resize and avoids a hydration mismatch by rendering mobile on the server.
+
+### Ownership
+- Clock display: `components/babylon/command-bar.tsx`
+- Financial day: `todayIso` and `msUntilNextLocalMidnight` in `lib/babylon/engine.ts`; day state in `hooks/useBabylonEngine.ts`
+- Breakpoint mount: `lib/babylon/layout-viewport.ts` and `hooks/useDesktopLayout.ts`, used by `wealth-engine-dashboard.tsx`
+- Allocation formulas are unchanged
+
 ## 2026-09-24 — WE-RELIABILITY-001 deployment-safe shell
 
 ### What changed

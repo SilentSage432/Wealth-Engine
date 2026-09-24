@@ -64,7 +64,8 @@ Infrastructure Layer
 - UI primitives (including shadcn-based controls)
 - Layout, brand shell, and visual hierarchy
 - Charts, forms, dialogs, and interaction feedback
-- Visual and ephemeral UI state (open panels, active tabs, focus)
+- Visual and ephemeral UI state (open panels, active tabs, focus, the CommandBar wall clock)
+- Which dashboard tree is mounted: mobile tabs below Tailwind `lg`, desktop layout at `lg` and above (`hooks/useDesktopLayout.ts`)
 
 **Owns**
 
@@ -105,6 +106,7 @@ Presentation consumes the Application layer. It displays what the engine and wor
 - Monthly close and surplus disposition workflows
 - Auth session awareness and cloud dual-write timing
 - Local vault lifecycle in concert with persistence adapters
+- The financial calendar day (`todayIso`), advanced at the next local midnight rather than once per second
 
 **Never owns**
 

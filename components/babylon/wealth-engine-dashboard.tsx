@@ -25,6 +25,7 @@ import { PaycheckSplitterModal } from "@/components/modals/PaycheckSplitterModal
 import { RecordTransactionModal } from "@/components/modals/RecordTransactionModal";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useBabylonEngine } from "@/hooks/useBabylonEngine";
+import { useDesktopLayout } from "@/hooks/useDesktopLayout";
 import { usePlaidConnections } from "@/hooks/usePlaidConnections";
 import { useTributeHotkeys } from "@/hooks/useTributeHotkeys";
 import { roundMoney } from "@/lib/babylon/engine";
@@ -66,6 +67,7 @@ export function WealthEngineDashboard() {
   }, [isCloudSynced, launchLink, setAuthOpen]);
 
   const [mobileTab, setMobileTab] = useState<MobileDeckTab>("command");
+  const desktopLayout = useDesktopLayout();
 
   const openTributeHotkey = useCallback(() => {
     openTribute("income");
@@ -226,12 +228,9 @@ export function WealthEngineDashboard() {
         />
 
         <div className="min-w-0 lg:pl-72">
-          <div className="sticky top-0 z-30 bg-slate-950/90 backdrop-blur-xl">
+          <div className="sticky top-0 z-30 bg-slate-950">
             <CommandBar
-              greeting={engine.greeting}
               username={engine.username}
-              localizedDate={engine.localizedDate}
-              localizedTime={engine.localizedTime}
               monthAlreadyClosed={engine.monthlyCloseSummary.alreadyClosed}
               isDiscreetMode={discreet}
               plaidLaunching={launching}
@@ -247,7 +246,7 @@ export function WealthEngineDashboard() {
           </div>
 
           <main className="mx-auto w-full max-w-screen-2xl space-y-4 px-3 py-4 sm:space-y-6 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
-            <div className={cn(showWisdom ? "hidden" : "lg:hidden")}>
+            {!desktopLayout && !showWisdom && (
               <Tabs
                 value={mobileTab}
                 onValueChange={handleMobileTabChange}
@@ -325,19 +324,18 @@ export function WealthEngineDashboard() {
                   {ledgers}
                 </TabsContent>
               </Tabs>
-            </div>
-
-            {showWisdom && (
-              <div className="lg:hidden">
-                <WisdomBox
-                  wisdomIndex={engine.wisdomIndex}
-                  expanded
-                  onSelectIndex={engine.setWisdomIndex}
-                />
-              </div>
             )}
 
-            <div className="hidden space-y-6 lg:block">
+            {!desktopLayout && showWisdom && (
+              <WisdomBox
+                wisdomIndex={engine.wisdomIndex}
+                expanded
+                onSelectIndex={engine.setWisdomIndex}
+              />
+            )}
+
+            {desktopLayout && (
+            <div className="space-y-6">
               {(showOverview || showWisdom) && (
                 <>
                   {showOverview && (
@@ -399,6 +397,7 @@ export function WealthEngineDashboard() {
                 </>
               )}
             </div>
+            )}
 
             <footer className="border-t border-slate-800/60 pt-6 pb-2 text-center text-xs text-slate-600">
               Wealth Engine · Powered by the Laws of Gold ·{" "}

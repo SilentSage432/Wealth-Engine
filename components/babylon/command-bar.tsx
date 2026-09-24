@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { CalendarCheck, CalendarDays, Eye, EyeOff, Menu, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,11 +8,14 @@ import { PlaidLinkButton } from "@/components/babylon/plaid-link-button";
 import { VaultErrorBoundary } from "@/components/babylon/vault-error-boundary";
 import { GREETING_NAME_FALLBACK } from "@/lib/babylon/constants";
 
+function greetingForHour(hour: number): string {
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
+}
+
 interface CommandBarProps {
-  greeting: string;
   username: string;
-  localizedDate: string;
-  localizedTime: string;
   monthAlreadyClosed?: boolean;
   isDiscreetMode?: boolean;
   plaidLaunching?: boolean;
@@ -25,10 +29,7 @@ interface CommandBarProps {
 }
 
 export function CommandBar({
-  greeting,
   username,
-  localizedDate,
-  localizedTime,
   monthAlreadyClosed = false,
   isDiscreetMode = false,
   plaidLaunching = false,
@@ -41,9 +42,28 @@ export function CommandBar({
   onLinkBank,
 }: CommandBarProps) {
   const greetingName = username.trim() || GREETING_NAME_FALLBACK;
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const greeting = greetingForHour(now.getHours());
+  const localizedDate = now.toLocaleDateString("en-US", {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+  const localizedTime = now.toLocaleTimeString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
 
   return (
-    <header className="border-b border-slate-800/60 bg-slate-950/80 backdrop-blur-xl">
+    <header className="border-b border-slate-800/60 bg-slate-950">
       <div className="mx-auto flex w-full max-w-screen-2xl flex-col gap-3 px-3 py-3 sm:gap-4 sm:px-6 sm:py-4 lg:flex-row lg:items-center lg:justify-between lg:px-8">
         <div className="flex min-w-0 items-start gap-2 sm:gap-3">
           <Button

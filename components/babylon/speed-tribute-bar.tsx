@@ -21,7 +21,7 @@ export function SpeedTributeBar({
   return (
     <div
       className={cn(
-        "border-b border-slate-800/60 bg-slate-950/70 backdrop-blur-xl",
+        "border-b border-slate-800/60 bg-slate-900",
         className
       )}
     >

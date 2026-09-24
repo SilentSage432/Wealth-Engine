@@ -3,6 +3,7 @@ import {
   allocateIncome,
   buildBudgetVariances,
   computeDesiresPoolRemaining,
+  msUntilNextLocalMidnight,
   primaryHourlyRate,
   roundMoney,
   todayIso,
@@ -248,5 +249,15 @@ describe("todayIso", () => {
     const instant = new Date("2026-10-01T05:30:00.000Z");
     expect(instant.toISOString().slice(0, 10)).toBe("2026-10-01");
     expect(todayIso(instant)).toBe("2026-09-30");
+  });
+});
+
+describe("msUntilNextLocalMidnight", () => {
+  it("lands on the next local calendar day, including across the UTC date", () => {
+    const instant = new Date("2026-10-01T05:30:00.000Z");
+    const delay = msUntilNextLocalMidnight(instant);
+    expect(todayIso(instant)).toBe("2026-09-30");
+    expect(delay).toBe(30 * 60 * 1000);
+    expect(todayIso(new Date(instant.getTime() + delay))).toBe("2026-10-01");
   });
 });
