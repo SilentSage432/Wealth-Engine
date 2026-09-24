@@ -60,7 +60,7 @@ export function GoldenTriad({
     formatDiscreetCurrency(n, discreet, formatCurrency);
   return (
     <section
-      aria-label="Golden Triad 10 20 70 summary"
+      aria-label="10/20/70 summary"
       className="flex gap-2 overflow-x-auto pb-1 scrollbar-thin sm:grid sm:grid-cols-2 sm:gap-4 sm:overflow-visible sm:pb-0 xl:grid-cols-3"
     >
       <Card className="group relative w-[min(78vw,17.5rem)] shrink-0 overflow-hidden animate-fade-up border-emerald-900/30 sm:w-auto sm:min-w-0">
@@ -70,10 +70,7 @@ export function GoldenTriad({
             <CardDescription className="flex items-center gap-1.5 text-emerald-400/80">
               <PiggyBank className="h-3.5 w-3.5 shrink-0" />
               <span className="truncate text-[10px] sm:text-xs">
-                <span className="sm:hidden">10% Wealth Engine</span>
-                <span className="hidden sm:inline">
-                  Thy Purse to Fattening · 10%
-                </span>
+                Wealth Building · 10%
               </span>
             </CardDescription>
             <CardTitle className="mt-1.5 font-[family-name:var(--font-display)] text-xl font-semibold tracking-tight text-emerald-300 sm:mt-2 sm:text-2xl md:text-3xl">
@@ -87,11 +84,11 @@ export function GoldenTriad({
         <CardContent className="flex items-end justify-between gap-2 p-3 pt-0 sm:gap-3 sm:p-6 sm:pt-0">
           <div className="min-w-0">
             <p className="text-[10px] text-slate-500 sm:text-xs">
-              Wealth Archive · Yours to Keep
+              Set aside for wealth building
             </p>
             <p className="mt-1 hidden items-center gap-1 text-xs text-emerald-400 sm:inline-flex">
               <ArrowUpRight className="h-3 w-3" />
-              Locked from expenditures
+              Protected from the Living Budget
             </p>
           </div>
           <div className="hidden sm:block">
@@ -109,8 +106,7 @@ export function GoldenTriad({
             <CardDescription className="flex items-center gap-1.5 text-amber-400/80">
               <Scale className="h-3.5 w-3.5 shrink-0" />
               <span className="truncate text-[10px] sm:text-xs">
-                <span className="sm:hidden">20% Debt Engine</span>
-                <span className="hidden sm:inline">Thy Creditors · 20%</span>
+                Debt Payoff · 20%
               </span>
             </CardDescription>
             <CardTitle className="mt-1.5 font-[family-name:var(--font-display)] text-xl font-semibold tracking-tight text-amber-300 sm:mt-2 sm:text-2xl md:text-3xl">
@@ -131,7 +127,7 @@ export function GoldenTriad({
             indicatorClassName="bg-amber-500"
           />
           <div className="flex items-center justify-between text-[10px] sm:text-xs">
-            <span className="text-slate-500">{debtClearPct}% liquidated</span>
+            <span className="text-slate-500">{debtClearPct}% paid off</span>
             <span className="tabular-nums text-amber-400/90">
               {money(remainingDebt)} remaining
             </span>
@@ -139,7 +135,7 @@ export function GoldenTriad({
           {!hasActiveDebt && (
             <p className="hidden items-center gap-1 text-xs text-emerald-400 sm:inline-flex">
               <Sparkles className="h-3 w-3" />
-              Debt-free — 20% flows to Wealth Archive
+              Debt-free — 20% redirected to Wealth Building
             </p>
           )}
         </CardContent>
@@ -154,10 +150,7 @@ export function GoldenTriad({
             <CardDescription className="flex items-center gap-1.5 text-slate-400">
               <Wallet className="h-3.5 w-3.5 shrink-0" />
               <span className="truncate text-[10px] sm:text-xs">
-                <span className="sm:hidden">70% Living Pool</span>
-                <span className="hidden sm:inline">
-                  Necessary Expenditures · 70% · This Month
-                </span>
+                Living Budget · 70%
               </span>
             </CardDescription>
             <CardTitle

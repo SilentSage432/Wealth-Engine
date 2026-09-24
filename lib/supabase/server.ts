@@ -25,7 +25,7 @@ export async function requireAuthenticatedUser(
   const env = readPublicEnv();
   if (!env) {
     return NextResponse.json(
-      { error: "Cloud vault is not configured." },
+      { error: "Account sign-in is not configured." },
       { status: 503 }
     );
   }

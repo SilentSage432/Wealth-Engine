@@ -16,13 +16,13 @@ Wealth Engine is built on a small set of non-negotiable principles:
 
 **Separation of concerns.** Presentation renders. Application coordinates. Domain decides. Persistence stores and retrieves. Infrastructure provides platform capability.
 
-**Domain-first design.** Babylonian wealth laws — allocation, variance, affordability, and related financial rules — live in the domain layer. The rest of the system exists to express and preserve those rules, not to redefine them.
+**Domain-first design.** The 10/20/70 rules — allocation, variance, affordability, and related financial behavior — live in the domain layer. The rest of the system exists to express and preserve those rules, not to redefine them. The method was inspired by *The Richest Man in Babylon*. The product name is Wealth Engine.
 
 **Presentation never owns business logic.** React components, charts, forms, and dialogs communicate domain outcomes. They do not invent allocation math, ledger rules, or sync policy.
 
 **Infrastructure never owns domain rules.** Supabase, TanStack Query, Next.js, authentication, storage, caching, and networking support the application. They do not define how wealth is allocated or how periods close.
 
-**Business rules live in one place.** The domain layer is the single source of truth for Babylonian financial behavior. No other layer reimplements those formulas.
+**Business rules live in one place.** The domain layer is the single source of truth for 10/20/70 financial behavior. No other layer reimplements those formulas.
 
 **Composition over duplication.** New behavior is assembled from existing owners whenever possible. Parallel services that recompute the same facts are architectural debt.
 
@@ -48,7 +48,7 @@ Infrastructure Layer
 
 **Application** coordinates workflows. It sequences user actions, ledger mutations, period rituals, and cloud synchronization without owning formulas or schema.
 
-**Domain** contains the business. It owns type contracts and Babylonian financial rules.
+**Domain** contains the business. It owns type contracts and the 10/20/70 financial rules.
 
 **Persistence** stores and retrieves steward data across local vault and cloud relational surfaces. It owns mapping and hydration at the sync boundary.
 
@@ -69,7 +69,7 @@ Infrastructure Layer
 
 **Owns**
 
-- `components/babylon/*` (including `SpeedTributeBar`, `SpendingPowerFocus`, mobile Command Deck tabs)
+- `components/babylon/*` (including the quick-add bar, spending focus, and mobile Overview / Ledger / Financial Guidance)
 - `components/dashboard/*`
 - `components/modals/*`
 - `components/ui/*`
@@ -82,7 +82,7 @@ Infrastructure Layer
 
 - Allocation math
 - Ledger business logic
-- Babylonian financial rules
+- 10/20/70 financial rules
 - Cloud synchronization policy
 - Database schema
 
@@ -101,7 +101,7 @@ Presentation consumes the Application layer. It displays what the engine and wor
 
 **Coordinates**
 
-- User actions and tribute recording flows
+- User actions and recording flows
 - Ledger mutations and derived metric exposure
 - Monthly close and surplus disposition workflows
 - Auth session awareness and cloud dual-write timing
@@ -139,7 +139,7 @@ This is the heart of Wealth Engine.
 - Wealth, debt, and expenditure calculations
 - Affordability Anchor computations
 - Tribute engine aggregations rooted in domain classification
-- Babylonian financial rules expressed as pure, testable logic
+- 10/20/70 financial rules expressed as pure, testable logic
 
 Allocation shares are penny-exact: wealth + debt + expenditure equals the gross deposit, including when the 20% redirects into wealth. `todayIso` is the user's local calendar day. The labor rate used by Affordability Anchor is the latest recurring deposit per income `source`, not the sum of historical deposits.
 
@@ -190,7 +190,7 @@ Persistence preserves identity and history. Domain defines meaning; Persistence 
 - Production service worker (`public/sw.js`): document navigations are network-first, with the last successful document kept only as an offline fallback. Cache `babylon-engine-v2` replaces older shell caches on activate. `/api/*` and cross-origin calls are not cached. The worker does not touch the local ledger.
 - Networking and environment-gated client configuration (`lib/supabase/client.ts`, `lib/supabase/auth.ts`)
 
-Infrastructure enables sessions, caching, and connectivity. It does not define Babylonian wealth laws, ledger semantics, or educational philosophy.
+Infrastructure enables sessions, caching, and connectivity. It does not define the 10/20/70 rules, ledger semantics, or educational philosophy.
 
 ---
 
@@ -222,7 +222,7 @@ Canonical ownership reference for Wealth Engine:
 |--------|--------|--------|
 | Allocation math | `lib/babylon/engine.ts` | Domain |
 | Budget variance math | `lib/babylon/engine.ts` (`buildBudgetVariances`, `scaleBudgetCapsToPool`) | Domain |
-| Affordability and tribute aggregations | `lib/babylon/engine.ts` | Domain |
+| Affordability and income-type totals | `lib/babylon/engine.ts` | Domain |
 | Type contracts | `types/babylon.ts` | Domain |
 | Domain vocabulary / bounds | `lib/babylon/constants.ts` | Domain |
 | Speed-Tribute quick presets | `lib/babylon/presets.ts` | Domain |
@@ -262,7 +262,7 @@ When a new concern appears, it must be assigned to exactly one row in this matri
 - **One responsibility.** Each module answers for one coherent duty.
 - **One owner.** Ambiguous ownership is a defect, not a negotiation after the fact.
 - **One source of truth.** Financial facts originate in Domain; durable records originate in Persistence; workflows originate in Application; pixels originate in Presentation.
-- **Business rules are centralized.** Babylonian law is not scattered across UI, SQL, or adapters.
+- **Business rules are centralized.** The 10/20/70 rules are not scattered across UI, SQL, or adapters.
 - **Composition over duplication.** Prefer assembling existing owners to creating parallel engines.
 - **Infrastructure serves the domain.** Platforms are replaceable; wealth law is not.
 - **Presentation communicates the domain.** The interface teaches and displays; it does not prescribe alternate math.

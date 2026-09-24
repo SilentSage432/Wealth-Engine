@@ -1,6 +1,6 @@
 # Wealth Engine
 
-Executive financial budgeting platform powered by George S. Clason’s *The Richest Man in Babylon* **10/20/70** formula.
+Executive personal ledger. Income is split 10% to Wealth Building, 20% to Debt Payoff, and 70% to a Living Budget. The 10/20/70 method was inspired by George S. Clason’s *The Richest Man in Babylon*. The product itself is Wealth Engine.
 
 ## Quick start
 

@@ -400,10 +400,7 @@ export function WealthEngineDashboard() {
             )}
 
             <footer className="border-t border-slate-800/60 pt-6 pb-2 text-center text-xs text-slate-600">
-              Wealth Engine · Powered by the Laws of Gold ·{" "}
-              <span className="text-slate-500">
-                A part of all you earn is yours to keep
-              </span>
+              Wealth Engine
             </footer>
           </main>
         </div>

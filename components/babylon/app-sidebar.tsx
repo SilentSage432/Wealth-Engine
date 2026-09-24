@@ -112,9 +112,6 @@ export function AppSidebar({
             <p className="font-[family-name:var(--font-display)] text-xl font-semibold leading-none tracking-wide text-slate-50">
               Wealth Engine
             </p>
-            <p className="mt-1 text-[10px] uppercase tracking-[0.2em] text-emerald-500/80">
-              Babylon Ledger
-            </p>
           </div>
         </div>
         <Button
@@ -183,7 +180,7 @@ export function AppSidebar({
                 disabled={signingOut}
                 className="h-8 w-full justify-center border-slate-800 bg-transparent text-xs text-slate-400 hover:bg-slate-900 hover:text-slate-100"
                 onClick={() => void handleSignOut()}
-                aria-label="Sign out of cloud vault"
+                aria-label="Sign out"
               >
                 {signingOut ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -202,7 +199,7 @@ export function AppSidebar({
               onClick={onConnectCloud}
             >
               <Cloud className="h-3.5 w-3.5" aria-hidden />
-              ☁️ Connect Cloud Vault
+              Sign in
             </Button>
           )}
         </div>
@@ -259,19 +256,18 @@ export function AppSidebar({
                 className="mt-1 flex w-full items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-[11px] text-rose-400/70 transition-colors hover:bg-rose-500/5 hover:text-rose-400"
               >
                 <Trash2 className="h-3 w-3" />
-                Reset Ledger Workspace
+                Reset ledger
               </button>
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>
-                  Are you absolutely sure you want to purge the ledger?
+                  Clear this ledger?
                 </AlertDialogTitle>
                 <AlertDialogDescription>
-                  This action will permanently delete all recorded income
-                  streams, custom budget categories, expenditures, and debt
-                  ledgers from this device. This step cannot be undone unless
-                  you have an exported backup file.
+                  This permanently deletes all income, categories, expenses, and
+                  debts stored on this device. It cannot be undone unless you
+                  have an exported backup.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
@@ -280,7 +276,7 @@ export function AppSidebar({
                   className="bg-rose-600 text-white shadow-sm hover:bg-rose-500 focus-visible:ring-rose-500/60"
                   onClick={onClearAllData}
                 >
-                  Purge Workspace Data
+                  Delete ledger data
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
@@ -296,18 +292,19 @@ export function AppSidebar({
               </span>
             </div>
             <p className="text-xs leading-relaxed text-slate-400">
-              Autonomous allocation keeps a tenth forever yours, satisfies
-              creditors with a fifth, and lives within seven-tenths.
+              Each time you add income, 10% goes to Wealth Building, 20% goes
+              to Debt Payoff, and 70% is the Living Budget. With no active
+              debt, the 20% also goes to Wealth Building.
             </p>
             <div className="grid grid-cols-3 gap-1.5 text-center text-[10px]">
               <div className="rounded-md bg-emerald-500/10 py-1.5 text-emerald-400">
-                Keep
+                10%
               </div>
               <div className="rounded-md bg-amber-500/10 py-1.5 text-amber-400">
-                Debt
+                20%
               </div>
               <div className="rounded-md bg-slate-800 py-1.5 text-slate-300">
-                Live
+                70%
               </div>
             </div>
           </CardContent>

@@ -63,28 +63,28 @@ const MODE_COPY: Record<
   { title: string; description: string; submit: string }
 > = {
   income: {
-    title: "Income stream",
+    title: "Income",
     description:
-      "Record gross income for autonomous 10/20/70 allocation into wealth, debt, and living allowance.",
-    submit: "Allocate Tribute",
+      "Add gross income. Wealth Engine splits it 10% to Wealth Building, 20% to Debt Payoff, and 70% to the Living Budget.",
+    submit: "Save Income",
   },
   expense: {
-    title: "Expense Item",
+    title: "Expense",
     description:
-      "Archive a Necessary Expenditures draw — name, amount, bucket, and due date.",
-    submit: "Archive Expense",
+      "Add an expense — name, amount, category, and due date.",
+    submit: "Add Expense",
   },
   debt: {
-    title: "Debt Obligation",
+    title: "Debt",
     description:
-      "Enroll a creditor with total balance and mandatory monthly allocation.",
-    submit: "Enroll Creditor",
+      "Add a debt with the creditor, balance, and monthly payment.",
+    submit: "Add Debt",
   },
   budget: {
-    title: "Budget Category Blueprint",
+    title: "Category",
     description:
-      "Map a custom Necessary Expenditures bucket — name, monthly cap, and essential vs. discretionary.",
-    submit: "Add Budget Bucket",
+      "Add a category inside the Living Budget — name, monthly cap, and whether it is a need or a want.",
+    submit: "Add Category",
   },
 };
 
@@ -204,7 +204,7 @@ export function RecordTransactionModal({
     if (!inlineCategoryName.trim()) {
       setFormFeedback({
         tone: "error",
-        message: "Enter a category name before creating the bucket.",
+        message: "Enter a category name before creating it.",
       });
       return;
     }
@@ -263,7 +263,7 @@ export function RecordTransactionModal({
         if (!incomeDate) {
           setFormFeedback({
             tone: "error",
-            message: "Select a tribute date for this income.",
+            message: "Select a date for this income.",
           });
           return;
         }
@@ -284,7 +284,7 @@ export function RecordTransactionModal({
         }
         emitVaultToast({
           tone: "success",
-          message: "Tribute staged — review the 10/20/70 split.",
+          message: "Income ready — review the 10/20/70 split.",
           durationMs: 0,
         });
         return;
@@ -339,7 +339,7 @@ export function RecordTransactionModal({
         }
         emitVaultToast({
           tone: "success",
-          message: "Expense archived to the vault.",
+          message: "Expense saved.",
           durationMs: 0,
         });
         return;
@@ -358,7 +358,7 @@ export function RecordTransactionModal({
         if (!Number.isFinite(monthly) || monthly <= 0) {
           setFormFeedback({
             tone: "error",
-            message: "Monthly allocation must be a positive amount.",
+            message: "Monthly payment must be a positive amount.",
           });
           return;
         }
@@ -380,7 +380,7 @@ export function RecordTransactionModal({
         }
         emitVaultToast({
           tone: "success",
-          message: "Creditor enrolled in the vault.",
+          message: "Debt saved.",
           durationMs: 0,
         });
         return;
@@ -410,18 +410,18 @@ export function RecordTransactionModal({
       }
       emitVaultToast({
         tone: "success",
-        message: "Budget category added.",
+        message: "Category added.",
         durationMs: 0,
       });
     } catch (err) {
       console.error("[RecordTribute] submit failed — vault retained.", err);
       setFormFeedback({
         tone: "error",
-        message: "Could not save this tribute. Your vault is unchanged.",
+        message: "Could not save this entry. Your local ledger is unchanged.",
       });
       emitVaultToast({
         tone: "error",
-        message: "Could not save this tribute. Your vault is unchanged.",
+        message: "Could not save this entry. Your local ledger is unchanged.",
         durationMs: 0,
       });
     }
@@ -451,7 +451,7 @@ export function RecordTransactionModal({
       >
         <DialogHeader>
           <DialogTitle className="font-[family-name:var(--font-display)] text-xl sm:text-2xl">
-            Record Tribute
+            Add Transaction
           </DialogTitle>
           <DialogDescription>{copy.description}</DialogDescription>
         </DialogHeader>
@@ -463,35 +463,35 @@ export function RecordTransactionModal({
         >
           <TabsList
             className="grid h-auto w-full grid-cols-2 gap-1 p-1 sm:grid-cols-4"
-            aria-label="Tribute entry type"
+            aria-label="What to add"
           >
             <TabsTrigger
               value="income"
               className="min-h-11 px-2 text-[11px] leading-tight sm:text-sm"
-              aria-label="Income stream tab"
+              aria-label="Income tab"
             >
-              Income stream
+              Income
             </TabsTrigger>
             <TabsTrigger
               value="expense"
               className="min-h-11 px-2 text-[11px] leading-tight sm:text-sm"
-              aria-label="Expense item tab"
+              aria-label="Expense tab"
             >
-              Expense Item
+              Expense
             </TabsTrigger>
             <TabsTrigger
               value="debt"
               className="min-h-11 px-2 text-[11px] leading-tight sm:text-sm"
-              aria-label="Debt obligation tab"
+              aria-label="Debt tab"
             >
-              Debt Obligation
+              Debt
             </TabsTrigger>
             <TabsTrigger
               value="budget"
               className="min-h-11 px-2 text-[11px] leading-tight sm:text-sm"
-              aria-label="Budget category tab"
+              aria-label="Category tab"
             >
-              Budget Category
+              Category
             </TabsTrigger>
           </TabsList>
 
@@ -501,7 +501,7 @@ export function RecordTransactionModal({
                 <Label htmlFor="income-source">Source</Label>
                 <Input
                   id="income-source"
-                  placeholder="e.g. Royal Stipend"
+                  placeholder="e.g. Paycheck"
                   value={incomeSource}
                   onChange={(e) => setIncomeSource(e.target.value)}
                   required={mode === "income"}
@@ -549,8 +549,7 @@ export function RecordTransactionModal({
                   })}
                 </div>
                 <p className="text-[11px] text-slate-500">
-                  Classify engines so primary labor stays distinct from
-                  multiplication streams.
+                  Choose a type so main income stays separate from other income.
                 </p>
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -590,7 +589,7 @@ export function RecordTransactionModal({
               {preview && (
                 <div className="rounded-lg border border-slate-800 bg-slate-950/60 p-3 text-xs">
                   <p className="mb-2 font-medium text-slate-300">
-                    Autonomous Allocation Preview
+                    10/20/70 preview
                   </p>
                   <div className="grid grid-cols-3 gap-2 text-center">
                     <div className="rounded-md bg-emerald-500/10 py-2 text-emerald-400">
@@ -606,7 +605,7 @@ export function RecordTransactionModal({
                       </p>
                     </div>
                     <div className="rounded-md bg-slate-800 py-2 text-slate-300">
-                      <p className="text-[10px] uppercase">Live</p>
+                      <p className="text-[10px] uppercase">Living</p>
                       <p className="mt-0.5 tabular-nums font-semibold">
                         {formatCurrency(preview.expenditureShare)}
                       </p>
@@ -614,8 +613,7 @@ export function RecordTransactionModal({
                   </div>
                   {!hasActiveDebt && (
                     <p className="mt-2 text-emerald-500/80">
-                      No active debt — the 20% creditor share joins your Wealth
-                      Archive.
+                      No active debt — the 20% is redirected to Wealth Building.
                     </p>
                   )}
                 </div>
@@ -666,8 +664,8 @@ export function RecordTransactionModal({
                   </Select>
                 ) : (
                   <div className="rounded-md border border-dashed border-slate-800 bg-slate-950/50 px-3 py-3 text-xs leading-relaxed text-slate-500">
-                    No budget buckets yet. Create one inline below without
-                    leaving this expense.
+                    No categories yet. Create one below without leaving this
+                    expense.
                   </div>
                 )}
                 <button
@@ -693,7 +691,7 @@ export function RecordTransactionModal({
                       <Label htmlFor="inline-category-name">Bucket Name</Label>
                       <Input
                         id="inline-category-name"
-                        placeholder="e.g. Sustenance"
+                        placeholder="e.g. Groceries"
                         value={inlineCategoryName}
                         onChange={(e) => setInlineCategoryName(e.target.value)}
                       />
@@ -720,14 +718,14 @@ export function RecordTransactionModal({
                               : "text-slate-500"
                           )}
                         >
-                          Essential
+                          Need
                         </span>
                         <Switch
                           checked={!inlineCategoryEssential}
                           onCheckedChange={(checked) =>
                             setInlineCategoryEssential(!checked)
                           }
-                          aria-label="Toggle inline category essential"
+                          aria-label="Toggle need or want"
                         />
                         <span
                           className={cn(
@@ -737,7 +735,7 @@ export function RecordTransactionModal({
                               : "text-slate-500"
                           )}
                         >
-                          Desire
+                          Want
                         </span>
                       </div>
                       <Button
@@ -777,12 +775,12 @@ export function RecordTransactionModal({
               <div className="flex items-center justify-between rounded-lg border border-slate-800 bg-slate-950/50 px-4 py-3">
                 <div>
                   <p className="text-sm font-medium text-slate-200">
-                    Needs vs. Desires Gatekeeper
+                    Need or Want
                   </p>
                   <p className="text-xs text-slate-500">
                     {expenseIsDesire
-                      ? "Discretionary Desire — lifestyle creep watch"
-                      : "Core Need — housing, food, utilities, life"}
+                      ? "Want — discretionary spending"
+                      : "Need — housing, food, utilities, and similar"}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -797,7 +795,7 @@ export function RecordTransactionModal({
                   <Switch
                     checked={expenseIsDesire}
                     onCheckedChange={handleDesireToggle}
-                    aria-label="Toggle desire"
+                    aria-label="Toggle want"
                   />
                   <span
                     className={cn(
@@ -805,7 +803,7 @@ export function RecordTransactionModal({
                       expenseIsDesire ? "text-amber-400" : "text-slate-500"
                     )}
                   >
-                    Desire
+                    Want
                   </span>
                 </div>
               </div>
@@ -816,7 +814,7 @@ export function RecordTransactionModal({
                 <Label htmlFor="debt-creditor">Creditor</Label>
                 <Input
                   id="debt-creditor"
-                  placeholder="e.g. Babylon Credit Union"
+                  placeholder="e.g. Local Credit Union"
                   value={debtCreditor}
                   onChange={(e) => setDebtCreditor(e.target.value)}
                   required={mode === "debt"}
@@ -836,7 +834,7 @@ export function RecordTransactionModal({
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="debt-monthly">Monthly Target Allocation</Label>
+                <Label htmlFor="debt-monthly">Monthly payment</Label>
                 <Input
                   id="debt-monthly"
                   type="number"
@@ -863,13 +861,13 @@ export function RecordTransactionModal({
                   onChange={(e) => setDebtInterest(e.target.value)}
                 />
                 <p className="text-xs text-slate-500">
-                  Used by Avalanche ordering in the Freedom Date engine.
+                  Used by Avalanche ordering in the debt payoff projection.
                 </p>
               </div>
               <p className="text-xs leading-relaxed text-slate-500">
-                Income tributes automatically apply 20% toward active debts
-                (smallest balance first). When all creditors are satisfied, that
-                fifth fattens the Wealth Archive.
+                Adding income applies 20% toward active debts, smallest balance
+                first. When every debt is paid off, that 20% is redirected to
+                Wealth Building.
               </p>
             </TabsContent>
 
@@ -878,7 +876,7 @@ export function RecordTransactionModal({
                 <Label htmlFor="budget-category-name">Category Name</Label>
                 <Input
                   id="budget-category-name"
-                  placeholder='e.g. Sustenance, Insurance, Custom Hobby'
+                  placeholder="e.g. Groceries, Insurance, Hobbies"
                   value={budgetName}
                   onChange={(e) => setBudgetName(e.target.value)}
                   required={mode === "budget"}
@@ -897,18 +895,18 @@ export function RecordTransactionModal({
                   required={mode === "budget"}
                 />
                 <p className="text-[11px] text-slate-500">
-                  Soft ceiling inside the 70% living-allowance boundary.
+                  Soft cap inside the Living Budget.
                 </p>
               </div>
               <div className="flex items-center justify-between rounded-lg border border-slate-800 bg-slate-950/50 px-4 py-3">
                 <div>
                   <p className="text-sm font-medium text-slate-200">
-                    Essential Need vs. Discretionary Desire
+                    Need or Want
                   </p>
                   <p className="text-xs text-slate-500">
                     {budgetIsEssential
-                      ? "Core Need — housing, food, utilities, life"
-                      : "Discretionary Desire — lifestyle creep watch"}
+                      ? "Need — housing, food, utilities, and similar"
+                      : "Want — discretionary spending"}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -918,14 +916,14 @@ export function RecordTransactionModal({
                       budgetIsEssential ? "text-emerald-400" : "text-slate-500"
                     )}
                   >
-                    Essential
+                    Need
                   </span>
                   <Switch
                     checked={!budgetIsEssential}
                     onCheckedChange={(checked) =>
                       setBudgetIsEssential(!checked)
                     }
-                    aria-label="Toggle discretionary desire"
+                    aria-label="Toggle want"
                   />
                   <span
                     className={cn(
@@ -933,7 +931,7 @@ export function RecordTransactionModal({
                       !budgetIsEssential ? "text-amber-400" : "text-slate-500"
                     )}
                   >
-                    Desire
+                    Want
                   </span>
                 </div>
               </div>

@@ -1,26 +1,26 @@
 # Master Roadmap — Wealth Engine
 
 ## Vision
-A premium, single-page budgeting platform that teaches and enforces Babylonian wealth laws through autonomous allocation — educational clarity first, competitive polish second.
+A personal ledger that splits income 10% to Wealth Building, 20% to Debt Payoff, and 70% to a Living Budget. The method was inspired by *The Richest Man in Babylon*. The product name is Wealth Engine.
 
 ## Phase 1 — Foundation (Complete)
 - [x] Next.js 15 App Router scaffold
 - [x] Luxury dashboard shell (sidebar + viewport)
-- [x] Babylon 10/20/70 allocation engine
-- [x] Golden Triad KPIs
+- [x] 10/20/70 allocation engine
+- [x] 10/20/70 summary cards
 - [x] Recharts analytics hub
 - [x] Ledger matrices (income / expenses / debt)
-- [x] Needs vs. Desires gatekeeper
+- [x] Needs and Wants
 - [x] localStorage persistence (empty-first, live input pipelines)
-- [x] Wisdom marquee
+- [x] Financial Guidance
 - [x] Graceful empty states for charts + tables
 
 ## Phase 2 — Depth (Complete)
 - [x] Ledger export / import
-- [x] Affordability Anchor (Desires pool % + labor hours)
+- [x] Affordability Anchor (money left for wants + labor hours)
 - [x] Expense due dates + due-soon indicator
 - [x] Budget Blueprint (planned caps + Planned vs. Actual within 70%)
-- [x] Steward-configured budget categories (`addBudgetTarget` via Record Tribute)
+- [x] User-configured budget categories (`addBudgetTarget` via Add)
 - [x] Clear-ledger UI control (confirmed purge via sidebar AlertDialog)
 - [x] Budget bucket edit / delete (`updateBudgetTargetFull` / `deleteBudgetTarget`)
 - [x] Responsive layout audit (mobile drawer, triad/charts wrap, table scroll, touch targets)
@@ -39,12 +39,12 @@ A premium, single-page budgeting platform that teaches and enforces Babylonian w
 - [x] Path A cloud schema foundation (`supabase/migrations/20260719_init_babylon_schema.sql`)
 - [x] Path A client connectivity (Supabase SDK + TanStack Query + dual-write mutations)
 - [x] Path A auth UI + local→cloud hydration (AuthModal, sidebar vault anchor, one-time migrate)
-- [x] Mobile Command Deck streamlining (focus cards, compact Golden Triad, Command/Analytics/Ledgers tabs)
+- [x] Mobile layout (focus cards, compact 10/20/70 cards, Overview / Analytics / Ledger tabs)
 - [x] Mobile runtime paint and mount (opaque scrolling surfaces, CommandBar-local clock, one layout tree per breakpoint)
 - [x] Path A entity parity schema (`debt_entries`, `period_archives` — `20260807_add_debts_archives_logs.sql`)
 - [x] Grand Suite: SecurityGate + Discreet Mode, Paycheck Splitter, Debt Freedom Engine, Monthly Close sweeps, Plaid schema prep
 - [x] Plaid security harden (JWT API routes, access_token isolation, idle lock, privacy blur, fail-soft toasts)
-- [x] Plaid Link Command Deck mounts (CommandBar + ConnectedBanksCard; needs live PLAID_* + service role env)
+- [x] Plaid Link on the command bar and banks card (needs live PLAID_* + service role env)
 - [x] SecurityGate client-only mount (`ssr: false`) + PlaidLinkButton always-on DOM fallbacks
 - [ ] Path A dual-write for debts / period archives / activity_logs + hydrate remint
 - [ ] Speed-Tribute 1-tap commit (presets + bar mount; full amount autofill / zero-modal path still open)

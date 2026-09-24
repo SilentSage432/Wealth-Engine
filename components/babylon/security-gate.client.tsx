@@ -6,7 +6,7 @@ import { VaultLoading } from "@/components/babylon/vault-loading";
 /**
  * Client-only SecurityGate mount — never SSR.
  * Prevents WebAuthn / storage / crypto paths from participating in the
- * server render or hydrating into a stuck "Opening the vault..." state.
+ * server render or hydrating into a stuck "Opening Wealth Engine…" state.
  */
 export const SecurityGate = dynamic(
   () =>

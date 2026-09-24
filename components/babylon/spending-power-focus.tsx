@@ -62,7 +62,7 @@ export function SpendingPowerFocus({
       >
         <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
           <Wallet className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-          Living pool remaining · 70%
+          Living Budget remaining · 70%
         </p>
         <p
           className={cn(
@@ -99,8 +99,8 @@ export function SpendingPowerFocus({
         </p>
         <p className="mt-2 text-xs text-slate-500">
           {hourlyLaborRate > 0
-            ? `Primary labor · ${money(hourlyLaborRate)}/hr`
-            : "Add recurring primary income to compute labor hours"}
+            ? `Main income · ${money(hourlyLaborRate)}/hr`
+            : "Add recurring main income to estimate hours"}
         </p>
       </div>
     </section>

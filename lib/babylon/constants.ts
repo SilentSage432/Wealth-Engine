@@ -13,7 +13,7 @@ export const STORAGE_KEY = "wealth-engine-babylon-v2";
 export const USERNAME_STORAGE_KEY = "babylon_username";
 
 /** Visual-only greeting fallback when the profile input is empty. */
-export const GREETING_NAME_FALLBACK = "Steward";
+export const GREETING_NAME_FALLBACK = "Your name";
 
 export const WEALTH_RATE = 0.1;
 export const DEBT_RATE = 0.2;
@@ -29,16 +29,15 @@ export const BUDGET_WARNING_PCT = 85;
 export const DISCRETIONARY_BUDGET_ID = "budget-desires";
 
 export const BABYLON_WISDOM: readonly string[] = [
-  "A part of all you earn is yours to keep.",
-  "Guard thy treasures from loss.",
-  "Do not confuse necessary expenses with thy desires.",
-  "Make thy gold multiply — put each coin to labor.",
-  "Control thy expenditures that thy purse may fatten.",
-  "Ensure a future income — prepare for the days to come.",
-  "Increase thy ability to earn — cultivate thy own powers.",
-  "Better a little caution than a great regret.",
-  "Wealth, like a tree, grows from a tiny seed.",
-  "The soul that is empty cannot fill its purse.",
+  "Set aside part of every paycheck for Wealth Building before you spend.",
+  "Use Debt Payoff on purpose. When the debt is gone, that 20% moves to Wealth Building.",
+  "The Living Budget is what you can spend this month. It is not your bank balance.",
+  "Mark spending as a Need or a Want so the Living Budget stays clear.",
+  "An Emergency Fund is surplus you set aside for surprises, separate from Wealth Building.",
+  "Earning more gives the same 10/20/70 split more to work with.",
+  "Wants fit inside the Living Budget. They are a problem when they crowd out Needs.",
+  "Wealth Building is an amount this ledger allocates. It is not a bank balance Wealth Engine can see.",
+  "Close each month and review what you set aside, paid down, and spent.",
 ];
 
 export const INTERVAL_LABELS: Record<IncomeInterval, string> = {
@@ -50,10 +49,10 @@ export const INTERVAL_LABELS: Record<IncomeInterval, string> = {
 };
 
 export const STREAM_KIND_LABELS: Record<IncomeStreamKind, string> = {
-  primary: "Primary Labor",
-  side_hustle: "Side Hustle",
-  passive: "Passive Engine",
-  other: "Other",
+  primary: "Main Income",
+  side_hustle: "Side Income",
+  passive: "Passive Income",
+  other: "Other Income",
 };
 
 export const STREAM_KIND_ORDER: readonly IncomeStreamKind[] = [
@@ -68,9 +67,9 @@ export const NAV_ITEMS: ReadonlyArray<{
   label: string;
   icon: ComponentType<{ className?: string }>;
 }> = [
-  { id: "overview", label: "Command Deck", icon: LayoutDashboard },
-  { id: "ledgers", label: "Ledger Matrices", icon: ScrollText },
-  { id: "wisdom", label: "Babylon Wisdom", icon: BookOpen },
+  { id: "overview", label: "Overview", icon: LayoutDashboard },
+  { id: "ledgers", label: "Ledger", icon: ScrollText },
+  { id: "wisdom", label: "Financial Guidance", icon: BookOpen },
 ];
 
 export const DONUT_COLORS = {

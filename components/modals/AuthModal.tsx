@@ -70,11 +70,11 @@ export function AuthModal({
 
   const validate = (): string | null => {
     if (!configured) {
-      return "Cloud vault is not configured on this build.";
+      return "Account sign-in is not configured on this build.";
     }
     if (mode === "sign_up") {
       const name = username.trim();
-      if (!name) return "Choose a steward username.";
+      if (!name) return "Choose a name.";
       if (name.length > 40) return "Username must be 40 characters or fewer.";
     }
     const trimmedEmail = email.trim();
@@ -114,15 +114,15 @@ export function AuthModal({
 
     const stewardName =
       mode === "sign_up"
-        ? username.trim() || "Steward"
-        : defaultUsername.trim() || "Steward";
+        ? username.trim()
+        : defaultUsername.trim();
 
     setFeedback({
       tone: "success",
       message:
         mode === "sign_up"
-          ? "Steward account created. Securing your vault…"
-          : "Signed in. Syncing cloud vault…",
+          ? "Account created. This device's ledger will be copied if the account is empty."
+          : "Signed in.",
     });
 
     onAuthenticated?.({
@@ -142,16 +142,16 @@ export function AuthModal({
             <div className="flex items-center gap-2 text-emerald-400">
               <Shield className="h-4 w-4" />
               <span className="text-[10px] font-semibold uppercase tracking-[0.18em]">
-                Cloud Vault
+                Account
               </span>
             </div>
             <DialogTitle className="font-[family-name:var(--font-display)] text-2xl font-semibold tracking-wide text-slate-50">
-              {mode === "sign_in" ? "Sign In" : "Create Steward Account"}
+              {mode === "sign_in" ? "Sign In" : "Create Account"}
             </DialogTitle>
             <DialogDescription className="text-sm text-slate-400">
               {mode === "sign_in"
-                ? "Reconnect to your secured Babylon ledger across devices."
-                : "Lock anonymous local history behind a password — your vault migrates automatically."}
+                ? "Sign in to your account."
+                : "Create an account. If the account is empty, this device's ledger is copied to it."}
             </DialogDescription>
           </DialogHeader>
         </div>
@@ -173,7 +173,7 @@ export function AuthModal({
               <Input
                 id="auth-username"
                 autoComplete="username"
-                placeholder="Steward"
+                placeholder="Your name"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 disabled={busy}
@@ -241,12 +241,12 @@ export function AuthModal({
               ) : mode === "sign_in" ? (
                 <>
                   <Cloud className="h-4 w-4" />
-                  Sign In to Vault
+                  Sign In
                 </>
               ) : (
                 <>
                   <Shield className="h-4 w-4" />
-                  Create Steward Account
+                  Create Account
                 </>
               )}
             </Button>
@@ -263,8 +263,8 @@ export function AuthModal({
               className="text-center text-xs text-slate-400 transition-colors hover:text-emerald-400"
             >
               {mode === "sign_in"
-                ? "New here? Create Steward Account"
-                : "Already sealed? Sign In"}
+                ? "New here? Create an account"
+                : "Already have an account? Sign in"}
             </button>
           </DialogFooter>
         </form>

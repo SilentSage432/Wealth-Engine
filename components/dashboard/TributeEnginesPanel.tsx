@@ -48,13 +48,12 @@ const KIND_ACCENT: Record<
 
 const KIND_TOOLTIPS: Partial<Record<IncomeStreamKind, string>> = {
   side_hustle:
-    "Side Hustle multiplies your earning power beyond primary labor — every additional coin still obeys the 10/20/70 split, accelerating Wealth Archive and debt clearance.",
+    "Side income is money earned outside main income. It still splits 10/20/70.",
   passive:
-    "Passive Engine income is gold put to labor — once flowing, it compounds the Babylon multiplier without consuming more of your hours.",
+    "Passive income is money that does not depend on more of your hours. It still splits 10/20/70.",
   primary:
-    "Primary Labor is your baseline stipend. Affordability hours and core planning still anchor here.",
-  other:
-    "Other streams capture irregular tribute that still enters the same autonomous allocation engine.",
+    "Main income is the recurring paycheck used for affordability hours.",
+  other: "Other income is irregular money that still splits 10/20/70.",
 };
 
 export function TributeEnginesPanel({ snapshot }: TributeEnginesPanelProps) {
@@ -65,16 +64,16 @@ export function TributeEnginesPanel({ snapshot }: TributeEnginesPanelProps) {
           <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <CardTitle className="font-[family-name:var(--font-display)] text-lg sm:text-xl">
-                Tribute Engines Breakdown
+                Income Breakdown
               </CardTitle>
               <CardDescription>
-                This month&apos;s income mix — primary labor vs. multiplication
-                streams, with month-over-month pulse by classification.
+                This month&apos;s income by type, and how each type changed from
+                last month.
               </CardDescription>
             </div>
             <div className="shrink-0 text-left sm:text-right">
               <p className="text-[10px] uppercase tracking-wider text-slate-500">
-                Monthly Tribute
+                Income this month
               </p>
               <p className="font-[family-name:var(--font-display)] text-2xl font-semibold tabular-nums text-slate-50">
                 {formatCurrency(snapshot.monthTotal)}
@@ -85,32 +84,31 @@ export function TributeEnginesPanel({ snapshot }: TributeEnginesPanelProps) {
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="rounded-lg border border-slate-800/70 bg-slate-950/40 px-3.5 py-3">
                 <p className="text-[10px] uppercase tracking-wider text-slate-500">
-                  Primary Labor
+                  Main Income
                 </p>
                 <p className="mt-1 font-[family-name:var(--font-display)] text-xl font-semibold tabular-nums text-slate-100">
                   {formatCurrency(snapshot.primaryAmount)}
                 </p>
                 <p className="mt-1 text-xs text-slate-500">
-                  {snapshot.primaryPct}% of this month&apos;s tribute
+                  {snapshot.primaryPct}% of this month&apos;s income
                 </p>
               </div>
               <div className="rounded-lg border border-amber-900/30 bg-amber-950/10 px-3.5 py-3">
                 <p className="text-[10px] uppercase tracking-wider text-amber-500/80">
-                  Secondary Engines
+                  Other Income
                 </p>
                 <p className="mt-1 font-[family-name:var(--font-display)] text-xl font-semibold tabular-nums text-amber-200">
                   {formatCurrency(snapshot.secondaryAmount)}
                 </p>
                 <p className="mt-1 text-xs text-slate-500">
-                  {snapshot.secondaryPct}% · side hustle + passive + other
+                  {snapshot.secondaryPct}% · side, passive, and other
                 </p>
               </div>
             </div>
 
             {snapshot.monthTotal <= 0 ? (
               <p className="rounded-lg border border-dashed border-slate-800 px-4 py-8 text-center text-sm text-slate-500">
-                Log an income stream this month to illuminate your tribute
-                engines.
+                Add income this month to see the breakdown.
               </p>
             ) : (
               <ul className="space-y-3">

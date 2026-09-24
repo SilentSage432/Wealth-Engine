@@ -31,7 +31,7 @@ export async function signInWithPassword(
     return {
       ok: false,
       message:
-        "Cloud vault is not configured. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY.",
+        "Account sign-in is not configured. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY.",
     };
   }
 
@@ -57,11 +57,11 @@ export async function signUpWithPassword(
     return {
       ok: false,
       message:
-        "Cloud vault is not configured. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY.",
+        "Account sign-in is not configured. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY.",
     };
   }
 
-  const stewardName = username.trim() || "Steward";
+  const stewardName = username.trim() || "Your name";
 
   const { data, error } = await supabase.auth.signUp({
     email: email.trim(),
@@ -115,7 +115,7 @@ export async function upsertStewardProfile(
   const { error } = await supabase.from("profiles").upsert(
     {
       id: userId,
-      username: username.trim() || "Steward",
+      username: username.trim() || "Your name",
       updated_at: new Date().toISOString(),
     },
     { onConflict: "id" }

@@ -53,14 +53,14 @@ export function PaycheckSplitterModal({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="font-[family-name:var(--font-display)] text-xl">
-            Paycheck 10/20/70 Splitter
+            Income 10/20/70 split
           </DialogTitle>
           <DialogDescription>
-            Review the Babylon allocation for{" "}
+            Review the 10/20/70 split for{" "}
             <span className="text-slate-300">
-              {pending?.source ?? "this tribute"}
+              {pending?.source ?? "this income"}
             </span>{" "}
-            before it hits your vault.
+            before it is saved.
           </DialogDescription>
         </DialogHeader>
 
@@ -68,7 +68,7 @@ export function PaycheckSplitterModal({
           <div className="space-y-3">
             <div className="rounded-lg border border-slate-800 bg-slate-950/50 px-4 py-3">
               <p className="text-[10px] uppercase tracking-wider text-slate-500">
-                Gross tribute
+                Income
               </p>
               <p className="mt-1 font-[family-name:var(--font-display)] text-3xl tabular-nums text-slate-50">
                 {money(pending.amount)}
@@ -76,18 +76,18 @@ export function PaycheckSplitterModal({
             </div>
 
             <SplitRow
-              label="10% Wealth Engine"
-              hint="Emergency shield / investments archive"
+              label="Wealth Building · 10%"
+              hint="Set aside for wealth building"
               amount={preview.wealthShare}
               tone="emerald"
               money={money}
             />
             <SplitRow
-              label="20% Debt Engine"
+              label="Debt Payoff · 20%"
               hint={
                 hasActiveDebt
-                  ? "Auto-applied to priority creditors"
-                  : "Redirected to Wealth (debt-free)"
+                  ? "Applied to the smallest balance first"
+                  : "Redirected to Wealth Building"
               }
               amount={preview.debtShare}
               tone="amber"
@@ -95,8 +95,8 @@ export function PaycheckSplitterModal({
               redirected={preview.debtRedirected}
             />
             <SplitRow
-              label="70% Expenditure Pool"
-              hint="Current month living allowance"
+              label="Living Budget · 70%"
+              hint="This month's living budget"
               amount={preview.expenditureShare}
               tone="slate"
               money={money}
@@ -109,7 +109,7 @@ export function PaycheckSplitterModal({
             Cancel
           </Button>
           <Button type="button" variant="amber" onClick={handleExecute}>
-            Execute Allocation
+            Save income
           </Button>
         </DialogFooter>
       </DialogContent>

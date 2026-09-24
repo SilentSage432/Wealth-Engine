@@ -27,11 +27,11 @@ export function SpeedTributeBar({
     >
       <div className="mx-auto flex w-full max-w-screen-2xl items-center gap-2 px-3 py-2.5 sm:px-6 lg:px-8">
         <p className="hidden shrink-0 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500 sm:block">
-          Speed Tribute
+          Quick Add
         </p>
         <div
           role="list"
-          aria-label="Quick tribute presets"
+          aria-label="Quick add"
           className="flex min-w-0 flex-1 gap-2 overflow-x-auto scrollbar-thin pb-0.5"
         >
           {presets.map((preset) => (

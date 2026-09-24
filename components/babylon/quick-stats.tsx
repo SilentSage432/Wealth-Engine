@@ -34,7 +34,7 @@ export function QuickStats({ totalIncome, debtAllocated }: QuickStatsProps) {
           </div>
           <div>
             <p className="text-xs uppercase tracking-wider text-slate-500">
-              Debt Pot Allocated
+              Debt Payoff allocated
             </p>
             <p className="font-[family-name:var(--font-display)] text-2xl font-semibold tabular-nums text-amber-300">
               {formatCurrency(debtAllocated)}

@@ -15,7 +15,7 @@ export const VAULT_IDLE_LOCK_MS = 3 * 60 * 1000;
 
 /**
  * Hard cap for `navigator.credentials.get()` so domain mismatch / hung
- * platform prompts cannot leave the gate on "Opening the vault...".
+ * platform prompts cannot leave the gate on "Opening Wealth Engine…".
  */
 export const WEBAUTHN_UNLOCK_TIMEOUT_MS = 1500;
 
@@ -240,8 +240,8 @@ export async function registerWebAuthnCredential(): Promise<boolean> {
         rp: { name: "Wealth Engine", id: window.location.hostname },
         user: {
           id: userId,
-          name: "steward",
-          displayName: "Steward",
+          name: "Wealth Engine",
+          displayName: "Wealth Engine",
         },
         pubKeyCredParams: [
           { type: "public-key", alg: -7 },

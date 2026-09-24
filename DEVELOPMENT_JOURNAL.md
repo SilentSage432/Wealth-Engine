@@ -1,5 +1,17 @@
 # Development Journal
 
+## 2026-09-24 — WE-LANGUAGE-002 modern financial language
+
+### What changed
+- User-facing copy now uses Wealth Building, Debt Payoff, Living Budget, Needs, Wants, Emergency Fund, and Income.
+- Navigation is Overview, Ledger, and Financial Guidance. The nine guidance lines are original plain-language notes on the 10/20/70 split.
+- Public product name is Wealth Engine. Babylon, Arkad, and Laws of Gold are gone from the operating UI.
+- Stored ids, formulas, and historical journal entries are unchanged.
+
+### Ownership
+- Display strings live in components, `STREAM_KIND_LABELS`, `NAV_ITEMS`, `BABYLON_WISDOM`, activity templates, and metadata.
+- Domain math remains `lib/babylon/engine.ts`. Persistence keys are unchanged.
+
 ## 2026-09-24 — WE-PERF-002 mobile runtime
 
 ### What changed

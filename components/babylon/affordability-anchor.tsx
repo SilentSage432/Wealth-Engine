@@ -47,8 +47,8 @@ export function AffordabilityAnchor({
             Affordability Anchor
           </p>
           <p className="text-sm text-slate-400">
-            Test a discretionary purchase against this month&apos;s remaining
-            Desires pool and your primary labor rate.
+            Test a purchase against the money left for wants and your main
+            income rate.
           </p>
         </div>
 
@@ -75,26 +75,26 @@ export function AffordabilityAnchor({
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         <div className="rounded-lg border border-slate-800/70 bg-slate-950/40 px-3.5 py-3">
           <p className="text-[10px] uppercase tracking-wider text-slate-500">
-            Of remaining Desires pool
+            Of money left for wants
           </p>
           <p className="mt-1 font-[family-name:var(--font-display)] text-2xl font-semibold tabular-nums text-slate-100">
             {poolPct === null ? "—" : `${poolPct}%`}
           </p>
           <p className="mt-1 text-xs text-slate-500">
-            Pool remaining: {formatCurrency(desiresPoolRemaining)}
+            Left for wants: {formatCurrency(desiresPoolRemaining)}
           </p>
         </div>
         <div className="rounded-lg border border-slate-800/70 bg-slate-950/40 px-3.5 py-3">
           <p className="text-[10px] uppercase tracking-wider text-slate-500">
-            Primary labor hours
+            Main income hours
           </p>
           <p className="mt-1 font-[family-name:var(--font-display)] text-2xl font-semibold tabular-nums text-slate-100">
             {laborHours === null ? "—" : `${laborHours}h`}
           </p>
           <p className="mt-1 text-xs text-slate-500">
             {hourlyLaborRate > 0
-              ? `Primary rate: ${formatCurrency(hourlyLaborRate)}/hr`
-              : "Add recurring primary income to compute rate"}
+              ? `Main income: ${formatCurrency(hourlyLaborRate)}/hr`
+              : "Add recurring main income to estimate hours"}
           </p>
         </div>
       </div>

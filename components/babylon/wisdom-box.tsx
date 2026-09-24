@@ -44,10 +44,10 @@ export function WisdomBox({
       <CardHeader className="relative pb-2">
         <CardDescription className="flex items-center gap-2 text-emerald-400">
           <BookOpen className="h-4 w-4" aria-hidden="true" />
-          The Babylon Wisdom Box
+          Financial Guidance
         </CardDescription>
         <CardTitle className="font-[family-name:var(--font-display)] text-lg text-slate-200">
-          Aphorisms of Arkad
+          How this ledger works
         </CardTitle>
       </CardHeader>
       <CardContent className="relative">
@@ -62,7 +62,7 @@ export function WisdomBox({
         <div
           className="mt-6 flex items-center gap-2"
           role="tablist"
-          aria-label="Wisdom aphorism selector"
+          aria-label="Financial guidance selector"
         >
           {BABYLON_WISDOM.map((_, i) => (
             <button
@@ -70,7 +70,7 @@ export function WisdomBox({
               type="button"
               role="tab"
               aria-selected={i === wisdomIndex}
-              aria-label={`Show wisdom ${i + 1} of ${BABYLON_WISDOM.length}`}
+              aria-label={`Show guidance ${i + 1} of ${BABYLON_WISDOM.length}`}
               onClick={() => onSelectIndex(i)}
               className={cn(
                 "h-1.5 rounded-full transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50",

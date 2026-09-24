@@ -318,8 +318,8 @@ export function useBabylonEngine() {
         if (result.migrated) {
           pushActivity({
             kind: "close",
-            title: "Cloud vault sealed",
-            subtitle: "Local ledger migrated to your secure account",
+            title: "Ledger copied to your account",
+            subtitle: "Local ledger copied to your account",
           });
         }
       } catch (error) {
@@ -679,9 +679,9 @@ export function useBabylonEngine() {
   const donutData = useMemo((): DonutSlice[] => {
     return [
       { name: "Needs", value: currentMonthNeed, color: DONUT_COLORS.need },
-      { name: "Desires", value: currentMonthDesire, color: DONUT_COLORS.desire },
+      { name: "Wants", value: currentMonthDesire, color: DONUT_COLORS.desire },
       {
-        name: "Unspent Allowance",
+        name: "Remaining",
         value: currentMonthRemaining,
         color: DONUT_COLORS.remaining,
       },
@@ -743,7 +743,7 @@ export function useBabylonEngine() {
       pushActivity({
         kind: "income",
         title: entry.source,
-        subtitle: "Income engine recorded",
+        subtitle: "Income added",
         amount: entry.amount,
         streamKind: entry.kind,
       });
@@ -832,8 +832,7 @@ export function useBabylonEngine() {
       pushActivity({
         kind: "expense",
         title: entry.name,
-        subtitle:
-          entry.category === "desire" ? "Desire archived" : "Need archived",
+        subtitle: "Expense added",
         amount: entry.amount,
       });
 
@@ -957,7 +956,7 @@ export function useBabylonEngine() {
           kind: "budget",
           title: removedName,
           subtitle: reassignName
-            ? `Category removed · orphans → ${reassignName}`
+            ? `Expenses moved to ${reassignName}`
             : "Category removed",
         });
       }
@@ -990,7 +989,7 @@ export function useBabylonEngine() {
       pushActivity({
         kind: "budget",
         title: entry.categoryName,
-        subtitle: "Budget bucket mapped",
+        subtitle: "Category added",
         amount: entry.plannedAmount,
       });
       if (options?.closeModal !== false) {
@@ -1051,7 +1050,7 @@ export function useBabylonEngine() {
     pushActivity({
       kind: "budget",
       title: "Auto-Scale Allocations",
-      subtitle: `Caps fitted to ${formatMonthLabel(currentMonthKey)} 70% pool`,
+      subtitle: `Caps fitted to the ${formatMonthLabel(currentMonthKey)} Living Budget`,
       amount: currentMonthExpenditurePool,
     });
 
@@ -1146,14 +1145,14 @@ export function useBabylonEngine() {
 
       const subtitle =
         disposition === "emergency_shield"
-          ? "Surplus tucked into emergency shield"
+          ? "Surplus added to Emergency Fund"
           : disposition === "wealth_boost"
-            ? "Surplus boosted Wealth Engine 100%"
+            ? "Surplus added to Wealth Building"
             : disposition === "split_50_50"
-              ? "Surplus swept 50/50 Wealth / Debt"
+              ? "Surplus split between Wealth Building and Debt Payoff"
               : disposition === "rollover"
-                ? "Surplus rolled into next month living pool"
-                : "Surplus directed to Debt/Wealth multiplier";
+                ? "Surplus rolled into next month's Living Budget"
+                : "Surplus split between Wealth Building and Debt Payoff";
 
       pushActivity({
         kind: "close",

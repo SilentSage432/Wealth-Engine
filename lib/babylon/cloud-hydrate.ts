@@ -143,7 +143,7 @@ export async function migrateLocalLedgerToCloud(
   }
 
   if (!hasMigratableLocalData(snapshot)) {
-    await upsertStewardProfile(userId, snapshot.username || "Steward");
+    await upsertStewardProfile(userId, snapshot.username || "Your name");
     return { migrated: false, skippedReason: "local_empty" };
   }
 
@@ -154,7 +154,7 @@ export async function migrateLocalLedgerToCloud(
 
   const reminted = remintLedgerIds(snapshot);
 
-  await upsertStewardProfile(userId, snapshot.username || "Steward");
+  await upsertStewardProfile(userId, snapshot.username || "Your name");
 
   if (reminted.budgetTargets.length > 0) {
     const rows = reminted.budgetTargets.map((target) =>

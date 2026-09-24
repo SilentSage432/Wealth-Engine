@@ -391,10 +391,10 @@ function SecurityGateInner({ children }: SecurityGateProps) {
 
   const title =
     phase === "setup"
-      ? "Set Vault Master PIN"
+      ? "Set PIN"
       : phase === "authenticating"
-        ? "Opening the vault..."
-        : "Unlock Vault";
+        ? "Opening Wealth Engine…"
+        : "Unlock Wealth Engine";
 
   const setupReady =
     pinsMatch(pin, confirmPin) && normalizePinInput(pin).length === 4;
@@ -417,7 +417,7 @@ function SecurityGateInner({ children }: SecurityGateProps) {
                 </div>
                 <div>
                   <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                    Privacy Shield
+                    App lock
                   </p>
                   <h1 className="font-[family-name:var(--font-display)] text-2xl text-slate-50">
                     {title}
@@ -428,8 +428,8 @@ function SecurityGateInner({ children }: SecurityGateProps) {
               {phase === "setup" && (
                 <div className="space-y-4">
                   <p className="text-sm text-slate-400">
-                    Create a 4-digit master PIN for this origin. Biometrics can
-                    be enrolled later after unlock on supported devices.
+                    Create a 4-digit PIN for this device. Biometrics can be
+                    added after unlock on supported devices.
                   </p>
                   <Input
                     type="password"
@@ -457,7 +457,7 @@ function SecurityGateInner({ children }: SecurityGateProps) {
                     onClick={() => void handleCreatePin()}
                   >
                     <Lock className="h-4 w-4" aria-hidden="true" />
-                    Enable Vault Lock
+                    Set PIN
                   </Button>
                 </div>
               )}

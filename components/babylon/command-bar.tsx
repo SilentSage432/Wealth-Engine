@@ -77,9 +77,6 @@ export function CommandBar({
             <Menu className="h-5 w-5" />
           </Button>
           <div className="min-w-0 animate-fade-up">
-            <p className="text-[10px] uppercase tracking-[0.18em] text-emerald-500/90 sm:text-xs">
-              Executive Command
-            </p>
             <h1 className="font-[family-name:var(--font-display)] text-xl font-semibold leading-tight text-slate-50 md:text-2xl lg:text-3xl">
               {greeting},{" "}
               <span className="bg-gradient-to-r from-emerald-300 to-amber-300 bg-clip-text text-transparent">
@@ -148,12 +145,12 @@ export function CommandBar({
               disabled={monthAlreadyClosed}
               aria-label={
                 monthAlreadyClosed
-                  ? "Month already sealed"
-                  : "Open monthly close ritual"
+              ? "Month already closed"
+              : "Close this month"
               }
             >
               <CalendarCheck className="h-4 w-4" aria-hidden="true" />
-              {monthAlreadyClosed ? "Month Sealed" : "Close Month"}
+              {monthAlreadyClosed ? "Month closed" : "Close Month"}
             </Button>
           )}
           <Button
@@ -162,11 +159,11 @@ export function CommandBar({
             size="lg"
             className="min-h-11 w-full flex-1 shadow-amber-900/20 sm:w-auto sm:flex-none"
             onClick={onRecordTribute}
-            aria-label="Record Tribute (shortcut N)"
-            title="Record Tribute · N"
+            aria-label="Add (shortcut N)"
+            title="Add · N"
           >
             <Plus className="h-4 w-4" aria-hidden="true" />
-            Record Tribute
+            Add
           </Button>
         </div>
       </div>

@@ -22,8 +22,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Wealth Engine - Babylon Ledger",
-  description: "Executive Personal Finance Command Center",
+  title: "Wealth Engine",
+  description:
+    "A personal ledger that splits income into Wealth Building, Debt Payoff, and a Living Budget.",
   applicationName: "Wealth Engine",
   manifest: "/manifest.webmanifest",
   appleWebApp: {

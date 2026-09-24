@@ -81,11 +81,10 @@ export function LedgerMatrices({
         <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <CardTitle className="font-[family-name:var(--font-display)] text-xl">
-              Ledger Matrices
+              Ledger
             </CardTitle>
             <CardDescription>
-              Master workspace for income streams, expenditures, and creditor
-              obligations
+              Income, expenses, and debts
             </CardDescription>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -93,7 +92,7 @@ export function LedgerMatrices({
               variant="outline"
               size="sm"
               onClick={() => onOpenTribute("income")}
-              aria-label="Record income tribute"
+              aria-label="Add income"
             >
               <Plus className="h-3.5 w-3.5" aria-hidden="true" />
               Income
@@ -102,7 +101,7 @@ export function LedgerMatrices({
               variant="outline"
               size="sm"
               onClick={() => onOpenTribute("expense")}
-              aria-label="Record expense tribute"
+              aria-label="Add expense"
             >
               <Plus className="h-3.5 w-3.5" aria-hidden="true" />
               Expense
@@ -142,7 +141,7 @@ export function LedgerMatrices({
                       <TableHead>Date</TableHead>
                       <TableHead>Interval</TableHead>
                       <TableHead className="hidden lg:table-cell">
-                        Auto-Split
+                        10/20/70
                       </TableHead>
                       <TableHead className="w-12" />
                     </TableRow>
@@ -154,8 +153,7 @@ export function LedgerMatrices({
                           colSpan={6}
                           className="py-10 text-center text-sm text-slate-500"
                         >
-                          No tribute recorded yet. Use &apos;Record Tribute&apos;
-                          to begin.
+                          No entries yet. Use Add to begin.
                         </TableCell>
                       </TableRow>
                     ) : (
@@ -240,13 +238,13 @@ export function LedgerMatrices({
                 </div>
                 <div className="rounded-lg border border-amber-900/40 bg-amber-950/20 p-4">
                   <p className="text-xs uppercase tracking-wider text-amber-500/80">
-                    Discretionary Desires
+                    Wants
                   </p>
                   <p className="mt-1 font-[family-name:var(--font-display)] text-2xl font-semibold tabular-nums text-amber-300">
                     {formatCurrency(desireSpend)}
                   </p>
                   <p className="mt-1 text-xs text-slate-500">
-                    Lifestyle creep monitor — keep desires subordinate to needs
+                    Discretionary spending. Keep wants from crowding out needs.
                   </p>
                 </div>
               </div>
@@ -271,8 +269,7 @@ export function LedgerMatrices({
                           colSpan={7}
                           className="py-10 text-center text-sm text-slate-500"
                         >
-                          No tribute recorded yet. Use &apos;Record Tribute&apos;
-                          to begin.
+                          No entries yet. Use Add to begin.
                         </TableCell>
                       </TableRow>
                     </TableBody>
@@ -367,7 +364,7 @@ export function LedgerMatrices({
                                     : "bg-amber-500/10 text-amber-400"
                                 )}
                               >
-                                {row.category === "need" ? "Need" : "Desire"}
+                                {row.category === "need" ? "Need" : "Want"}
                               </span>
                             </TableCell>
                             <TableCell
@@ -433,8 +430,7 @@ export function LedgerMatrices({
                           colSpan={6}
                           className="py-10 text-center text-sm text-slate-500"
                         >
-                          No tribute recorded yet. Use &apos;Record Tribute&apos;
-                          to begin.
+                          No entries yet. Use Add to begin.
                         </TableCell>
                       </TableRow>
                     ) : (

@@ -80,10 +80,10 @@ export class VaultErrorBoundary extends Component<
               </div>
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                  Privacy Shield
+                  App lock
                 </p>
                 <h1 className="font-[family-name:var(--font-display)] text-2xl text-slate-50">
-                  Vault Recovery
+                  Try again
                 </h1>
               </div>
             </div>

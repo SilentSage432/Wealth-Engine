@@ -5,7 +5,7 @@
 
 export const PLAID_USER_ERRORS = {
   not_configured:
-    "Bank linking is not available yet. Your local vault is unchanged.",
+    "Bank linking is not available yet. Your local ledger is unchanged.",
   unauthorized: "Sign in required to connect a bank.",
   session_expired: "Your session expired. Sign in again to continue.",
   missing_public_token: "Bank connection was incomplete. Please try again.",
@@ -14,13 +14,13 @@ export const PLAID_USER_ERRORS = {
   link_token_failed:
     "We couldn't start bank linking. Please try again in a moment.",
   upstream_failed:
-    "The bank connection service is temporarily unavailable. Your vault is safe.",
+    "The bank connection service is temporarily unavailable. Your local ledger is unchanged.",
   network:
     "Couldn't reach the bank connection service. Check your connection and try again.",
   persist_failed:
     "Bank linked, but we couldn't save the connection. Try again or contact support.",
   unexpected:
-    "Something went wrong connecting your bank. Your local vault is unchanged.",
+    "Something went wrong connecting your bank. Your local ledger is unchanged.",
 } as const;
 
 export type PlaidUserErrorCode = keyof typeof PLAID_USER_ERRORS;

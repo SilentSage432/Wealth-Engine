@@ -139,8 +139,8 @@ export function BudgetBlueprint({
     const ok = onAutoScaleCaps();
     setScaleFeedback(
       ok
-        ? "Caps scaled proportionally to this month's 70% pool."
-        : "Could not auto-scale — need positive caps and a funded 70% pool."
+        ? "Caps scaled to this month's Living Budget."
+        : "Could not scale caps. Add categories and income for this month first."
     );
   };
 
@@ -153,8 +153,8 @@ export function BudgetBlueprint({
               Budget Blueprint
             </CardTitle>
             <CardDescription>
-              Plan targets inside the 70% Necessary Expenditures boundary —
-              actual vs. planned for the current month
+              Categories inside the Living Budget — planned and spent for this
+              month
             </CardDescription>
           </div>
           <div className="flex shrink-0 flex-col items-stretch gap-2 sm:items-end">
@@ -220,7 +220,7 @@ export function BudgetBlueprint({
                 <span className="tabular-nums font-medium text-amber-100">
                   {formatCurrency(plannedTotal)}
                 </span>
-                , exceeding the Necessary Expenditures pool of{" "}
+                , exceeding the Living Budget of{" "}
                 <span className="tabular-nums font-medium text-amber-100">
                   {formatCurrency(expenditurePool)}
                 </span>{" "}
@@ -228,19 +228,18 @@ export function BudgetBlueprint({
                 <span className="tabular-nums font-semibold text-amber-100">
                   {formatCurrency(overPlanAmount)}
                 </span>
-                . Trim category caps or grow this month&apos;s income before
-                over-committing living allowance.
+                . Lower a category cap, or add income, before planning past
+                the Living Budget.
               </p>
             </div>
           )}
           {variances.length === 0 ? (
             <div className="rounded-lg border border-dashed border-slate-800 bg-slate-950/40 px-4 py-10 text-center">
               <p className="font-[family-name:var(--font-display)] text-lg text-slate-200">
-                No budget buckets defined yet
+                No categories yet
               </p>
               <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-slate-500">
-                Use &apos;+ Record Tribute&apos; → Budget Category to map your
-                custom blueprint.
+                Use Add → Category to create one.
               </p>
             </div>
           ) : (
@@ -269,7 +268,7 @@ export function BudgetBlueprint({
                               : "bg-amber-500/10 text-amber-400/90"
                           )}
                         >
-                          {row.isEssential ? "Essential" : "Discretionary"}
+                          {row.isEssential ? "Need" : "Want"}
                         </span>
                       </div>
                       <p className="text-xs text-slate-500">
@@ -310,7 +309,7 @@ export function BudgetBlueprint({
                           type="button"
                           onClick={() => setEditing(row)}
                           className="group inline-flex items-center gap-1.5 rounded-md border border-transparent px-1.5 py-0.5 text-right tabular-nums text-slate-200 transition-colors hover:border-slate-700 hover:bg-slate-950/60"
-                          aria-label={`Modify budget bucket ${row.categoryName}`}
+                          aria-label={`Edit category ${row.categoryName}`}
                         >
                           <span className="text-sm font-medium">
                             {formatCurrency(row.plannedAmount)}
@@ -363,11 +362,10 @@ export function BudgetBlueprint({
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="font-[family-name:var(--font-display)] text-2xl">
-              Modify Budget Bucket
+              Edit category
             </DialogTitle>
             <DialogDescription>
-              Update this Necessary Expenditures category or remove it from your
-              blueprint.
+              Change this Living Budget category, or delete it.
             </DialogDescription>
           </DialogHeader>
 
@@ -397,12 +395,12 @@ export function BudgetBlueprint({
             <div className="flex items-center justify-between rounded-lg border border-slate-800 bg-slate-950/50 px-4 py-3">
               <div>
                 <p className="text-sm font-medium text-slate-200">
-                  Essential Need vs. Discretionary Desire
+                  Need or Want
                 </p>
                 <p className="text-xs text-slate-500">
                   {draftEssential
-                    ? "Core Need — housing, food, utilities, life"
-                    : "Discretionary Desire — lifestyle creep watch"}
+                    ? "Need — housing, food, utilities, and similar"
+                    : "Want — discretionary spending"}
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -412,12 +410,12 @@ export function BudgetBlueprint({
                     draftEssential ? "text-emerald-400" : "text-slate-500"
                   )}
                 >
-                  Essential
+                    Need
                 </span>
                 <Switch
                   checked={!draftEssential}
                   onCheckedChange={(checked) => setDraftEssential(!checked)}
-                  aria-label="Toggle discretionary desire"
+                  aria-label="Toggle want"
                 />
                 <span
                   className={cn(
@@ -425,7 +423,7 @@ export function BudgetBlueprint({
                     !draftEssential ? "text-amber-400" : "text-slate-500"
                   )}
                 >
-                  Desire
+                  Want
                 </span>
               </div>
             </div>
@@ -461,7 +459,7 @@ export function BudgetBlueprint({
       <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete this budget bucket?</AlertDialogTitle>
+            <AlertDialogTitle>Delete this category?</AlertDialogTitle>
             <AlertDialogDescription>
               &ldquo;{editing?.categoryName}&rdquo; will be removed from your
               blueprint. Linked expenses can be reassigned to another category,
@@ -488,7 +486,7 @@ export function BudgetBlueprint({
             </div>
           ) : (
             <p className="text-xs text-slate-500">
-              No alternative buckets remain — linked expenses will become
+              No other categories remain. Linked expenses will become
               Uncategorized.
             </p>
           )}

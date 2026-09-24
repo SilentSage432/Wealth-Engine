@@ -26,8 +26,8 @@ interface MonthlyCloseModalProps {
 
 const STEPS = [
   "Period Summary",
-  "Surplus Sweep",
-  "Archive & Roll Forward",
+  "Surplus",
+  "Close and continue",
 ] as const;
 
 const SWEEPS: Array<{
@@ -38,32 +38,32 @@ const SWEEPS: Array<{
 }> = [
   {
     id: "split_50_50",
-    title: "50% Wealth / 50% Debt Split",
+    title: "Split between Wealth Building and Debt Payoff",
     description: (surplus, hasDebt, money) =>
       hasDebt
-        ? `Sweep ${money(surplus)} evenly into Wealth Archive and creditor waterfall.`
-        : `Sweep ${money(surplus)} fully into Wealth (no active debt).`,
+        ? `Split ${money(surplus)} between Wealth Building and Debt Payoff.`
+        : `Add ${money(surplus)} to Wealth Building. There is no active debt.`,
     activeClass: "border-emerald-500/40 bg-emerald-500/10",
   },
   {
     id: "wealth_boost",
-    title: "100% Wealth Engine Boost",
+    title: "100% to Wealth Building",
     description: (surplus, _hasDebt, money) =>
-      `Direct ${money(surplus)} entirely into the Wealth Archive.`,
+      `Add ${money(surplus)} to Wealth Building.`,
     activeClass: "border-emerald-500/40 bg-emerald-500/10",
   },
   {
     id: "rollover",
-    title: "Roll Over to Next Month Pool",
+    title: "Roll into next month's Living Budget",
     description: (surplus, _hasDebt, money) =>
-      `Carry ${money(surplus)} into next month's 70% living pool.`,
+      `Carry ${money(surplus)} into next month's Living Budget.`,
     activeClass: "border-amber-500/40 bg-amber-500/10",
   },
   {
     id: "emergency_shield",
-    title: "Emergency Shield Reservoir",
+    title: "Add to Emergency Fund",
     description: (surplus, _hasDebt, money) =>
-      `Tuck ${money(surplus)} into the shield for future protection.`,
+      `Add ${money(surplus)} to the Emergency Fund.`,
     activeClass: "border-amber-500/40 bg-amber-500/10",
   },
 ];
@@ -103,7 +103,7 @@ export function MonthlyCloseModal({
     }
     const ok = onCloseMonth(disposition);
     if (!ok) {
-      setError("Could not close the period. Try again.");
+      setError("Could not close the month. Try again.");
     }
   };
 
@@ -115,11 +115,11 @@ export function MonthlyCloseModal({
       <DialogContent className="max-h-[min(90vh,900px)] overflow-y-auto scrollbar-thin sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="font-[family-name:var(--font-display)] text-xl sm:text-2xl">
-            Monthly Close Ritual
+            Close Month
           </DialogTitle>
           <DialogDescription>
-            Close {summary.monthLabel} cleanly — summarize, sweep surplus, and
-            archive the period.
+            Close {summary.monthLabel}. Review the month, choose what to do
+            with any surplus, and save the record.
           </DialogDescription>
         </DialogHeader>
 
@@ -146,15 +146,15 @@ export function MonthlyCloseModal({
             <div className="grid grid-cols-2 gap-3">
               <Metric label="Total Income" value={money(summary.totalIncome)} tone="emerald" />
               <Metric label="Total Spent" value={money(summary.totalSpent)} tone="rose" />
-              <Metric label="10% Wealth" value={money(summary.wealthAllocated)} tone="emerald" />
-              <Metric label="20% Debt" value={money(summary.debtAllocated)} tone="amber" />
+              <Metric label="Wealth Building · 10%" value={money(summary.wealthAllocated)} tone="emerald" />
+              <Metric label="Debt Payoff · 20%" value={money(summary.debtAllocated)} tone="amber" />
             </div>
             <div className="rounded-lg border border-slate-800 bg-slate-950/50 p-4">
               <p className="text-[10px] uppercase tracking-wider text-slate-500">
-                70% Pool · Remaining
+                Living Budget remaining
               </p>
               <p className="mt-1 tabular-nums text-sm text-slate-400">
-                Pool {money(summary.expenditurePool)} · Spent{" "}
+                Living Budget {money(summary.expenditurePool)} · Spent{" "}
                 {money(summary.totalSpent)}
               </p>
               <p
@@ -167,7 +167,7 @@ export function MonthlyCloseModal({
                 {money(Math.abs(summary.surplusOrDeficit))}
               </p>
               <p className="mt-1 text-xs text-slate-500">
-                Emergency shield on hand:{" "}
+                Emergency Fund balance:{" "}
                 <span className="tabular-nums text-slate-300">
                   {money(emergencyShield)}
                 </span>
@@ -175,8 +175,8 @@ export function MonthlyCloseModal({
             </div>
             {summary.alreadyClosed && (
               <p className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
-                {summary.monthLabel} is already archived. Opening next month
-                begins automatically with the calendar.
+                {summary.monthLabel} is already closed. The next month starts
+                with the calendar.
               </p>
             )}
           </div>
@@ -185,14 +185,14 @@ export function MonthlyCloseModal({
         {step === 1 && (
           <div className="space-y-3">
             <p className="text-sm leading-relaxed text-slate-400">
-              Unspent living allowance should not idle. Choose an automated
-              surplus sweep before sealing the period.
+              Choose what to do with any Living Budget still left before
+              closing the month.
             </p>
             {surplus <= 0 ? (
               <div className="rounded-lg border border-dashed border-slate-800 bg-slate-950/40 px-4 py-6 text-center text-sm text-slate-500">
-                No surplus remains in the 70% pool
-                {isDeficit ? " — the period closed in deficit." : "."} You may
-                still archive and roll forward.
+                No surplus remains in the Living Budget
+                {isDeficit ? " — this month closed with a deficit." : "."} You
+                can still close the month.
               </div>
             ) : (
               <div className="grid gap-2">
@@ -225,16 +225,14 @@ export function MonthlyCloseModal({
           <div className="space-y-3">
             <div className="rounded-lg border border-slate-800 bg-slate-950/50 p-4 text-sm leading-relaxed text-slate-400">
               <p>
-                Confirming will archive{" "}
+                Confirming will close{" "}
                 <span className="text-slate-200">{summary.monthLabel}</span>,
-                settle open expenses dated in this month, apply{" "}
+                mark this month&apos;s open expenses as paid, and apply{" "}
                 <span className="text-slate-200">{dispositionLabel}</span>
-                {surplus > 0 ? ` (${money(surplus)})` : ""}, and advance the
-                period seal.
+                {surplus > 0 ? ` (${money(surplus)})` : ""}.
               </p>
               <p className="mt-3 text-xs text-slate-500">
-                Snapshot lands in period archives for the cumulative
-                allocation chart.
+                The closed month is saved for the cumulative allocation chart.
               </p>
             </div>
             {error && (
@@ -273,7 +271,7 @@ export function MonthlyCloseModal({
               onClick={handleConfirm}
               disabled={summary.alreadyClosed}
             >
-              Seal Period
+              Close month
             </Button>
           )}
         </DialogFooter>

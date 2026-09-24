@@ -1,7 +1,7 @@
 # Chat Handoff
 
 ## Project
-**Wealth Engine** — executive financial budgeting SPA based on *The Richest Man in Babylon* 10/20/70 formula.
+**Wealth Engine** — personal ledger using a 10/20/70 split: Wealth Building, Debt Payoff, and a Living Budget. The method was inspired by *The Richest Man in Babylon*.
 
 **Architecture map:** [`ARCHITECTURE.md`](./ARCHITECTURE.md) — layers, dependency rules, canonical ownership matrix.
 
@@ -10,17 +10,17 @@
 - Domain hook: `hooks/useBabylonEngine.ts` (state, persistence, dual-write, hydration, auth, actions, metrics)
 - Pure engine: `lib/babylon/engine.ts`
 - Speed-Tribute presets: `lib/babylon/presets.ts` (`QuickPreset`, `DEFAULT_PRESETS`, kind resolvers → domain)
-- Speed-Tribute bar: `components/babylon/speed-tribute-bar.tsx` (chips → open tribute mode; full 1-tap commit pending)
+- Quick Add bar: `components/babylon/speed-tribute-bar.tsx` (chips open Add; full 1-tap commit pending)
 - Mobile focus: `components/babylon/spending-power-focus.tsx` (70% remaining + labor-hour readout)
 - Mobile deck: below `lg` (1024px), only the Command / Analytics / Ledgers tree mounts; at `lg` and above only the desktop tree mounts (`hooks/useDesktopLayout.ts`). Sticky `CommandBar` + `SpeedTributeBar` are opaque slate (no backdrop blur on those surfaces or on `Card`)
 - Security: `components/babylon/security-gate.client.tsx` (`next/dynamic` `ssr: false`) → `security-gate.tsx` + `vault-error-boundary.tsx` + `lib/babylon/security.ts` (fail-soft PIN setup, 1.5s WebAuthn timeout + PIN bypass, 3-min idle lock, multitasking privacy blur); Discreet Mode via CommandBar eye toggle
 - Paycheck splitter: `components/modals/PaycheckSplitterModal.tsx` — `proposeIncomeSplit` → execute 10/20/70
 - Debt freedom: `components/babylon/debt-freedom-engine.tsx` — Snowball/Avalanche + Freedom Date + velocity chart
 - Monthly close sweeps: `split_50_50` | `wealth_boost` | `rollover` | `emergency_shield` (+ legacy `debt_wealth`)
-- Plaid Link UI: `components/babylon/plaid-link-button.tsx` (always mounted; init toast fallback), `connected-banks-card.tsx`, `hooks/usePlaidConnections.ts` (CommandBar + Command Deck); API routes remain JWT + server-secret only
+- Plaid Link UI: `components/babylon/plaid-link-button.tsx` (always mounted; init toast fallback), `connected-banks-card.tsx`, `hooks/usePlaidConnections.ts` (command bar + Overview); API routes remain JWT + server-secret only
 - Plaid (hardened prep): `app/api/plaid/*` (JWT + server secrets), `lib/babylon/plaid-server.ts`, `plaid-client.ts`, `plaid-schema.ts`, migration `20260808_plaid_tables.sql` (access_token never client-readable)
 - Fail-soft toasts: `lib/babylon/vault-toast.ts` + `components/ui/vault-toast.tsx` (dismissible; `durationMs: 0` sticky)
-- Record Tribute: `components/modals/RecordTransactionModal.tsx` (preventDefault + try/catch; buttons default non-submit)
+- Add: `components/modals/RecordTransactionModal.tsx` (preventDefault + try/catch; buttons default non-submit)
 - Types: `types/babylon.ts`
 - Shell: `app/layout.tsx` → `app/providers.tsx` (TanStack Query), `app/globals.css`, `app/manifest.ts`
 - Cloud client: `lib/supabase/client.ts`, `lib/supabase/auth.ts`, `lib/supabase/server.ts` (API JWT + service role), `lib/supabase/database.types.ts`
@@ -45,7 +45,7 @@ Persisted in `localStorage` (`wealth-engine-babylon-v2`) as:
 - `expenses[]` — `need` | `desire`, mandatory `dueDate`, optional `budgetCategoryId`, `isSettled`
 - `debts[]` — `totalDebt`, `remainingDebt`, `monthlyAllocation` (required on create)
 - `allocations[]` — historical events for charts (includes synthetic period-close rows)
-- `budgetTargets[]` — steward-configured planned caps for Necessary Expenditures buckets (starts empty)
+- `budgetTargets[]` — planned caps inside the Living Budget (starts empty)
 - `activityLog[]` — mutation feed for Recent Activity (newest first, capped)
 - `emergencyShield` — reservoir from Monthly Close surplus
 - `periodArchives[]` — sealed month snapshots
@@ -53,11 +53,11 @@ Persisted in `localStorage` (`wealth-engine-babylon-v2`) as:
 - `displayName` — mirrored into vault for backup compatibility; canonical UI preference is `babylon_username`
 
 Hydration: load ledger from localStorage when present; username from `babylon_username` (soft-migrates from vault `displayName` once). Empty ledger + empty budget blueprint. No demo seed.
-Legacy expenses without `dueDate` soft-migrate to use `date`. Desire expenses without `budgetCategoryId` map to the legacy discretionary id when present. Expenses without `isSettled` soft-migrate to `true`.
+Legacy expenses without `dueDate` soft-migrate to use `date`. Want expenses (`category: "desire"`) without `budgetCategoryId` map to the legacy discretionary id when present. Expenses without `isSettled` soft-migrate to `true`.
 
 ## Mutations (hook exports)
 - `addIncome` — ID + 10/20/70 allocation (+ debt waterfall when active); appends activity log
-- `addExpense` — ID + Need/Desire + due date + required `budgetCategoryId`; new rows start `isSettled: false`
+- `addExpense` — ID + Need/Want (`need` / `desire`) + due date + required `budgetCategoryId`; new rows start `isSettled: false`
 - `addDebt` — ID + creditor tracking with mandatory monthly allocation
 - `addBudgetTarget` — ID + custom category; returns new id or `null`; optional `{ closeModal: false }` for inline create
 - `updateBudgetTarget` / `updateBudgetTargetFull` — adjust caps / name / essential flag
@@ -73,27 +73,27 @@ Legacy expenses without `dueDate` soft-migrate to use `date`. Desire expenses wi
 - Over-plan banner when planned total exceeds `currentMonthExpenditurePool`
 - `recentActivity` — last 5 `activityLog` events
 - `monthlyCloseSummary` — closing-month income/spend/10/20/70 rollup
-- `emergencyShield` — reservoir from monthly-close surplus disposition
+- `emergencyShield` — Emergency Fund balance from a monthly-close surplus choice
 
-## Command Deck utilities
-- **Affordability Anchor** — Desires pool % + primary labor hours
-- **Budget Blueprint** — Auto-Scale Allocations; pencil edit / delete + orphan reassignment
-- **Recent Activity Strip** — lightweight last-5 mutation feed
-- **Record Tribute** — universal entry modal
-- **Monthly Close Ritual** — command-bar "Close Month" → 3-step modal
-- **Ledger Matrices** — detailed ledgers under Ledger Matrices nav; settled checkmarks on expenses
+## Overview utilities
+- **Affordability Anchor** — money left for wants + main-income hours
+- **Budget Blueprint** — scale caps; edit / delete a category and reassign expenses
+- **Recent Activity Strip** — last five saved changes
+- **Add** — income, expense, debt, and category
+- **Close Month** — command-bar "Close Month" → 3-step modal
+- **Ledger** — income, expenses, and debts; paid marks on expenses
 
 ## Known behaviors
 - Recording income runs `allocateIncome()` (penny-exact 10/20/70; shares sum to gross) and optionally `applyDebtAllocation()`.
 - Financial "today" is the local calendar day (`todayIso`), not UTC. The ledger hook advances that day at the next local midnight (and when a backgrounded tab returns on a new day). The visible CommandBar clock is a local one-second timer and does not rerender the dashboard.
-- Primary labor rate is the latest recurring deposit per income source. Repeated paychecks from the same source do not stack into extra wages. `source` is the only way two simultaneous jobs stay separate.
+- Main income rate is the latest recurring deposit per income source. Repeated paychecks from the same source do not stack into extra wages. `source` is the only way two simultaneous jobs stay separate.
 - Sidebar cloud state reads "Cloud connected" (session present). It does not mean the ledger is fully mirrored.
 - Plaid success means the institution link was saved. Transactions are not imported.
 - Deleting an income reverses its `debtShare` via `reverseDebtAllocation` (remainingDebt clamped ≤ totalDebt).
-- Golden Triad Necessary Expenditures card is **current-month** pool/spend.
+- The Living Budget card is **this month's** budget and spending.
 - Unsettled expenses due within 7 days show "Due soon"; legacy expenses without `isSettled` migrate to settled.
-- Monthly close may be sealed once per calendar month key; historical ledgers remain for charts.
-- Overview does not embed full Ledger Matrices.
+- A month may be closed once per calendar month key; historical ledgers remain for charts.
+- Overview does not embed the full Ledger.
 
 ## Next candidates (Phase 3)
 - Multi-currency / shared household vaults
@@ -108,10 +108,10 @@ Legacy expenses without `dueDate` soft-migrate to use `date`. Desire expenses wi
 - Hydration: first session with local data + empty cloud → batch upsert incomes / expenses / budget_targets
 - Dual-write: subsequent mutations while `isCloudSynced`
 - Badge copy: "Cloud connected". A session is not a full ledger mirror.
-- Sign out: clears Supabase session only; `localStorage` vault retained
+- Sign out: clears the Supabase session only; the local ledger in `localStorage` stays
 - Map at sync: TS `IncomeInterval` / `ActivityKind` ↔ DB enums via `cloud-mappers`
 
 ## Path B polish (complete)
-- Record Tribute hotkeys: `N` / `Ctrl+N` / `Cmd+N` via `useTributeHotkeys`
-- Settled pulse + opacity transitions; inline category expand-fade
-- Tribute Engines accessible tooltips; Wisdom floating console aesthetic
+- Add hotkeys: `N` / `Ctrl+N` / `Cmd+N` via `useTributeHotkeys`
+- Paid-state pulse + opacity transitions; inline category expand
+- Income breakdown tooltips; Financial Guidance panel

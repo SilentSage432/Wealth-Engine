@@ -46,15 +46,15 @@ export function AnalyticsHub({
       <Card className="min-w-0 flex-1 animate-fade-up xl:flex-[3]">
         <CardHeader className="px-4 sm:px-6">
           <CardTitle className="font-[family-name:var(--font-display)] text-lg sm:text-xl">
-            Income vs. Pot Allocations
+            Income and allocations
           </CardTitle>
           <CardDescription>
-            Gross tribute streams mapped against the Golden Triad over time
+            Income compared with Wealth Building, Debt Payoff, and the Living Budget
           </CardDescription>
         </CardHeader>
         <CardContent className="h-[240px] px-2 pt-2 sm:h-[280px] sm:px-6 xl:h-[320px]">
           {chartData.length === 0 ? (
-            <EmptyLedger message="Charts populate once the first income stream is logged." />
+            <EmptyLedger message="Charts appear after the first income is added." />
           ) : (
             <ResponsiveContainer width="100%" height="100%">
               <ComposedChart
@@ -97,21 +97,21 @@ export function AnalyticsHub({
                 />
                 <Bar
                   dataKey="wealth"
-                  name="Wealth 10%"
+                  name="Wealth Building 10%"
                   fill="#10b981"
                   radius={[4, 4, 0, 0]}
                   barSize={12}
                 />
                 <Bar
                   dataKey="debt"
-                  name="Debt 20%"
+                  name="Debt Payoff 20%"
                   fill="#f59e0b"
                   radius={[4, 4, 0, 0]}
                   barSize={12}
                 />
                 <Bar
                   dataKey="expenditure"
-                  name="Live 70%"
+                  name="Living Budget 70%"
                   fill="#475569"
                   radius={[4, 4, 0, 0]}
                   barSize={12}
@@ -128,13 +128,13 @@ export function AnalyticsHub({
             This Month&apos;s Expenditures
           </CardTitle>
           <CardDescription>
-            Needs vs. Desires vs. unspent allowance
+            Needs, wants, and what is left in the Living Budget
           </CardDescription>
         </CardHeader>
         <CardContent className="px-4 sm:px-6">
           {donutData.length === 0 ? (
             <div className="h-[240px] sm:h-[280px] xl:h-[320px]">
-              <EmptyLedger message="Expenditure breakdown appears after the first income stream is logged." />
+              <EmptyLedger message="This breakdown appears after the first income is added." />
             </div>
           ) : (
             <>
@@ -176,12 +176,12 @@ export function AnalyticsHub({
                     color: "bg-emerald-500",
                   },
                   {
-                    label: "Desires",
+                    label: "Wants",
                     value: currentMonthDesire,
                     color: "bg-amber-500",
                   },
                   {
-                    label: "Unspent",
+                    label: "Remaining",
                     value: currentMonthRemaining,
                     color: "bg-slate-600",
                   },

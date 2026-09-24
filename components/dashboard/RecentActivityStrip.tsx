@@ -85,14 +85,13 @@ export function RecentActivityStrip({
             Recent Activity
           </CardTitle>
           <CardDescription>
-            Last five ledger mutations — income engines, expenses, and category
-            shifts
+            Last five changes — income, expenses, and categories
           </CardDescription>
         </CardHeader>
         <CardContent className="px-4 pb-4 sm:px-6">
           {events.length === 0 ? (
             <p className="rounded-lg border border-dashed border-slate-800 bg-slate-950/40 px-4 py-8 text-center text-sm text-slate-500">
-              No mutations yet. Record a tribute to begin the activity trail.
+              Nothing here yet. Use Add to record income or an expense.
             </p>
           ) : (
             <ul className="divide-y divide-slate-800/80">

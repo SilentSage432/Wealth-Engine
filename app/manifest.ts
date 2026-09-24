@@ -2,10 +2,10 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Wealth Engine - Babylon Ledger",
+    name: "Wealth Engine",
     short_name: "WealthEngine",
     description:
-      "A premium personal financial command center built on the foundational 10/20/70 Babylon formula.",
+      "A personal ledger that splits income 10% to Wealth Building, 20% to Debt Payoff, and 70% to a Living Budget.",
     start_url: "/",
     display: "standalone",
     orientation: "portrait",

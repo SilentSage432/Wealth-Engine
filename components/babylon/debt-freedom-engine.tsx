@@ -89,10 +89,10 @@ export function DebtFreedomEngine({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-            Debt Elimination Engine
+            Debt Payoff Planner
           </p>
           <h2 className="mt-1 font-[family-name:var(--font-display)] text-2xl text-slate-50">
-            Freedom Date
+            Debt-free date
           </h2>
         </div>
         <div className="flex gap-2">
@@ -128,11 +128,11 @@ export function DebtFreedomEngine({
           </p>
         ) : (
           <p className="font-[family-name:var(--font-display)] text-xl text-amber-300 sm:text-2xl">
-            Increase tribute firepower to unlock a Freedom Date
+            Increase the monthly payment to see a debt-free date
           </p>
         )}
         <p className="mt-2 text-xs text-slate-500">
-          Monthly debt budget {money(monthlyDebtBudget)}
+          Monthly debt payment {money(monthlyDebtBudget)}
           {projection.monthsRemaining != null
             ? ` · ${projection.monthsRemaining} months remaining`
             : ""}
@@ -144,7 +144,7 @@ export function DebtFreedomEngine({
 
       <div className="space-y-2">
         <div className="flex items-center justify-between text-xs text-slate-400">
-          <label htmlFor="extra-tribute">Extra Tribute Simulator</label>
+          <label htmlFor="extra-tribute">Extra monthly payment</label>
           <span className="tabular-nums text-amber-300">
             +{money(extraTribute)}/mo
           </span>
