@@ -51,6 +51,7 @@ export function WealthEngineDashboard() {
     paycheckOpen,
     isCloudSynced,
     setAuthOpen,
+    selectNav,
   } = engine;
 
   const plaid = usePlaidConnections({ enabled: hydrated && isCloudSynced });
@@ -88,11 +89,11 @@ export function WealthEngineDashboard() {
     (value: string) => {
       const tab = value as MobileDeckTab;
       setMobileTab(tab);
-      if (tab === "command") engine.selectNav("overview");
-      if (tab === "ledgers") engine.selectNav("ledgers");
-      if (tab === "analytics") engine.selectNav("overview");
+      if (tab === "command") selectNav("overview");
+      if (tab === "ledgers") selectNav("ledgers");
+      if (tab === "analytics") selectNav("overview");
     },
-    [engine.selectNav]
+    [selectNav]
   );
 
   const handlePresetSelect = useCallback(

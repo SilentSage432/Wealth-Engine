@@ -194,7 +194,7 @@ export function DebtFreedomEngine({
       {velocity.length > 0 && (
         <div className="rounded-lg border border-slate-800/80 bg-slate-950/40 p-3">
           <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-            Net Worth & Debt Velocity
+            Cumulative Closed-Month Allocations
           </p>
           <div className={cn("h-48 w-full", discreet && "opacity-40")}>
             <ResponsiveContainer width="100%" height="100%">
@@ -206,7 +206,7 @@ export function DebtFreedomEngine({
                 <Line
                   type="monotone"
                   dataKey="wealthVelocity"
-                  name="Wealth velocity"
+                  name="Cumulative wealth"
                   stroke="#34d399"
                   strokeWidth={2}
                   dot={false}
@@ -214,7 +214,7 @@ export function DebtFreedomEngine({
                 <Line
                   type="monotone"
                   dataKey="debtVelocity"
-                  name="Debt velocity"
+                  name="Cumulative debt"
                   stroke="#fbbf24"
                   strokeWidth={2}
                   dot={false}

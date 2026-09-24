@@ -233,8 +233,8 @@ export function MonthlyCloseModal({
                 period seal.
               </p>
               <p className="mt-3 text-xs text-slate-500">
-                Snapshot lands in period archives for the Net Worth & Debt
-                Velocity graph.
+                Snapshot lands in period archives for the cumulative
+                allocation chart.
               </p>
             </div>
             {error && (

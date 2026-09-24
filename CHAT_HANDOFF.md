@@ -84,7 +84,11 @@ Legacy expenses without `dueDate` soft-migrate to use `date`. Desire expenses wi
 - **Ledger Matrices** — detailed ledgers under Ledger Matrices nav; settled checkmarks on expenses
 
 ## Known behaviors
-- Recording income runs `allocateIncome()` and optionally `applyDebtAllocation()`.
+- Recording income runs `allocateIncome()` (penny-exact 10/20/70; shares sum to gross) and optionally `applyDebtAllocation()`.
+- Financial "today" is the local calendar day (`todayIso`), not UTC.
+- Primary labor rate is the latest recurring deposit per income source. Repeated paychecks from the same source do not stack into extra wages. `source` is the only way two simultaneous jobs stay separate.
+- Sidebar cloud state reads "Cloud connected" (session present). It does not mean the ledger is fully mirrored.
+- Plaid success means the institution link was saved. Transactions are not imported.
 - Deleting an income reverses its `debtShare` via `reverseDebtAllocation` (remainingDebt clamped ≤ totalDebt).
 - Golden Triad Necessary Expenditures card is **current-month** pool/spend.
 - Unsettled expenses due within 7 days show "Due soon"; legacy expenses without `isSettled` migrate to settled.
@@ -103,6 +107,7 @@ Legacy expenses without `dueDate` soft-migrate to use `date`. Desire expenses wi
 - Auth: sidebar “☁️ Connect Cloud Vault” → `AuthModal` (sign-in / create steward)
 - Hydration: first session with local data + empty cloud → batch upsert incomes / expenses / budget_targets
 - Dual-write: subsequent mutations while `isCloudSynced`
+- Badge copy: "Cloud connected". A session is not a full ledger mirror.
 - Sign out: clears Supabase session only; `localStorage` vault retained
 - Map at sync: TS `IncomeInterval` / `ActivityKind` ↔ DB enums via `cloud-mappers`
 

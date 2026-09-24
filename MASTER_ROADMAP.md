@@ -60,7 +60,7 @@ Relational + client bridge fully wired:
 - Dual-write: `hooks/useBabylonEngine.ts` (income / expense / settled / auto-scale)
 - Hydration: `lib/babylon/cloud-hydrate.ts` — first sign-in migrates local vault when cloud is empty
 - Auth UI: `components/modals/AuthModal.tsx` (sign-in / create steward)
-- Sidebar anchor: Connect Cloud Vault ↔ Synced badge + Sign Out (session only; local cache retained)
+- Sidebar anchor: Connect Cloud Vault ↔ "Cloud connected" (session only; local cache retained; not a full ledger mirror)
 - Mappers: `lib/babylon/cloud-mappers.ts` + `lib/babylon/cloud-sync.ts`
 - Ownership: SQL owns schema; `types/babylon.ts` owns app contracts; sync adapters compose the boundary
 

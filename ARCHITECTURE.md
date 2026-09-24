@@ -139,6 +139,8 @@ This is the heart of Wealth Engine.
 - Tribute engine aggregations rooted in domain classification
 - Babylonian financial rules expressed as pure, testable logic
 
+Allocation shares are penny-exact: wealth + debt + expenditure equals the gross deposit, including when the 20% redirects into wealth. `todayIso` is the user's local calendar day. The labor rate used by Affordability Anchor is the latest recurring deposit per income `source`, not the sum of historical deposits.
+
 **Never owns**
 
 - React rendering

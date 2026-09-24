@@ -1,5 +1,19 @@
 # Development Journal
 
+## 2026-09-24 — WE-LOCK-001 financial truth
+
+### What changed
+- **Local calendar day** — `todayIso` uses local year/month/day. Evening hours west of UTC no longer roll the financial day forward.
+- **Labor rate** — `effectiveHourlyRate` / `primaryHourlyRate` use the latest recurring deposit per trimmed `source`. Historical repeats of the same paycheck no longer multiply the wage. One-time rows do not define or erase that rate.
+- **Penny-exact 10/20/70** — `allocateIncome` rounds in integer cents and assigns any leftover penny to the 70% share so wealth + debt + expenditure equals gross. Debt-free redirect keeps that sum.
+- **Presentation** — sidebar says "Cloud connected"; Plaid success and the banks card describe a connection, not imported transactions; the archive chart is "Cumulative Closed-Month Allocations".
+- **Tests** — `lib/babylon/engine.test.ts` via Vitest (`npm test`, `TZ=America/Denver`).
+
+### Ownership
+- Domain math: `lib/babylon/engine.ts`
+- Copy: `app-sidebar.tsx`, `connected-banks-card.tsx`, `plaid-client.ts`, `debt-freedom-engine.tsx`, `MonthlyCloseModal.tsx`
+- No schema, sync, or Plaid-ingestion changes
+
 ## 2026-08-07 — SecurityGate SSR bypass + forced Plaid mount
 
 ### What changed

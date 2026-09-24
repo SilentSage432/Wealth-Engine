@@ -165,7 +165,7 @@ export function AppSidebar({
                       aria-hidden
                     />
                     <span aria-live="polite">
-                      {cloudHydrating ? "Migrating…" : "Synced"}
+                      {cloudHydrating ? "Migrating…" : "Cloud connected"}
                     </span>
                   </p>
                 </div>

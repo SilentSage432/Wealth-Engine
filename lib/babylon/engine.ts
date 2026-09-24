@@ -44,8 +44,15 @@ export function previousMonthKey(monthKey: string): string {
   return `${y}-${m}`;
 }
 
-export function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
+/**
+ * Local calendar date as YYYY-MM-DD.
+ * Financial "today" follows the user's calendar day, not the UTC day.
+ */
+export function todayIso(now: Date = new Date()): string {
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 export function roundMoney(value: number): number {
@@ -200,8 +207,35 @@ export function monthlyIncomeEquivalent(
 }
 
 /**
- * Aggregate effective hourly rate from recurring income streams.
+ * Current recurring earning rate, grouped by trimmed income `source`.
+ *
+ * One-time rows are ignored. Each remaining source contributes only its
+ * latest dated recurring deposit (the first row wins when dates tie, which
+ * matches the newest-first ledger). That single deposit is converted with
+ * `monthlyIncomeEquivalent`. Repeated history of the same source does not
+ * stack into additional salaries.
+ *
+ * `source` is the only stream identity on IncomeEntry. Two simultaneous
+ * jobs count separately only when their source names differ. A later
+ * one-time deposit under the same name does not replace the recurring rate.
+ */
+function latestRecurringBySource(incomes: IncomeEntry[]): IncomeEntry[] {
+  const chosen = new Map<string, IncomeEntry>();
+  for (const entry of incomes) {
+    if (entry.interval === "one-time") continue;
+    const key = entry.source.trim();
+    const current = chosen.get(key);
+    if (!current || entry.date > current.date) {
+      chosen.set(key, entry);
+    }
+  }
+  return [...chosen.values()];
+}
+
+/**
+ * Hourly rate used to translate spending into labor.
  * Optionally restrict to specific stream kinds (e.g. primary labor only).
+ * See `latestRecurringBySource` for how repeated deposits are collapsed.
  */
 export function effectiveHourlyRate(
   incomes: IncomeEntry[],
@@ -211,7 +245,7 @@ export function effectiveHourlyRate(
     ? incomes.filter((entry) => kinds.includes(entry.kind))
     : incomes;
   const monthly = roundMoney(
-    scoped.reduce(
+    latestRecurringBySource(scoped).reduce(
       (sum, entry) =>
         sum + monthlyIncomeEquivalent(entry.amount, entry.interval),
       0
@@ -271,25 +305,42 @@ export function computeDesiresPoolRemaining(
   return roundMoney(Math.max(0, discretionaryCap - Math.max(0, monthDesireSpend)));
 }
 
+/** Half-up integer division for non-negative numerators. */
+function divRoundHalfUp(numerator: number, denominator: number): number {
+  return Math.floor((numerator + Math.floor(denominator / 2)) / denominator);
+}
+
+/**
+ * Split gross into 10/20/70 at cent precision.
+ * Nominal shares are half-up rounded in integer cents. Any leftover penny
+ * is applied to the 70% expenditure share so the three shares sum to gross.
+ * With no active debt, the 20% cents move into wealth and the sum is unchanged.
+ */
 export function allocateIncome(
   gross: number,
   hasActiveDebt: boolean
 ): AllocationSplit {
-  const wealthBase = roundMoney(gross * WEALTH_RATE);
-  const debtBase = roundMoney(gross * DEBT_RATE);
-  const expenditureShare = roundMoney(gross * EXPENDITURE_RATE);
+  const grossCents = Math.round(roundMoney(gross) * 100);
+  const wealthBps = Math.round(WEALTH_RATE * 100);
+  const debtBps = Math.round(DEBT_RATE * 100);
+  const expenditureBps = Math.round(EXPENDITURE_RATE * 100);
+  const wealthCents = divRoundHalfUp(grossCents * wealthBps, 100);
+  const debtCents = divRoundHalfUp(grossCents * debtBps, 100);
+  let expenditureCents = divRoundHalfUp(grossCents * expenditureBps, 100);
+  expenditureCents += grossCents - (wealthCents + debtCents + expenditureCents);
 
+  const expenditureShare = roundMoney(expenditureCents / 100);
   if (hasActiveDebt) {
     return {
-      wealthShare: wealthBase,
-      debtShare: debtBase,
+      wealthShare: roundMoney(wealthCents / 100),
+      debtShare: roundMoney(debtCents / 100),
       expenditureShare,
       debtRedirected: false,
     };
   }
 
   return {
-    wealthShare: roundMoney(wealthBase + debtBase),
+    wealthShare: roundMoney((wealthCents + debtCents) / 100),
     debtShare: 0,
     expenditureShare,
     debtRedirected: true,

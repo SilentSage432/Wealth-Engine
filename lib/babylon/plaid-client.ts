@@ -117,7 +117,7 @@ export async function startPlaidLinkExchange(
   if (item) {
     emitVaultToast({
       tone: "success",
-      message: `${item.institutionName} linked. Your vault is up to date.`,
+      message: `${item.institutionName} connected. No transactions imported.`,
     });
   }
   return item;

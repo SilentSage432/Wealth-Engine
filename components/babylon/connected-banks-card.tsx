@@ -19,10 +19,10 @@ interface ConnectedBanksCardProps {
 }
 
 function statusCopy(count: number, isCloudSynced: boolean): string {
-  if (!isCloudSynced) return "Sign in to sync bank connections.";
+  if (!isCloudSynced) return "Sign in to connect a bank.";
   if (count <= 0) return "No accounts linked yet";
-  if (count === 1) return "1 Bank Account Synced";
-  return `${count} Bank Accounts Synced`;
+  if (count === 1) return "1 bank connected";
+  return `${count} banks connected`;
 }
 
 /**
