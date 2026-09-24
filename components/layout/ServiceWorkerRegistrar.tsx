@@ -18,7 +18,7 @@ export function ServiceWorkerRegistrar() {
     }
 
     window.navigator.serviceWorker
-      .register("/sw.js")
+      .register("/sw.js", { updateViaCache: "none" })
       .then((reg) => {
         console.log("PWA Service Worker registered safely:", reg.scope);
       })

@@ -1,5 +1,18 @@
 # Development Journal
 
+## 2026-09-24 — WE-RELIABILITY-001 deployment-safe shell
+
+### What changed
+- **Navigation** — `public/sw.js` fetches the HTML document from the network (`cache: "no-store"`) and stores that response only as an offline fallback. A cached `/` can no longer win while the network is up, so it cannot point at `/_next/static` hashes from a previous build.
+- **Scope** — `/api/*`, `/sw.js`, non-GET, and cross-origin requests are not handled by the worker. Hashed `/_next/static/*` files may be cache-first.
+- **Lifecycle** — live cache is `babylon-engine-v2`. Activate deletes every other cache, including `babylon-engine-v1`, then claims clients and reloads open windows once. Install does not precache `/`. Registration uses `updateViaCache: "none"` and still skips localhost.
+
+### Ownership
+- Worker: `public/sw.js`
+- Policy tests: `lib/babylon/sw-policy.ts`
+- Registration: `components/layout/ServiceWorkerRegistrar.tsx`
+- Ledger, PIN, WebAuthn, Supabase, and Plaid are unchanged
+
 ## 2026-09-24 — WE-LOCK-001 financial truth
 
 ### What changed

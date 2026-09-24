@@ -185,6 +185,7 @@ Persistence preserves identity and history. Domain defines meaning; Persistence 
 - Supabase (Auth, Postgres access via browser client)
 - TanStack Query (server-state cache defaults via `app/providers.tsx`)
 - Browser storage for local vault and auth session persistence
+- Production service worker (`public/sw.js`): document navigations are network-first, with the last successful document kept only as an offline fallback. Cache `babylon-engine-v2` replaces older shell caches on activate. `/api/*` and cross-origin calls are not cached. The worker does not touch the local ledger.
 - Networking and environment-gated client configuration (`lib/supabase/client.ts`, `lib/supabase/auth.ts`)
 
 Infrastructure enables sessions, caching, and connectivity. It does not define Babylonian wealth laws, ledger semantics, or educational philosophy.
