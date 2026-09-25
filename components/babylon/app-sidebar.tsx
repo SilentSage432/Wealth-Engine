@@ -26,6 +26,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { NAV_ITEMS } from "@/lib/babylon/constants";
+import {
+  BOOTSTRAP_CONFIRM,
+  cloudSetupCopy,
+  HYDRATE_CONFIRM,
+  type CloudSetupAction,
+} from "@/lib/babylon/cloud-setup";
 import { cn } from "@/lib/utils";
 import type { NavSection } from "@/types/babylon";
 
@@ -38,10 +44,13 @@ interface AppSidebarProps {
   onImportBackup: (raw: unknown) => string | null;
   onClearAllData: () => void;
   isCloudSynced: boolean;
-  cloudHydrating?: boolean;
+  cloudSetup: CloudSetupAction;
+  cloudBusy?: boolean;
   cloudUsername: string;
   onConnectCloud: () => void;
   onSignOutCloud: () => void | Promise<boolean>;
+  onBootstrapCloud: () => void | Promise<void>;
+  onHydrateCloud: () => void | Promise<void>;
 }
 
 export function AppSidebar({
@@ -53,10 +62,13 @@ export function AppSidebar({
   onImportBackup,
   onClearAllData,
   isCloudSynced,
-  cloudHydrating = false,
+  cloudSetup,
+  cloudBusy = false,
   cloudUsername,
   onConnectCloud,
   onSignOutCloud,
+  onBootstrapCloud,
+  onHydrateCloud,
 }: AppSidebarProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importStatus, setImportStatus] = useState<string | null>(null);
@@ -151,28 +163,77 @@ export function AppSidebar({
         <div className="rounded-lg border border-slate-800/80 bg-slate-950/60 p-3">
           {isCloudSynced ? (
             <div className="space-y-2.5">
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-slate-100">
-                    {cloudUsername}
-                  </p>
-                  <p className="mt-0.5 flex items-center gap-1.5 text-[11px] text-emerald-400">
-                    <span
-                      className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400"
-                      aria-hidden
-                    />
-                    <span aria-live="polite">
-                      {cloudHydrating ? "Migrating…" : "Cloud connected"}
-                    </span>
-                  </p>
-                </div>
-                {cloudHydrating && (
-                  <Loader2
-                    className="mt-0.5 h-3.5 w-3.5 shrink-0 animate-spin text-emerald-400"
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium text-slate-100">
+                  {cloudUsername}
+                </p>
+                <p className="mt-0.5 flex items-center gap-1.5 text-[11px] text-emerald-400">
+                  <span
+                    className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400"
                     aria-hidden
                   />
+                  <span aria-live="polite">{cloudSetupCopy(cloudSetup).title}</span>
+                </p>
+                {cloudSetupCopy(cloudSetup).detail && (
+                  <p className="mt-1 text-[11px] leading-snug text-slate-400">
+                    {cloudSetupCopy(cloudSetup).detail}
+                  </p>
                 )}
               </div>
+              {cloudSetup.kind === "offer_bootstrap" && (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={cloudBusy}
+                      className="h-8 w-full justify-center border-emerald-900/50 bg-emerald-500/5 text-xs text-emerald-300 hover:bg-emerald-500/10 hover:text-emerald-200"
+                    >
+                      Use this device to initialize cloud state
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Initialize the cloud vault?</AlertDialogTitle>
+                      <AlertDialogDescription>{BOOTSTRAP_CONFIRM}</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => void onBootstrapCloud()}>
+                        Initialize cloud vault
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
+              {cloudSetup.kind === "offer_hydrate" && (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={cloudBusy}
+                      className="h-8 w-full justify-center border-emerald-900/50 bg-emerald-500/5 text-xs text-emerald-300 hover:bg-emerald-500/10 hover:text-emerald-200"
+                    >
+                      Load my Wealth Engine from cloud
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Load the cloud vault?</AlertDialogTitle>
+                      <AlertDialogDescription>{HYDRATE_CONFIRM}</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => void onHydrateCloud()}>
+                        Load cloud vault
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
               <Button
                 type="button"
                 variant="outline"

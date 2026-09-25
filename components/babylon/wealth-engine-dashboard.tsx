@@ -257,10 +257,13 @@ export function WealthEngineDashboard() {
           onImportBackup={engine.importBackup}
           onClearAllData={engine.clearAllData}
           isCloudSynced={engine.isCloudSynced}
-          cloudHydrating={engine.cloudHydrating}
+          cloudSetup={engine.cloudSetup}
+          cloudBusy={engine.cloudBusy}
           cloudUsername={engine.greetingName}
           onConnectCloud={() => engine.setAuthOpen(true)}
           onSignOutCloud={engine.signOutCloud}
+          onBootstrapCloud={engine.confirmCloudBootstrap}
+          onHydrateCloud={engine.confirmCloudHydrate}
         />
 
         <div className="min-w-0 lg:pl-72">

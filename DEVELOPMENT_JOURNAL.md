@@ -1,5 +1,25 @@
 # Development Journal
 
+## 2026-09-25 — WE-SYNC-003 desktop bootstrap and empty-device hydration
+
+### What changed
+- Income, one-time expenses, paid toggles, and budget auto-scale no longer write the old relational tables. `lib/babylon/cloud-sync.ts` is gone. The unused row mappers are gone too. `isUuid` remains.
+- A signed-in device can classify local data, the cloud vault, and the local owner key. It does not upload or download by itself.
+- The only upload is an explicit “Use this device to initialize cloud state” when this device has a financial vault, the cloud vault is absent, and the owner key is unset or already this account. Success requires a revision 1 read-back that matches, and only then is the owner key saved.
+- An empty device can explicitly load a valid cloud vault. A device that already has financial data is not replaced and is not uploaded.
+- A different owner key blocks both directions. A newer or unreadable cloud vault blocks both directions and is not treated as empty.
+- After a link, the sidebar shows the cloud revision and says new entries stay on this device. Later edits are not uploaded yet.
+
+### Ownership
+- Classification, verification, bootstrap, and hydration: `lib/babylon/cloud-setup.ts`
+- Session and button handlers: `hooks/useBabylonEngine.ts`
+- Sidebar copy: `components/babylon/app-sidebar.tsx`
+
+### Not in this tranche
+- No continuous sync, no merge, and no phone-replace action.
+- The Supabase migration was not applied. The desktop was not pointed at the new project.
+- Backup export stays version 5. Financial formulas are unchanged.
+
 ## 2026-09-25 — WE-SYNC-002 cloud vault foundation
 
 ### What changed

@@ -172,9 +172,9 @@ Nothing else reimplements these rules. If a surface needs a financial fact, it c
 
 - Local vault persistence (`lib/babylon/persistence.ts`)
 - Cloud relational schema (`supabase/migrations/*`)
-- Cloud ↔ domain mapping (`lib/babylon/cloud-mappers.ts`)
-- Cloud mutation primitives for the older relational rows (`lib/babylon/cloud-sync.ts`)
+- Supabase user-id check (`lib/babylon/cloud-mappers.ts`)
 - Versioned per-user vault (`lib/babylon/cloud-vault.ts`, `supabase/migrations/20260925_wealth_engine_vault.sql`)
+- Explicit bootstrap and empty-device hydration (`lib/babylon/cloud-setup.ts`)
 - Typed database contracts (`lib/supabase/database.types.ts`)
 
 **Never owns**
@@ -254,9 +254,9 @@ Canonical ownership reference for Wealth Engine:
 | Interaction composition (e.g. hotkeys) | `hooks/useTributeHotkeys.ts` (composed by dashboard) | Application |
 | Local vault read/write | `lib/babylon/persistence.ts` | Persistence |
 | Cloud relational schema | `supabase/migrations/*` | Persistence |
-| Cloud ↔ domain mappers | `lib/babylon/cloud-mappers.ts` | Persistence |
-| Cloud mutation primitives | `lib/babylon/cloud-sync.ts` | Persistence |
+| Supabase id check | `lib/babylon/cloud-mappers.ts` | Persistence |
 | Versioned cloud vault | `lib/babylon/cloud-vault.ts` | Persistence |
+| Explicit cloud setup | `lib/babylon/cloud-setup.ts` | Application |
 | Cloud owner binding | `lib/babylon/cloud-owner.ts` | Persistence |
 | Typed DB contract | `lib/supabase/database.types.ts` | Persistence |
 | Supabase browser client | `lib/supabase/client.ts` | Infrastructure |

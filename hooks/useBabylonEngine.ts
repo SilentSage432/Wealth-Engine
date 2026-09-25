@@ -1,6 +1,5 @@
 "use client";
 
-import { useMutation } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   BABYLON_WISDOM,
@@ -8,11 +7,14 @@ import {
   GREETING_NAME_FALLBACK,
 } from "@/lib/babylon/constants";
 import {
-  cloudUpdateExpenseSettled,
-  cloudUpsertBudgetTargets,
-  cloudUpsertExpense,
-  cloudUpsertIncome,
-} from "@/lib/babylon/cloud-sync";
+  bootstrapCurrentDesktop,
+  decideCloudSetup,
+  hydrateCurrentDevice,
+  probeCloudVault,
+  type CloudProbe,
+} from "@/lib/babylon/cloud-setup";
+import { readCloudOwnerId } from "@/lib/babylon/cloud-owner";
+import { emitVaultToast } from "@/lib/babylon/vault-toast";
 import {
   allocateIncome,
   actualSpendTotals,
@@ -100,10 +102,6 @@ import type {
 
 const ACTIVITY_LOG_LIMIT = 40;
 
-function logCloudSyncFailure(operation: string, error: unknown) {
-  console.error(`[cloud-sync] ${operation} failed — local vault retained.`, error);
-}
-
 export function useBabylonEngine() {
   const [hydrated, setHydrated] = useState(false);
   const [incomes, setIncomes] = useState<IncomeEntry[]>([]);
@@ -132,8 +130,12 @@ export function useBabylonEngine() {
   const [cloudUserId, setCloudUserId] = useState<string | null>(null);
   const cloudUserIdRef = useRef<string | null>(null);
   const [authOpen, setAuthOpen] = useState(false);
-  /** Sign-in does not migrate the ledger. This stays false until a later explicit sync. */
-  const cloudHydrating = false;
+  const [cloudProbe, setCloudProbe] = useState<CloudProbe>({ status: "idle" });
+  const [cloudBusy, setCloudBusy] = useState(false);
+  const cloudBusyRef = useRef(false);
+  const [ownerEpoch, setOwnerEpoch] = useState(0);
+  const [ownerUserId, setOwnerUserId] = useState<string | null>(null);
+  const [ownerReady, setOwnerReady] = useState(false);
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeNav, setActiveNav] = useState<NavSection>("overview");
@@ -156,63 +158,6 @@ export function useBabylonEngine() {
   const currentMonthKey = useMemo(
     () => monthKeyFromDate(financialToday),
     [financialToday]
-  );
-
-  const { mutate: mutateUpsertIncome } = useMutation({
-    mutationFn: ({
-      userId,
-      entry,
-    }: {
-      userId: string;
-      entry: IncomeEntry;
-    }) => cloudUpsertIncome(userId, entry),
-    onError: (error) => logCloudSyncFailure("upsertIncome", error),
-  });
-
-  const { mutate: mutateUpsertExpense } = useMutation({
-    mutationFn: ({
-      userId,
-      entry,
-    }: {
-      userId: string;
-      entry: ExpenseEntry;
-    }) => cloudUpsertExpense(userId, entry),
-    onError: (error) => logCloudSyncFailure("upsertExpense", error),
-  });
-
-  const { mutate: mutateUpdateExpenseSettled } = useMutation({
-    mutationFn: ({
-      userId,
-      expenseId,
-      isSettled,
-    }: {
-      userId: string;
-      expenseId: string;
-      isSettled: boolean;
-    }) => cloudUpdateExpenseSettled(userId, expenseId, isSettled),
-    onError: (error) => logCloudSyncFailure("updateExpenseSettled", error),
-  });
-
-  const { mutate: mutateUpsertBudgetTargets } = useMutation({
-    mutationFn: ({
-      userId,
-      targets,
-      monthKey,
-    }: {
-      userId: string;
-      targets: BudgetTarget[];
-      monthKey: string;
-    }) => cloudUpsertBudgetTargets(userId, targets, monthKey),
-    onError: (error) => logCloudSyncFailure("upsertBudgetTargets", error),
-  });
-
-  const queueCloudWrite = useCallback(
-    (write: (userId: string) => void) => {
-      const userId = cloudUserIdRef.current;
-      if (!userId) return;
-      write(userId);
-    },
-    []
   );
 
   const pushActivity = useCallback(
@@ -348,6 +293,149 @@ export function useBabylonEngine() {
     openingEmergencyFund,
     recurringObligations,
   ]);
+
+  const vaultSnapshot = useMemo<PersistedState>(
+    () => ({
+      incomes,
+      expenses,
+      debts,
+      allocations,
+      budgetTargets,
+      accounts,
+      displayName: username,
+      activityLog,
+      emergencyShield,
+      periodArchives,
+      lastClosedMonthKey,
+      expenseSemanticsVersion,
+      openingWealthBuilding,
+      openingEmergencyFund,
+      recurringObligations,
+    }),
+    [
+      incomes,
+      expenses,
+      debts,
+      allocations,
+      budgetTargets,
+      accounts,
+      username,
+      activityLog,
+      emergencyShield,
+      periodArchives,
+      lastClosedMonthKey,
+      expenseSemanticsVersion,
+      openingWealthBuilding,
+      openingEmergencyFund,
+      recurringObligations,
+    ]
+  );
+  const vaultRef = useRef(vaultSnapshot);
+  vaultRef.current = vaultSnapshot;
+
+  useEffect(() => {
+    setOwnerUserId(readCloudOwnerId());
+    setOwnerReady(true);
+  }, [ownerEpoch]);
+
+  useEffect(() => {
+    if (!hydrated || !cloudUserId || !ownerReady) {
+      if (!hydrated || !cloudUserId) setCloudProbe({ status: "idle" });
+      return;
+    }
+    let cancelled = false;
+    setCloudProbe({ status: "loading" });
+    void probeCloudVault(cloudUserId).then((result) => {
+      if (!cancelled) setCloudProbe({ status: "ready", result });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [hydrated, cloudUserId, ownerEpoch, ownerReady]);
+
+  const cloudSetup = useMemo(
+    () =>
+      decideCloudSetup({
+        sessionUserId: cloudUserId,
+        local: vaultSnapshot,
+        ownerUserId,
+        probe: ownerReady ? cloudProbe : { status: "idle" },
+      }),
+    [cloudUserId, vaultSnapshot, cloudProbe, ownerUserId, ownerReady]
+  );
+
+  const applyVault = useCallback((next: PersistedState) => {
+    savePersistedState(next);
+    saveUsername(next.displayName);
+    setIncomes(next.incomes);
+    setExpenses(next.expenses);
+    setDebts(next.debts);
+    setAllocations(next.allocations);
+    setBudgetTargets(next.budgetTargets);
+    setAccounts(next.accounts);
+    setActivityLog(next.activityLog);
+    setEmergencyShield(next.emergencyShield);
+    setPeriodArchives(next.periodArchives);
+    setLastClosedMonthKey(next.lastClosedMonthKey);
+    setExpenseSemanticsVersion(next.expenseSemanticsVersion);
+    setOpeningWealthBuilding(next.openingWealthBuilding);
+    setOpeningEmergencyFund(next.openingEmergencyFund);
+    setRecurringObligations(next.recurringObligations);
+    setUsernameState(next.displayName);
+  }, []);
+
+  const confirmCloudBootstrap = useCallback(async () => {
+    const userId = cloudUserIdRef.current;
+    if (!userId || cloudBusyRef.current) return;
+    cloudBusyRef.current = true;
+    setCloudBusy(true);
+    try {
+      const result = await bootstrapCurrentDesktop(vaultRef.current, userId);
+      if (!result.ok) {
+        emitVaultToast({ tone: "error", message: result.reason, durationMs: 0 });
+        setCloudProbe({ status: "loading" });
+        setOwnerEpoch((value) => value + 1);
+        return;
+      }
+      setOwnerUserId(userId);
+      setCloudProbe({ status: "loading" });
+      setOwnerEpoch((value) => value + 1);
+      emitVaultToast({
+        tone: "success",
+        message: "Cloud vault revision 1 is ready. This device was not replaced.",
+      });
+    } finally {
+      cloudBusyRef.current = false;
+      setCloudBusy(false);
+    }
+  }, []);
+
+  const confirmCloudHydrate = useCallback(async () => {
+    const userId = cloudUserIdRef.current;
+    if (!userId || cloudBusyRef.current) return;
+    cloudBusyRef.current = true;
+    setCloudBusy(true);
+    try {
+      const result = await hydrateCurrentDevice(vaultRef.current, userId);
+      if (!result.ok) {
+        emitVaultToast({ tone: "error", message: result.reason, durationMs: 0 });
+        setCloudProbe({ status: "loading" });
+        setOwnerEpoch((value) => value + 1);
+        return;
+      }
+      applyVault(result.state);
+      setOwnerUserId(userId);
+      setCloudProbe({ status: "loading" });
+      setOwnerEpoch((value) => value + 1);
+      emitVaultToast({
+        tone: "success",
+        message: `Cloud vault revision ${result.revision} is on this device.`,
+      });
+    } finally {
+      cloudBusyRef.current = false;
+      setCloudBusy(false);
+    }
+  }, [applyVault]);
 
   const setUsername = useCallback((value: string) => {
     setUsernameState(value);
@@ -745,14 +833,10 @@ export function useBabylonEngine() {
         streamKind: entry.kind,
       });
 
-      queueCloudWrite((userId) => {
-        mutateUpsertIncome({ userId, entry });
-      });
-
       setTributeOpen(false);
       return true;
     },
-    [hasActiveDebt, pushActivity, queueCloudWrite, mutateUpsertIncome]
+    [hasActiveDebt, pushActivity]
   );
 
   /** Stage income for Paycheck Auto-Splitter review before vault commit. */
@@ -859,14 +943,10 @@ export function useBabylonEngine() {
         amount: entry.amount,
       });
 
-      queueCloudWrite((userId) => {
-        mutateUpsertExpense({ userId, entry });
-      });
-
       setTributeOpen(false);
       return true;
     },
-    [budgetTargets, pushActivity, queueCloudWrite, mutateUpsertExpense]
+    [budgetTargets, pushActivity]
   );
 
   const addDebt = useCallback((input: DebtInput): boolean => {
@@ -1028,7 +1108,6 @@ export function useBabylonEngine() {
       let nextSettled: boolean | null = null;
       let name = "";
       let amount = 0;
-      let generated = false;
       const paymentDate = todayIso();
 
       setExpenses((prev) => {
@@ -1037,7 +1116,6 @@ export function useBabylonEngine() {
         nextSettled = !target.isSettled;
         name = target.name;
         amount = target.amount;
-        generated = Boolean(target.recurringObligationId);
         return prev.map((e) => {
           if (e.id !== id) return e;
           return nextSettled ? markExpensePaid(e, paymentDate) : { ...e, isSettled: false };
@@ -1051,20 +1129,9 @@ export function useBabylonEngine() {
           subtitle: nextSettled ? "Expense marked paid" : "Reopened as upcoming",
           amount,
         });
-
-        const settled = nextSettled;
-        if (!generated) {
-          queueCloudWrite((userId) => {
-            mutateUpdateExpenseSettled({
-              userId,
-              expenseId: id,
-              isSettled: settled,
-            });
-          });
-        }
       }
     },
-    [pushActivity, queueCloudWrite, mutateUpdateExpenseSettled]
+    [pushActivity]
   );
 
   const autoScaleBudgetCaps = useCallback((): boolean => {
@@ -1083,22 +1150,12 @@ export function useBabylonEngine() {
       amount: currentMonthExpenditurePool,
     });
 
-    queueCloudWrite((userId) => {
-      mutateUpsertBudgetTargets({
-        userId,
-        targets: scaled,
-        monthKey: currentMonthKey,
-      });
-    });
-
     return true;
   }, [
     budgetTargets,
     currentMonthExpenditurePool,
     currentMonthKey,
     pushActivity,
-    queueCloudWrite,
-    mutateUpsertBudgetTargets,
   ]);
 
   const closeMonth = useCallback(
@@ -1292,29 +1349,13 @@ export function useBabylonEngine() {
       recurringObligations: backup.recurringObligations ?? [],
     };
 
-    savePersistedState(next);
-    saveUsername(backup.displayName);
-    setIncomes(next.incomes);
-    setExpenses(next.expenses);
-    setDebts(next.debts);
-    setAllocations(next.allocations);
-    setBudgetTargets(next.budgetTargets);
-    setAccounts(next.accounts);
-    setActivityLog(next.activityLog);
-    setEmergencyShield(next.emergencyShield);
-    setPeriodArchives(next.periodArchives);
-    setLastClosedMonthKey(next.lastClosedMonthKey);
-    setExpenseSemanticsVersion(EXPENSE_SEMANTICS_VERSION);
-    setOpeningWealthBuilding(next.openingWealthBuilding);
-    setOpeningEmergencyFund(next.openingEmergencyFund);
-    setRecurringObligations(next.recurringObligations);
-    setUsernameState(backup.displayName);
+    applyVault(next);
     setTributeOpen(false);
     setTributeMode("income");
     setMonthlyCloseOpen(false);
     setActiveNav("overview");
     return null;
-  }, []);
+  }, [applyVault]);
 
   const addAccount = useCallback((input: FinancialAccountInput): boolean => {
     const account = normalizeAccountDraft(input, generateId());
@@ -1448,10 +1489,13 @@ export function useBabylonEngine() {
 
   return {
     hydrated,
-    /** True when a verified Supabase session is active (cloud dual-write armed). */
+    /** True when a Supabase session is present. This is not vault synchronization. */
     isCloudSynced: cloudUserId !== null,
     cloudUserId,
-    cloudHydrating,
+    cloudSetup,
+    cloudBusy,
+    confirmCloudBootstrap,
+    confirmCloudHydrate,
     authOpen,
     setAuthOpen,
     handleAuthenticated,

@@ -284,6 +284,8 @@ describe("cloud vault foundation", () => {
     expect(hook).not.toContain("getCloudVault");
     expect(hook).not.toContain("bindCloudOwnerId");
     expect(hook).not.toContain("upsertStewardProfile");
+    expect(hook).not.toContain("cloudUpsert");
+    expect(hook).not.toContain("queueCloudWrite");
     expect(hook).not.toContain("income_entries");
     expect(hook).not.toContain("expense_entries");
     expect(hook).not.toContain("budget_targets");
