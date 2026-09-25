@@ -39,6 +39,7 @@ import {
   formatAsOfLabel,
 } from "@/lib/babylon/financial-position";
 import { formatCurrency } from "@/lib/utils";
+import type { AvailableAfterPlannedNeeds } from "@/lib/babylon/available-after-planned-needs";
 import type {
   FinancialAccount,
   FinancialAccountInput,
@@ -52,6 +53,8 @@ interface FinancialPositionProps {
   openingEmergencyFund: number;
   protectedMoney: number;
   protectedOverAvailable: boolean;
+  upcomingNeeds: number;
+  availableAfterPlannedNeeds: AvailableAfterPlannedNeeds;
   discreet?: boolean;
   onAddAccount: (input: FinancialAccountInput) => boolean;
   onUpdateAccount: (id: string, input: FinancialAccountInput) => boolean;
@@ -74,6 +77,8 @@ export function FinancialPosition({
   openingEmergencyFund,
   protectedMoney,
   protectedOverAvailable,
+  upcomingNeeds,
+  availableAfterPlannedNeeds,
   discreet = false,
   onAddAccount,
   onUpdateAccount,
@@ -220,6 +225,54 @@ export function FinancialPosition({
                 Update your protected amounts or Financial Position.
               </p>
             ) : null}
+          </div>
+
+          <div className="rounded-lg border border-slate-800/80 px-3 py-3 sm:px-4">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+              Available After Planned Needs
+            </p>
+            <p className="mt-1 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight text-slate-50 tabular-nums sm:text-4xl">
+              {money(availableAfterPlannedNeeds.availableAfterPlannedNeeds)}
+            </p>
+            <dl className="mt-3 space-y-1 text-xs text-slate-400">
+              <div className="flex items-baseline justify-between gap-3">
+                <dt>Money Available</dt>
+                <dd className="tabular-nums text-slate-200">
+                  {money(moneyAvailable)}
+                </dd>
+              </div>
+              <div className="flex items-baseline justify-between gap-3">
+                <dt>Protected Money</dt>
+                <dd className="tabular-nums text-slate-200">
+                  −{money(protectedMoney)}
+                </dd>
+              </div>
+              <div className="flex items-baseline justify-between gap-3">
+                <dt>Upcoming Needs</dt>
+                <dd className="tabular-nums text-slate-200">
+                  −{money(upcomingNeeds)}
+                </dd>
+              </div>
+            </dl>
+            {availableAfterPlannedNeeds.plannedNeedsShortfall > 0 ? (
+              <p className="mt-3 text-xs leading-relaxed text-amber-200">
+                Planned Needs Shortfall{" "}
+                <span className="tabular-nums">
+                  {money(availableAfterPlannedNeeds.plannedNeedsShortfall)}
+                </span>
+                . {money(availableAfterPlannedNeeds.plannedNeedsShortfall)} short
+                of covering protected money and known Upcoming Needs.
+              </p>
+            ) : null}
+            <p className="mt-3 text-xs leading-relaxed text-slate-500">
+              This counts every known unpaid Need. It does not subtract Wants,
+              your Living Budget, or allocations from past income. It is not a
+              promise that the remainder is safe to spend.
+            </p>
+            <p className="mt-1 text-xs leading-relaxed text-slate-500">
+              Financial Position is manual. After money leaves your accounts,
+              update your account balances to keep this figure current.
+            </p>
           </div>
 
           {accounts.length === 0 ? (

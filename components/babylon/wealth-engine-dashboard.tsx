@@ -142,6 +142,8 @@ export function WealthEngineDashboard() {
       openingEmergencyFund={engine.openingEmergencyFund}
       protectedMoney={engine.protectedMoney}
       protectedOverAvailable={engine.protectedOverAvailable}
+      upcomingNeeds={engine.upcomingNeeds}
+      availableAfterPlannedNeeds={engine.availableAfterPlannedNeeds}
       discreet={discreet}
       onAddAccount={engine.addAccount}
       onUpdateAccount={engine.updateAccount}

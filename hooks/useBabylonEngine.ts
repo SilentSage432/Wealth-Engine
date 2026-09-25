@@ -56,6 +56,7 @@ import {
   totalProtectedMoney,
   totalWealthBuilding,
 } from "@/lib/babylon/protected-money";
+import { deriveAvailableAfterPlannedNeeds } from "@/lib/babylon/available-after-planned-needs";
 import {
   buildRecurringObligation,
   comingUpObligations,
@@ -574,6 +575,16 @@ export function useBabylonEngine() {
   const upcomingNeeds = useMemo(
     () => upcomingNeedsTotal(expenses),
     [expenses]
+  );
+
+  const availableAfterPlannedNeeds = useMemo(
+    () =>
+      deriveAvailableAfterPlannedNeeds({
+        moneyAvailable,
+        protectedMoney,
+        upcomingNeeds,
+      }),
+    [moneyAvailable, protectedMoney, upcomingNeeds]
   );
 
   const comingUp = useMemo(() => comingUpObligations(expenses), [expenses]);
@@ -1581,6 +1592,7 @@ export function useBabylonEngine() {
     currentMonthDesire,
     currentMonthRemaining,
     upcomingNeeds,
+    availableAfterPlannedNeeds,
     comingUp,
     recurringObligations,
     desiresPoolRemaining,

@@ -33,6 +33,7 @@ export const BABYLON_WISDOM: readonly string[] = [
   "Set aside part of every paycheck for Wealth Building before you spend.",
   "Use Debt Payoff on purpose. When the debt is gone, that 20% moves to Wealth Building.",
   "The Living Budget is what you can spend this month. It is not your bank balance.",
+  "Available After Planned Needs is current money after what you set aside and known unpaid Needs. It is not your Living Budget.",
   "Mark spending as a Need or a Want so the Living Budget stays clear.",
   "An Emergency Fund holds money you already set aside, plus surplus from a closed month. It is separate from Wealth Building.",
   "Earning more gives the same 10/20/70 split more to work with.",

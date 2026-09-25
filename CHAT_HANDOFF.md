@@ -86,10 +86,11 @@ Legacy expenses without `dueDate` soft-migrate to use `date`. Want expenses (`ca
 - **Tracked Emergency Fund** — `emergencyShield`, from month-close surplus only. The month-close balance adds the existing designation to this
 - **Upcoming obligation** — an expense that is not yet paid (`isSettled: false`)
 - **Actual spending** — a paid expense. Living Budget remaining subtracts only this
-- **Upcoming Needs** — sum of every unpaid Need. It is not limited to this month or the next seven days, and it is not subtracted from Money Available
+- **Upcoming Needs** — sum of every unpaid Need, including recurring occurrences already on the ledger and any unpaid Need dated further out. It is not limited to this month or the next seven days, and it is not subtracted from Money Available
+- **Available After Planned Needs** — Money Available minus Protected Money minus Upcoming Needs, floored at zero. Planned Needs Shortfall is the amount by which those two claims exceed Money Available. It is derived and not saved. It does not subtract Living Budget Remaining, tracked Wealth Building, tracked Emergency Fund contributions, Upcoming Wants, or paid expenses. Recurring rules are not subtracted; their generated unpaid Need rows are. Future paychecks are not included. It is not a promise that the remainder is safe to spend
 - **Recurring obligation** — a monthly rule. It is not spending and it is not added to Upcoming Needs
 - **Occurrence** — one month's Upcoming expense generated from that rule. It becomes spending only when marked paid
-- Overview places Financial Position (Money Available and Protected Money), then Upcoming Needs, then the Living Budget. Coming up, under Upcoming Needs, lists the next unpaid bills, including Wants. Month close does not settle unpaid expenses, change account balances, clear protected designations, or pay recurring bills
+- Overview places Financial Position, including Available After Planned Needs, then Upcoming Needs, then the Living Budget. Coming up, under Upcoming Needs, lists the next unpaid bills, including Wants. The derived figure uses the full Upcoming Needs total, not that preview. Month close does not settle unpaid expenses, change account balances, clear protected designations, or pay recurring bills
 - An expected payday is not received income. Recurrence does not create income or run 10/20/70
 - A future Sindarin forecast is external context. It may disagree with a Wealth Engine bill. The user confirms any change. Sindarin is not integrated
 
@@ -99,6 +100,7 @@ Legacy expenses without `dueDate` soft-migrate to use `date`. Want expenses (`ca
 - `recentActivity` — last 5 `activityLog` events
 - `monthlyCloseSummary` — closing-month income/spend/10/20/70 rollup
 - `emergencyShield` — tracked Emergency Fund from a monthly-close surplus choice. The represented total also includes `openingEmergencyFund`
+- `availableAfterPlannedNeeds` — derived in the session from Money Available, Protected Money, and Upcoming Needs. Not persisted
 
 ## Overview utilities
 - **Affordability Anchor** — money left for wants + main-income hours

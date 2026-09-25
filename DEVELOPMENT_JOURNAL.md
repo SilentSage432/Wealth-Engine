@@ -1,5 +1,24 @@
 # Development Journal
 
+## 2026-09-24 — WE-BUDGET-006 available after planned needs
+
+### What changed
+- Available After Planned Needs is Money Available minus Protected Money minus Upcoming Needs, floored at zero.
+- When that difference is negative, the headline stays $0 and Planned Needs Shortfall shows the gap.
+- The number is derived whenever those three inputs change. It is not saved, and it does not create activity.
+- It does not subtract Living Budget Remaining, tracked Wealth Building, tracked Emergency Fund contributions, Upcoming Wants, paid expenses, or recurring rules.
+- Paying a bill removes it from Upcoming Needs and does not change account balances. The figure asks the user to update Financial Position when money leaves an account.
+
+### Ownership
+- Formula: `lib/babylon/available-after-planned-needs.ts`
+- Composition: `hooks/useBabylonEngine.ts`
+- Presentation: `components/babylon/financial-position.tsx`
+
+### Distinction
+- Living Budget Remaining is tracked 70% capacity after settled spending.
+- Available After Planned Needs is current observed money after current protection and known unpaid Needs.
+- A future payday is not included. This is not a promise that the remainder is safe to spend.
+
 ## 2026-09-24 — WE-BUDGET-005 monthly recurring obligations
 
 ### What changed
