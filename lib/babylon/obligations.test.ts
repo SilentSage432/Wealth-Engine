@@ -154,11 +154,26 @@ describe("upcoming backup semantics", () => {
     return { ...EMPTY_STATE, expenses: [row] };
   }
 
-  it("keeps version 3 upcoming rows unpaid", () => {
+  it("keeps upcoming rows unpaid on the current backup", () => {
     const backup = buildLedgerBackup(stateWith(upcoming));
-    expect(backup.version).toBe(3);
+    expect(backup.version).toBe(4);
     const restored = validateLedgerBackup(backup);
     expect(restored?.expenses[0]?.isSettled).toBe(false);
+  });
+
+  it("imports a version 3 upcoming expense as unpaid", () => {
+    const restored = validateLedgerBackup({
+      version: 3,
+      exportedAt: "2026-09-24T00:00:00.000Z",
+      incomes: [],
+      expenses: [upcoming],
+      debts: [],
+      displayName: "",
+      accounts: [],
+    });
+    expect(restored?.expenses[0]?.isSettled).toBe(false);
+    expect(restored?.openingWealthBuilding).toBe(0);
+    expect(restored?.openingEmergencyFund).toBe(0);
   });
 
   it("imports a version 2 unsettled expense as paid", () => {

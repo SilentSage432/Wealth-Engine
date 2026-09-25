@@ -145,7 +145,9 @@ Allocation shares are penny-exact: wealth + debt + expenditure equals the gross 
 
 Financial Position (`lib/babylon/financial-position.ts`) is separate from that split. A manual account balance is money that already exists. Money Available is the rounded sum of those balances. It is not income, not Living Budget, and not safe-to-spend. Saving a balance does not call `allocateIncome`. Paying an expense does not change account balances.
 
-Actual spending is settled expenses only (`actualSpendTotals`, `buildBudgetVariances`). An unsettled expense is an upcoming obligation. Upcoming Needs sums every unpaid Need. Living Budget remaining is the 70% pool minus settled spending. Those figures are not subtracted from Money Available.
+Existing protected money (`lib/babylon/protected-money.ts`) is a designation inside that Money Available. Existing Wealth Building and Existing Emergency Fund say how much of the current balances is already set aside. Protected Money is their sum. It is included in Money Available. It is not extra money, and entering it does not change Money Available. The user-facing Wealth Building total adds tracked allocation wealth. The user-facing Emergency Fund total adds tracked month-close surplus. Historical allocations are not treated as cash still in the accounts. A designation that exceeds Money Available cannot be saved. If balances later fall below a stored designation, the amounts stay and the conflict is shown.
+
+Actual spending is settled expenses only (`actualSpendTotals`, `buildBudgetVariances`). An unsettled expense is an upcoming obligation. Upcoming Needs sums every unpaid Need. Living Budget remaining is the 70% pool minus settled spending. Those figures are not subtracted from Money Available, and protected designations do not change them.
 
 **Never owns**
 
@@ -226,6 +228,7 @@ Canonical ownership reference for Wealth Engine:
 |--------|--------|--------|
 | Allocation math | `lib/babylon/engine.ts` | Domain |
 | Financial Position | `lib/babylon/financial-position.ts` (`sumAccountBalances`); local `accounts[]` via `lib/babylon/persistence.ts` | Domain / Persistence |
+| Existing protected money | `lib/babylon/protected-money.ts`; local `openingWealthBuilding` and `openingEmergencyFund` via `lib/babylon/persistence.ts` | Domain / Persistence |
 | Budget variance math | `lib/babylon/engine.ts` (`buildBudgetVariances`, `scaleBudgetCapsToPool`) | Domain |
 | Affordability and income-type totals | `lib/babylon/engine.ts` | Domain |
 | Type contracts | `types/babylon.ts` | Domain |

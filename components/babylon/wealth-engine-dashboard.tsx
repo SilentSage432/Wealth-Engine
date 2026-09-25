@@ -138,10 +138,15 @@ export function WealthEngineDashboard() {
     <FinancialPosition
       accounts={engine.accounts}
       moneyAvailable={engine.moneyAvailable}
+      openingWealthBuilding={engine.openingWealthBuilding}
+      openingEmergencyFund={engine.openingEmergencyFund}
+      protectedMoney={engine.protectedMoney}
+      protectedOverAvailable={engine.protectedOverAvailable}
       discreet={discreet}
       onAddAccount={engine.addAccount}
       onUpdateAccount={engine.updateAccount}
       onRemoveAccount={engine.removeAccount}
+      onUpdateProtected={engine.updateProtectedDesignations}
       onEditorOpenChange={setAccountEditorOpen}
     />
   );
@@ -156,6 +161,8 @@ export function WealthEngineDashboard() {
   const triad = (
     <GoldenTriad
       goldRetained={engine.goldRetained}
+      wealthBuildingTotal={engine.wealthBuildingTotal}
+      openingWealthBuilding={engine.openingWealthBuilding}
       wealthSpark={engine.wealthSpark}
       clearedDebt={engine.clearedDebt}
       originalDebt={engine.originalDebt}
@@ -464,6 +471,8 @@ export function WealthEngineDashboard() {
           summary={engine.monthlyCloseSummary}
           hasActiveDebt={engine.hasActiveDebt}
           emergencyShield={engine.emergencyShield}
+          emergencyFundTotal={engine.emergencyFundTotal}
+          openingEmergencyFund={engine.openingEmergencyFund}
           discreet={discreet}
           onOpenChange={engine.setMonthlyCloseOpen}
           onCloseMonth={engine.closeMonth}

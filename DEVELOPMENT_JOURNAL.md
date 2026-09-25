@@ -1,5 +1,28 @@
 # Development Journal
 
+## 2026-09-24 — WE-BUDGET-004 existing protected money
+
+### What changed
+- Existing Wealth Building and Existing Emergency Fund are amounts of current Money Available already designated before Wealth Engine tracked them. They default to 0. They are not income, allocation events, expenses, or accounts.
+- Protected Money is those two existing amounts. It does not include historical allocation totals or tracked month-close surplus.
+- The Wealth Building card total is the existing designation plus tracked allocation wealth. Allocation charts stay tracked-only.
+- The Emergency Fund balance shown at month close is the existing designation plus tracked surplus. Closing a month still adds surplus only to the tracked reservoir.
+- A new designation that exceeds Money Available is rejected and left unchanged. If accounts are later reduced below a stored designation, the amounts stay and Financial Position explains the conflict.
+- A full local reset clears the designations. Month close, expenses, and deleting income do not.
+- Backups are version 4. Versions 1–3 import the designations as 0. Version 4 keeps them. Versions 3 and 4 keep upcoming expenses unpaid.
+
+### Ownership
+- Designation totals and the fit check: `lib/babylon/protected-money.ts`
+- Local vault and backup version 4: `lib/babylon/persistence.ts`
+- Edit and conflict warning: `components/babylon/financial-position.tsx`
+- Saved fields and displayed totals: `hooks/useBabylonEngine.ts`
+
+### Distinction
+- Protected Money is included inside Money Available. It is not extra money, and it is not subtracted from Money Available.
+- Historical Wealth Building allocations are not treated as cash still sitting in the accounts.
+- Living Budget and Upcoming Needs are unchanged.
+- This is not safe-to-spend. It is not cloud-backed, and it is not inferred from an account type.
+
 ## 2026-09-24 — WE-BUDGET-003 paid vs upcoming
 
 ### What changed

@@ -48,10 +48,15 @@ import type {
 interface FinancialPositionProps {
   accounts: FinancialAccount[];
   moneyAvailable: number;
+  openingWealthBuilding: number;
+  openingEmergencyFund: number;
+  protectedMoney: number;
+  protectedOverAvailable: boolean;
   discreet?: boolean;
   onAddAccount: (input: FinancialAccountInput) => boolean;
   onUpdateAccount: (id: string, input: FinancialAccountInput) => boolean;
   onRemoveAccount: (id: string) => void;
+  onUpdateProtected: (wealth: number, emergency: number) => string | null;
   onEditorOpenChange?: (open: boolean) => void;
 }
 
@@ -65,10 +70,15 @@ const EMPTY_DRAFT = {
 export function FinancialPosition({
   accounts,
   moneyAvailable,
+  openingWealthBuilding,
+  openingEmergencyFund,
+  protectedMoney,
+  protectedOverAvailable,
   discreet = false,
   onAddAccount,
   onUpdateAccount,
   onRemoveAccount,
+  onUpdateProtected,
   onEditorOpenChange,
 }: FinancialPositionProps) {
   const money = (value: number) =>
@@ -81,10 +91,16 @@ export function FinancialPosition({
   const [pendingRemove, setPendingRemove] = useState<FinancialAccount | null>(
     null
   );
+  const [protectedOpen, setProtectedOpen] = useState(false);
+  const [wealthDraft, setWealthDraft] = useState("");
+  const [emergencyDraft, setEmergencyDraft] = useState("");
+  const [protectedError, setProtectedError] = useState<string | null>(null);
 
   useEffect(() => {
-    onEditorOpenChange?.(editorOpen || pendingRemove !== null);
-  }, [editorOpen, pendingRemove, onEditorOpenChange]);
+    onEditorOpenChange?.(
+      editorOpen || pendingRemove !== null || protectedOpen
+    );
+  }, [editorOpen, pendingRemove, protectedOpen, onEditorOpenChange]);
 
   const openAdd = () => {
     setEditingId(null);
@@ -128,6 +144,27 @@ export function FinancialPosition({
     closeEditor();
   };
 
+  const openProtected = () => {
+    setWealthDraft(String(openingWealthBuilding));
+    setEmergencyDraft(String(openingEmergencyFund));
+    setProtectedError(null);
+    setProtectedOpen(true);
+  };
+
+  const handleProtectedSubmit = (event: FormEvent) => {
+    event.preventDefault();
+    const error = onUpdateProtected(
+      Number.parseFloat(wealthDraft),
+      Number.parseFloat(emergencyDraft)
+    );
+    if (error) {
+      setProtectedError(error);
+      return;
+    }
+    setProtectedOpen(false);
+    setProtectedError(null);
+  };
+
   return (
     <section aria-label="Financial Position" className="animate-fade-up">
       <Card className="border-slate-800/80">
@@ -153,6 +190,36 @@ export function FinancialPosition({
               <Plus className="h-3.5 w-3.5" aria-hidden="true" />
               Add Account
             </Button>
+          </div>
+
+          <div className="rounded-lg border border-slate-800/80 px-3 py-3 sm:px-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                  Protected Money
+                </p>
+                <p className="mt-1 font-[family-name:var(--font-display)] text-xl font-semibold tabular-nums text-slate-100">
+                  {money(protectedMoney)}
+                </p>
+              </div>
+              <Button type="button" size="sm" variant="outline" onClick={openProtected}>
+                Edit
+              </Button>
+            </div>
+            <p className="mt-2 text-xs leading-relaxed text-slate-400">
+              Existing Wealth Building {money(openingWealthBuilding)} · Existing
+              Emergency Fund {money(openingEmergencyFund)}
+            </p>
+            <p className="mt-1 text-xs leading-relaxed text-slate-500">
+              These amounts are already included in your account balances. They
+              are not additional money.
+            </p>
+            {protectedOverAvailable ? (
+              <p role="alert" className="mt-2 text-xs leading-relaxed text-amber-200">
+                Protected designations exceed your current Money Available.
+                Update your protected amounts or Financial Position.
+              </p>
+            ) : null}
           </div>
 
           {accounts.length === 0 ? (
@@ -204,6 +271,69 @@ export function FinancialPosition({
           )}
         </CardContent>
       </Card>
+
+      <Dialog
+        open={protectedOpen}
+        onOpenChange={(open) => {
+          setProtectedOpen(open);
+          if (!open) setProtectedError(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <form onSubmit={handleProtectedSubmit} className="space-y-4">
+            <DialogHeader>
+              <DialogTitle>Already Set Aside</DialogTitle>
+              <DialogDescription>
+                Money already designated for Wealth Building or the Emergency
+                Fund before Wealth Engine tracked it. These amounts are already
+                included in your account balances. They are not additional
+                money.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-2">
+              <Label htmlFor="existing-wealth">Existing Wealth Building</Label>
+              <Input
+                id="existing-wealth"
+                type="number"
+                min="0"
+                step="0.01"
+                inputMode="decimal"
+                value={wealthDraft}
+                onChange={(event) => setWealthDraft(event.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="existing-emergency">Existing Emergency Fund</Label>
+              <Input
+                id="existing-emergency"
+                type="number"
+                min="0"
+                step="0.01"
+                inputMode="decimal"
+                value={emergencyDraft}
+                onChange={(event) => setEmergencyDraft(event.target.value)}
+                required
+              />
+            </div>
+            {protectedError ? (
+              <p role="alert" className="text-xs leading-relaxed text-amber-200">
+                {protectedError}
+              </p>
+            ) : null}
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setProtectedOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit">Save</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <Dialog
         open={editorOpen}

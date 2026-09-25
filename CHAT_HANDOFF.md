@@ -48,8 +48,9 @@ Persisted in `localStorage` (`wealth-engine-babylon-v2`) as:
 - `allocations[]` — historical events for charts (includes synthetic period-close rows)
 - `budgetTargets[]` — planned caps inside the Living Budget (starts empty)
 - `accounts[]` — manual Financial Position (checking / savings / cash, balance, local `asOf`). Missing on older vaults; loads as `[]`. Never inferred from income or spending. Not cloud-backed.
+- `openingWealthBuilding` / `openingEmergencyFund` — existing designations inside current Money Available. Missing on older vaults; loads as `0`. Not income, not allocation events, and not cloud-backed.
 - `activityLog[]` — mutation feed for Recent Activity (newest first, capped)
-- `emergencyShield` — reservoir from Monthly Close surplus
+- `emergencyShield` — tracked Emergency Fund from Monthly Close surplus only
 - `periodArchives[]` — sealed month snapshots
 - `lastClosedMonthKey` — YYYY-MM of the last sealed period (or null)
 - `displayName` — mirrored into vault for backup compatibility; canonical UI preference is `babylon_username`
@@ -59,6 +60,7 @@ Legacy expenses without `dueDate` soft-migrate to use `date`. Want expenses (`ca
 
 ## Mutations (hook exports)
 - `addAccount` / `updateAccount` / `removeAccount` — Financial Position only. Never calls `addIncome`, `proposeIncomeSplit`, or `allocateIncome`
+- `updateProtectedDesignations` — sets Existing Wealth Building and Existing Emergency Fund when their sum fits inside Money Available. Does not change balances, income, allocations, or the activity log
 - `addIncome` — ID + 10/20/70 allocation (+ debt waterfall when active); appends activity log
 - `addExpense` — Need/Want, due date, category, and Already Paid (`isSettled: true`) or Upcoming (`isSettled: false`)
 - `addDebt` — ID + creditor tracking with mandatory monthly allocation
@@ -67,26 +69,29 @@ Legacy expenses without `dueDate` soft-migrate to use `date`. Want expenses (`ca
 - `deleteBudgetTarget(id, reassignToId?)` — remove bucket; reassign or uncategorize orphans
 - `toggleExpenseSettled(id)` — same row. Paying sets the transaction date to the local day and does not copy the due date. Reopening leaves that date unchanged
 - `autoScaleBudgetCaps()` — proportionally fit planned caps to `currentMonthExpenditurePool`
-- `closeMonth(disposition)` — archive period, dispose 70% surplus, seal `lastClosedMonthKey`. Does not mark unpaid expenses paid
-- `clearAllData` — wipe vault + reset workspace
-- `exportBackup` / `importBackup` — versioned vault including activity log, shield, period archives, and accounts. New exports are version 3. Version 1 imports with an empty account list. Versions 1 and 2 import unsettled expenses as paid. Version 3 keeps upcoming rows unpaid. Older builds reject version 3.
+- `closeMonth(disposition)` — archive period, dispose 70% surplus, seal `lastClosedMonthKey`. Does not mark unpaid expenses paid and does not change existing protected designations
+- `clearAllData` — wipe vault + reset workspace, including existing protected designations
+- `exportBackup` / `importBackup` — versioned vault including activity log, shield, period archives, accounts, and existing protected designations. New exports are version 4. Version 1 imports with an empty account list. Versions 1 and 2 import unsettled expenses as paid. Versions 3 and 4 keep upcoming rows unpaid. Versions 1–3 import protected designations as 0. A version 4 file missing those amounts is rejected. Older builds reject version 4.
 
 ## Financial Position vs allocation
 - **Financial Position** — manually entered current account balances
 - **Income** — newly received money that enters the 10/20/70 Allocation Engine
 - **Living Budget** — the 70% allocation produced from new income
-- **Money Available** — sum of current manual account balances. It is not safe-to-spend, not Living Budget remaining, and not net worth. Paying an expense does not change it
+- **Money Available** — sum of current manual account balances. It is not safe-to-spend, not Living Budget remaining, and not net worth. Paying an expense does not change it. Existing protected designations are included in it and do not change it
+- **Protected Money** — Existing Wealth Building plus Existing Emergency Fund. This is the portion of current Money Available the user has designated. It is not extra money, and it does not include historical allocations
+- **Tracked Wealth Building** — sum of recorded allocation wealth. The Wealth Building card adds the existing designation to this. Allocation charts stay tracked-only
+- **Tracked Emergency Fund** — `emergencyShield`, from month-close surplus only. The month-close balance adds the existing designation to this
 - **Upcoming obligation** — an expense that is not yet paid (`isSettled: false`)
 - **Actual spending** — a paid expense. Living Budget remaining subtracts only this
 - **Upcoming Needs** — sum of every unpaid Need. It is not limited to this month or the next seven days, and it is not subtracted from Money Available
-- Overview places Financial Position, then Upcoming Needs, then the Living Budget. Month close does not settle unpaid expenses or change account balances
+- Overview places Financial Position (Money Available and Protected Money), then Upcoming Needs, then the Living Budget. Month close does not settle unpaid expenses, change account balances, or clear protected designations
 
 ## Derived budget metrics
 - `budgetVariances` / `budgetPlannedTotal` / `budgetActualTotal`
 - Over-plan banner when planned total exceeds `currentMonthExpenditurePool`
 - `recentActivity` — last 5 `activityLog` events
 - `monthlyCloseSummary` — closing-month income/spend/10/20/70 rollup
-- `emergencyShield` — Emergency Fund balance from a monthly-close surplus choice
+- `emergencyShield` — tracked Emergency Fund from a monthly-close surplus choice. The represented total also includes `openingEmergencyFund`
 
 ## Overview utilities
 - **Affordability Anchor** — money left for wants + main-income hours

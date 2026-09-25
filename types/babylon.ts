@@ -211,6 +211,16 @@ export interface PersistedState {
    * rows were already counted as spent and must be migrated to paid once.
    */
   expenseSemanticsVersion: number;
+  /**
+   * Portion of current Money Available already designated for Wealth Building
+   * before tracked allocations. Not income and not an allocation event.
+   */
+  openingWealthBuilding: number;
+  /**
+   * Portion of current Money Available already designated for the Emergency Fund
+   * before tracked month-close surplus. Not an extra balance.
+   */
+  openingEmergencyFund: number;
 }
 
 export interface ChartMonthPoint {
@@ -257,10 +267,11 @@ export interface ExpenseInput {
  * Version 1 predates Financial Position and has no accounts.
  * Version 2 includes `accounts`. Unsettled expenses in versions 1 and 2 were
  * counted as spent, so import marks them paid.
- * Version 3 keeps Upcoming (`isSettled: false`) as unpaid. Older builds reject
- * version 3 instead of treating those rows as spent.
+ * Version 3 keeps Upcoming (`isSettled: false`) as unpaid.
+ * Version 4 also stores existing Wealth Building and Emergency Fund
+ * designations. Older builds reject version 4 instead of dropping them.
  */
-export type LedgerBackupVersion = 1 | 2 | 3;
+export type LedgerBackupVersion = 1 | 2 | 3 | 4;
 
 export interface LedgerBackup {
   version: LedgerBackupVersion;
@@ -275,8 +286,12 @@ export interface LedgerBackup {
   emergencyShield?: number;
   periodArchives?: PeriodArchive[];
   lastClosedMonthKey?: string | null;
-  /** Present on versions 2 and 3. Version 1 imports as an empty list. */
+  /** Present on versions 2, 3, and 4. Version 1 imports as an empty list. */
   accounts?: FinancialAccount[];
+  /** Present on version 4. Earlier versions import as zero. */
+  openingWealthBuilding?: number;
+  /** Present on version 4. Earlier versions import as zero. */
+  openingEmergencyFund?: number;
 }
 
 export interface AffordabilitySnapshot {

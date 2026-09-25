@@ -50,6 +50,13 @@ import {
   withoutAccount,
 } from "@/lib/babylon/financial-position";
 import {
+  protectedDesignationError,
+  protectedExceedsAvailable,
+  totalEmergencyFund,
+  totalProtectedMoney,
+  totalWealthBuilding,
+} from "@/lib/babylon/protected-money";
+import {
   buildLedgerBackup,
   clearPersistedState,
   clearUsername,
@@ -108,6 +115,8 @@ export function useBabylonEngine() {
   const [expenseSemanticsVersion, setExpenseSemanticsVersion] = useState<number>(
     EXPENSE_SEMANTICS_VERSION
   );
+  const [openingWealthBuilding, setOpeningWealthBuilding] = useState(0);
+  const [openingEmergencyFund, setOpeningEmergencyFund] = useState(0);
   /** Profile name input value — may be empty; greeting uses a visual fallback. */
   const [username, setUsernameState] = useState("");
   /** Auth user id when a verified Supabase session is present; null = local-only. */
@@ -248,6 +257,8 @@ export function useBabylonEngine() {
     setPeriodArchives(stored.periodArchives);
     setLastClosedMonthKey(stored.lastClosedMonthKey);
     setExpenseSemanticsVersion(stored.expenseSemanticsVersion);
+    setOpeningWealthBuilding(stored.openingWealthBuilding);
+    setOpeningEmergencyFund(stored.openingEmergencyFund);
     setUsernameState(loadUsername(stored.displayName));
     try {
       setIsDiscreetMode(
@@ -375,6 +386,8 @@ export function useBabylonEngine() {
       periodArchives,
       lastClosedMonthKey,
       expenseSemanticsVersion,
+      openingWealthBuilding,
+      openingEmergencyFund,
     };
     savePersistedState(payload);
   }, [
@@ -391,6 +404,8 @@ export function useBabylonEngine() {
     periodArchives,
     lastClosedMonthKey,
     expenseSemanticsVersion,
+    openingWealthBuilding,
+    openingEmergencyFund,
   ]);
 
   const setUsername = useCallback((value: string) => {
@@ -489,6 +504,27 @@ export function useBabylonEngine() {
   const moneyAvailable = useMemo(
     () => sumAccountBalances(accounts),
     [accounts]
+  );
+
+  const protectedMoney = useMemo(
+    () => totalProtectedMoney(openingWealthBuilding, openingEmergencyFund),
+    [openingWealthBuilding, openingEmergencyFund]
+  );
+
+  const wealthBuildingTotal = useMemo(
+    () => totalWealthBuilding(openingWealthBuilding, goldRetained),
+    [openingWealthBuilding, goldRetained]
+  );
+
+  const emergencyFundTotal = useMemo(
+    () => totalEmergencyFund(openingEmergencyFund, emergencyShield),
+    [openingEmergencyFund, emergencyShield]
+  );
+
+  const protectedOverAvailable = protectedExceedsAvailable(
+    openingWealthBuilding,
+    openingEmergencyFund,
+    moneyAvailable
   );
 
   const lifetimeActual = useMemo(
@@ -1178,6 +1214,8 @@ export function useBabylonEngine() {
     setPeriodArchives([]);
     setLastClosedMonthKey(null);
     setExpenseSemanticsVersion(EXPENSE_SEMANTICS_VERSION);
+    setOpeningWealthBuilding(0);
+    setOpeningEmergencyFund(0);
     setUsernameState("");
     setTributeOpen(false);
     setTributeMode("income");
@@ -1200,6 +1238,8 @@ export function useBabylonEngine() {
       periodArchives,
       lastClosedMonthKey,
       expenseSemanticsVersion,
+      openingWealthBuilding,
+      openingEmergencyFund,
     });
     const blob = new Blob([JSON.stringify(backup, null, 2)], {
       type: "application/json",
@@ -1226,6 +1266,8 @@ export function useBabylonEngine() {
     periodArchives,
     lastClosedMonthKey,
     expenseSemanticsVersion,
+    openingWealthBuilding,
+    openingEmergencyFund,
   ]);
 
   const importBackup = useCallback((raw: unknown): string | null => {
@@ -1247,6 +1289,8 @@ export function useBabylonEngine() {
       periodArchives: backup.periodArchives ?? [],
       lastClosedMonthKey: backup.lastClosedMonthKey ?? null,
       expenseSemanticsVersion: EXPENSE_SEMANTICS_VERSION,
+      openingWealthBuilding: backup.openingWealthBuilding ?? 0,
+      openingEmergencyFund: backup.openingEmergencyFund ?? 0,
     };
 
     savePersistedState(next);
@@ -1262,6 +1306,8 @@ export function useBabylonEngine() {
     setPeriodArchives(next.periodArchives);
     setLastClosedMonthKey(next.lastClosedMonthKey);
     setExpenseSemanticsVersion(EXPENSE_SEMANTICS_VERSION);
+    setOpeningWealthBuilding(next.openingWealthBuilding);
+    setOpeningEmergencyFund(next.openingEmergencyFund);
     setUsernameState(backup.displayName);
     setTributeOpen(false);
     setTributeMode("income");
@@ -1291,6 +1337,21 @@ export function useBabylonEngine() {
   const removeAccount = useCallback((id: string) => {
     setAccounts((prev) => withoutAccount(prev, id));
   }, []);
+
+  const updateProtectedDesignations = useCallback(
+    (wealth: number, emergency: number): string | null => {
+      const error = protectedDesignationError(
+        wealth,
+        emergency,
+        moneyAvailable
+      );
+      if (error) return error;
+      setOpeningWealthBuilding(roundMoney(wealth));
+      setOpeningEmergencyFund(roundMoney(emergency));
+      return null;
+    },
+    [moneyAvailable]
+  );
 
   const deleteIncome = useCallback((id: string) => {
     setIncomes((prev) => {
@@ -1369,6 +1430,12 @@ export function useBabylonEngine() {
     toggleDiscreetMode,
     hasActiveDebt,
     goldRetained,
+    openingWealthBuilding,
+    openingEmergencyFund,
+    protectedMoney,
+    wealthBuildingTotal,
+    emergencyFundTotal,
+    protectedOverAvailable,
     debtAllocated,
     expenditurePool,
     totalSpent,
@@ -1407,6 +1474,7 @@ export function useBabylonEngine() {
     addAccount,
     updateAccount,
     removeAccount,
+    updateProtectedDesignations,
     addIncome,
     addExpense,
     addDebt,

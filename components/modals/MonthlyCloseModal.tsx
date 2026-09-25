@@ -19,6 +19,8 @@ interface MonthlyCloseModalProps {
   summary: MonthlyCloseSummary;
   hasActiveDebt: boolean;
   emergencyShield: number;
+  emergencyFundTotal: number;
+  openingEmergencyFund: number;
   discreet?: boolean;
   onOpenChange: (open: boolean) => void;
   onCloseMonth: (disposition: SurplusDisposition) => boolean;
@@ -73,6 +75,8 @@ export function MonthlyCloseModal({
   summary,
   hasActiveDebt,
   emergencyShield,
+  emergencyFundTotal,
+  openingEmergencyFund,
   discreet = false,
   onOpenChange,
   onCloseMonth,
@@ -169,9 +173,15 @@ export function MonthlyCloseModal({
               <p className="mt-1 text-xs text-slate-500">
                 Emergency Fund balance:{" "}
                 <span className="tabular-nums text-slate-300">
-                  {money(emergencyShield)}
+                  {money(emergencyFundTotal)}
                 </span>
               </p>
+              {openingEmergencyFund > 0 ? (
+                <p className="mt-1 text-xs text-slate-500">
+                  Existing {money(openingEmergencyFund)} · From month close{" "}
+                  {money(emergencyShield)}
+                </p>
+              ) : null}
             </div>
             {summary.alreadyClosed && (
               <p className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">

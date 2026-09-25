@@ -25,6 +25,8 @@ import type { ExpenditureBarTone, SparkPoint } from "@/types/babylon";
 
 interface GoldenTriadProps {
   goldRetained: number;
+  wealthBuildingTotal: number;
+  openingWealthBuilding: number;
   wealthSpark: SparkPoint[];
   clearedDebt: number;
   originalDebt: number;
@@ -42,6 +44,8 @@ interface GoldenTriadProps {
 
 export function GoldenTriad({
   goldRetained,
+  wealthBuildingTotal,
+  openingWealthBuilding,
   wealthSpark,
   clearedDebt,
   originalDebt,
@@ -70,11 +74,13 @@ export function GoldenTriad({
             <CardDescription className="flex items-center gap-1.5 text-emerald-400/80">
               <PiggyBank className="h-3.5 w-3.5 shrink-0" />
               <span className="truncate text-[10px] sm:text-xs">
-                Wealth Building · 10%
+                {openingWealthBuilding > 0
+                  ? "Wealth Building"
+                  : "Wealth Building · 10%"}
               </span>
             </CardDescription>
             <CardTitle className="mt-1.5 font-[family-name:var(--font-display)] text-xl font-semibold tracking-tight text-emerald-300 sm:mt-2 sm:text-2xl md:text-3xl">
-              {money(goldRetained)}
+              {money(wealthBuildingTotal)}
             </CardTitle>
           </div>
           <div className="hidden rounded-lg bg-emerald-500/10 p-2 text-emerald-400 transition-transform duration-300 group-hover:scale-110 sm:block">
@@ -84,7 +90,9 @@ export function GoldenTriad({
         <CardContent className="flex items-end justify-between gap-2 p-3 pt-0 sm:gap-3 sm:p-6 sm:pt-0">
           <div className="min-w-0">
             <p className="text-[10px] text-slate-500 sm:text-xs">
-              Set aside for wealth building
+              {openingWealthBuilding > 0
+                ? `Existing ${money(openingWealthBuilding)} · Tracked ${money(goldRetained)}`
+                : "Set aside for wealth building"}
             </p>
             <p className="mt-1 hidden items-center gap-1 text-xs text-emerald-400 sm:inline-flex">
               <ArrowUpRight className="h-3 w-3" />

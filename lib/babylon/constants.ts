@@ -34,10 +34,10 @@ export const BABYLON_WISDOM: readonly string[] = [
   "Use Debt Payoff on purpose. When the debt is gone, that 20% moves to Wealth Building.",
   "The Living Budget is what you can spend this month. It is not your bank balance.",
   "Mark spending as a Need or a Want so the Living Budget stays clear.",
-  "An Emergency Fund is surplus you set aside for surprises, separate from Wealth Building.",
+  "An Emergency Fund holds money you already set aside, plus surplus from a closed month. It is separate from Wealth Building.",
   "Earning more gives the same 10/20/70 split more to work with.",
   "Wants fit inside the Living Budget. They are a problem when they crowd out Needs.",
-  "Wealth Building is an amount this ledger allocates. It is not a bank balance Wealth Engine can see.",
+  "Wealth Building includes money you already set aside plus what this ledger allocates from income. It is not a separate bank balance.",
   "Close each month and review what you set aside, paid down, and spent.",
 ];
 
@@ -99,4 +99,6 @@ export const EMPTY_STATE: PersistedState = {
   lastClosedMonthKey: null,
   /** New vaults already use Upcoming semantics. Legacy vaults migrate on load. */
   expenseSemanticsVersion: 2,
+  openingWealthBuilding: 0,
+  openingEmergencyFund: 0,
 };

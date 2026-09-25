@@ -27,11 +27,16 @@ import type {
   SurplusDisposition,
 } from "@/types/babylon";
 
-/** Current export version. Version 1 has no accounts. Version 2 has accounts but unsettled expenses still meant spent. Version 3 keeps Upcoming unpaid. */
-export const LEDGER_BACKUP_VERSION = 3 as const;
+/** Current export version. Version 4 adds existing protected designations. */
+export const LEDGER_BACKUP_VERSION = 4 as const;
 
 /** Local vault marker. 2 means `isSettled: false` is an Upcoming obligation. */
 export const EXPENSE_SEMANTICS_VERSION = 2 as const;
+
+function nonNegativeMoney(value: unknown): number | null {
+  if (!isFiniteNumber(value) || value < 0) return null;
+  return roundMoney(value);
+}
 
 function settleLegacyExpenses(expenses: ExpenseEntry[]): ExpenseEntry[] {
   return expenses.map((expense) =>
@@ -417,6 +422,9 @@ export function normalizePersistedState(raw: unknown): PersistedState {
       ? raw.lastClosedMonthKey
       : null;
 
+  const openingWealthBuilding = nonNegativeMoney(raw.openingWealthBuilding) ?? 0;
+  const openingEmergencyFund = nonNegativeMoney(raw.openingEmergencyFund) ?? 0;
+
   return {
     incomes,
     expenses,
@@ -430,6 +438,8 @@ export function normalizePersistedState(raw: unknown): PersistedState {
     periodArchives,
     lastClosedMonthKey,
     expenseSemanticsVersion: EXPENSE_SEMANTICS_VERSION,
+    openingWealthBuilding,
+    openingEmergencyFund,
   };
 }
 
@@ -440,7 +450,14 @@ export function normalizePersistedState(raw: unknown): PersistedState {
 export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
   if (!isRecord(raw)) return null;
 
-  if (raw.version !== 1 && raw.version !== 2 && raw.version !== 3) return null;
+  if (
+    raw.version !== 1 &&
+    raw.version !== 2 &&
+    raw.version !== 3 &&
+    raw.version !== 4
+  ) {
+    return null;
+  }
   if (typeof raw.exportedAt !== "string" || !raw.exportedAt.trim()) return null;
 
   const incomes = parseArray(raw.incomes, parseIncomeEntry);
@@ -449,9 +466,12 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
   if (!incomes || !expenses || !debts) return null;
 
   // Versions 1 and 2 counted unsettled rows as spent. Mark them paid on import
-  // so a later save under version 3 does not turn old spending into Upcoming.
+  // so a later save does not turn old spending into Upcoming. Versions 3 and 4
+  // keep Upcoming unpaid.
   const settledExpenses =
-    raw.version === 3 ? expenses : settleLegacyExpenses(expenses);
+    raw.version === 3 || raw.version === 4
+      ? expenses
+      : settleLegacyExpenses(expenses);
 
   // Allocations optional for older hand-crafted files; default empty.
   let allocations: AllocationEvent[] = [];
@@ -506,14 +526,27 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
     typeof raw.displayName === "string" ? raw.displayName : "";
 
   // Version 1 has no account contract. Ignore any stray `accounts` field so a
-  // version-1 file cannot smuggle balances. Versions 2 and 3 require a valid list;
-  // one bad row rejects the whole backup.
+  // version-1 file cannot smuggle balances. Versions 2, 3, and 4 require a valid
+  // list; one bad row rejects the whole backup.
   let accounts: FinancialAccount[] = [];
-  if (raw.version === 2 || raw.version === 3) {
+  if (raw.version === 2 || raw.version === 3 || raw.version === 4) {
     if (raw.accounts === undefined) return null;
     const parsed = parseArray(raw.accounts, parseFinancialAccount);
     if (!parsed) return null;
     accounts = parsed;
+  }
+
+  // Versions 1–3 have no protected-designation contract. Force zero even if
+  // stray fields are present. Version 4 must include both amounts; a missing
+  // field rejects the backup instead of silently dropping a designation.
+  let openingWealthBuilding = 0;
+  let openingEmergencyFund = 0;
+  if (raw.version === 4) {
+    const wealth = nonNegativeMoney(raw.openingWealthBuilding);
+    const emergency = nonNegativeMoney(raw.openingEmergencyFund);
+    if (wealth === null || emergency === null) return null;
+    openingWealthBuilding = wealth;
+    openingEmergencyFund = emergency;
   }
 
   return {
@@ -530,6 +563,8 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
     periodArchives,
     lastClosedMonthKey,
     accounts,
+    openingWealthBuilding,
+    openingEmergencyFund,
   };
 }
 
@@ -548,6 +583,8 @@ export function buildLedgerBackup(state: PersistedState): LedgerBackup {
     periodArchives: state.periodArchives,
     lastClosedMonthKey: state.lastClosedMonthKey,
     accounts: state.accounts,
+    openingWealthBuilding: state.openingWealthBuilding,
+    openingEmergencyFund: state.openingEmergencyFund,
   };
 }
 
