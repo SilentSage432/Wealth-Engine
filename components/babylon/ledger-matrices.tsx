@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { INTERVAL_LABELS, STREAM_KIND_LABELS } from "@/lib/babylon/constants";
-import { isDueWithinWeek } from "@/lib/babylon/engine";
+import { isDueWithinWeek, isOverdue } from "@/lib/babylon/engine";
 import { cn, formatCurrency } from "@/lib/utils";
 import type {
   BudgetTarget,
@@ -291,6 +291,7 @@ export function LedgerMatrices({
                       {expenses.map((row) => {
                         const dueSoon =
                           !row.isSettled && isDueWithinWeek(row.dueDate);
+                        const overdue = !row.isSettled && isOverdue(row.dueDate);
                         const bucket = categoryLabel(row.budgetCategoryId);
                         return (
                           <TableRow
@@ -311,8 +312,8 @@ export function LedgerMatrices({
                                 }}
                                 aria-label={
                                   row.isSettled
-                                    ? `Mark ${row.name} as pending`
-                                    : `Mark ${row.name} as settled`
+                                    ? `Mark ${row.name} as upcoming`
+                                    : `Mark ${row.name} as paid`
                                 }
                                 aria-pressed={row.isSettled}
                                 className={cn(
@@ -340,14 +341,24 @@ export function LedgerMatrices({
                             >
                               <span className="inline-flex flex-wrap items-center gap-2">
                                 {row.name}
+                                {overdue && (
+                                  <span className="text-[11px] font-medium text-rose-300 no-underline">
+                                    Overdue
+                                  </span>
+                                )}
                                 {dueSoon && (
                                   <span className="text-[11px] font-medium text-amber-400 no-underline">
                                     Due soon
                                   </span>
                                 )}
+                                {!row.isSettled && !overdue && !dueSoon && (
+                                  <span className="text-[11px] font-medium text-slate-400 no-underline">
+                                    Upcoming
+                                  </span>
+                                )}
                                 {row.isSettled && (
                                   <span className="text-[11px] font-medium text-emerald-500/80 no-underline">
-                                    Settled
+                                    Paid
                                   </span>
                                 )}
                               </span>
@@ -382,7 +393,11 @@ export function LedgerMatrices({
                             <TableCell
                               className={cn(
                                 "tabular-nums",
-                                dueSoon ? "text-amber-400" : "text-slate-400"
+                                dueSoon
+                                  ? "text-amber-400"
+                                  : overdue
+                                    ? "text-rose-300"
+                                    : "text-slate-400"
                               )}
                             >
                               {row.dueDate}

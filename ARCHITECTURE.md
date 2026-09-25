@@ -143,7 +143,9 @@ This is the heart of Wealth Engine.
 
 Allocation shares are penny-exact: wealth + debt + expenditure equals the gross deposit, including when the 20% redirects into wealth. `todayIso` is the user's local calendar day. The labor rate used by Affordability Anchor is the latest recurring deposit per income `source`, not the sum of historical deposits.
 
-Financial Position (`lib/babylon/financial-position.ts`) is separate from that split. A manual account balance is money that already exists. Money Available is the rounded sum of those balances. It is not income, not Living Budget, and not safe-to-spend. Saving a balance does not call `allocateIncome`.
+Financial Position (`lib/babylon/financial-position.ts`) is separate from that split. A manual account balance is money that already exists. Money Available is the rounded sum of those balances. It is not income, not Living Budget, and not safe-to-spend. Saving a balance does not call `allocateIncome`. Paying an expense does not change account balances.
+
+Actual spending is settled expenses only (`actualSpendTotals`, `buildBudgetVariances`). An unsettled expense is an upcoming obligation. Upcoming Needs sums every unpaid Need. Living Budget remaining is the 70% pool minus settled spending. Those figures are not subtracted from Money Available.
 
 **Never owns**
 

@@ -87,6 +87,71 @@ export function isDueWithinWeek(
   return Number.isFinite(days) && days >= 0 && days <= 7;
 }
 
+/** Unpaid expense whose due date is before today. */
+export function isOverdue(dueDate: string, today: string = todayIso()): boolean {
+  const days = daysUntilDue(dueDate, today);
+  return Number.isFinite(days) && days < 0;
+}
+
+/** Paid expenses only. Upcoming rows are not actual spending. */
+export function settledExpenses(
+  expenses: readonly ExpenseEntry[]
+): ExpenseEntry[] {
+  return expenses.filter((expense) => expense.isSettled);
+}
+
+function sumExpenseKind(
+  expenses: readonly ExpenseEntry[],
+  category: ExpenseEntry["category"]
+): number {
+  return roundMoney(
+    expenses
+      .filter((expense) => expense.category === category)
+      .reduce((sum, expense) => sum + expense.amount, 0)
+  );
+}
+
+/**
+ * Actual spending. Optional monthKey limits the sum to that transaction month.
+ * Unsettled expenses are excluded.
+ */
+export function actualSpendTotals(
+  expenses: readonly ExpenseEntry[],
+  monthKey?: string
+): { need: number; desire: number; total: number } {
+  const settled = settledExpenses(expenses).filter((expense) =>
+    monthKey ? monthKeyFromDate(expense.date) === monthKey : true
+  );
+  const need = sumExpenseKind(settled, "need");
+  const desire = sumExpenseKind(settled, "desire");
+  return { need, desire, total: roundMoney(need + desire) };
+}
+
+/** All unpaid Need expenses, regardless of due date or month. */
+export function upcomingNeedsTotal(expenses: readonly ExpenseEntry[]): number {
+  return roundMoney(
+    expenses
+      .filter((expense) => !expense.isSettled && expense.category === "need")
+      .reduce((sum, expense) => sum + expense.amount, 0)
+  );
+}
+
+/** Living Budget remaining after actual settled spending. Floors at zero. */
+export function livingBudgetRemaining(pool: number, actualSpent: number): number {
+  return roundMoney(Math.max(0, pool - Math.max(0, actualSpent)));
+}
+
+/**
+ * Same row, now paid. `paymentDate` is the local calendar date of payment.
+ * The due date is left unchanged and is not used as the spending date.
+ */
+export function markExpensePaid(
+  expense: ExpenseEntry,
+  paymentDate: string
+): ExpenseEntry {
+  return { ...expense, isSettled: true, date: paymentDate };
+}
+
 /**
  * Proportionally scale planned caps so their sum equals the 70% expenditure pool.
  * Remainder pennies land on the largest category so the total matches exactly.
@@ -470,6 +535,7 @@ export function buildChartData(
 
 /**
  * Groups current-month spend by budget target and computes Planned vs. Actual variance.
+ * Only settled expenses count as actual spending. Unsettled rows are upcoming obligations.
  * Expenses without a budgetCategoryId are ignored (except desire soft-migration handled at load).
  */
 export function buildBudgetVariances(
@@ -479,7 +545,7 @@ export function buildBudgetVariances(
   return targets.map((target) => {
     const actualAmount = roundMoney(
       monthExpenses
-        .filter((e) => e.budgetCategoryId === target.id)
+        .filter((e) => e.isSettled && e.budgetCategoryId === target.id)
         .reduce((sum, e) => sum + e.amount, 0)
     );
     const plannedAmount = roundMoney(Math.max(0, target.plannedAmount));

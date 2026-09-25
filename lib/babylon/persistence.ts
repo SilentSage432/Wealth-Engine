@@ -27,8 +27,17 @@ import type {
   SurplusDisposition,
 } from "@/types/babylon";
 
-/** Current export version. Version 1 backups have no account list. */
-export const LEDGER_BACKUP_VERSION = 2 as const;
+/** Current export version. Version 1 has no accounts. Version 2 has accounts but unsettled expenses still meant spent. Version 3 keeps Upcoming unpaid. */
+export const LEDGER_BACKUP_VERSION = 3 as const;
+
+/** Local vault marker. 2 means `isSettled: false` is an Upcoming obligation. */
+export const EXPENSE_SEMANTICS_VERSION = 2 as const;
+
+function settleLegacyExpenses(expenses: ExpenseEntry[]): ExpenseEntry[] {
+  return expenses.map((expense) =>
+    expense.isSettled ? expense : { ...expense, isSettled: true }
+  );
+}
 
 const INCOME_INTERVALS: ReadonlySet<string> = new Set([
   "one-time",
@@ -351,11 +360,16 @@ export function normalizePersistedState(raw: unknown): PersistedState {
         .map(parseIncomeEntry)
         .filter((e): e is IncomeEntry => e !== null)
     : [];
-  const expenses = Array.isArray(raw.expenses)
+  const parsedExpenses = Array.isArray(raw.expenses)
     ? raw.expenses
         .map(parseExpenseEntry)
         .filter((e): e is ExpenseEntry => e !== null)
     : [];
+  // Absent marker: those unsettled rows were already treated as spent.
+  const expenses =
+    raw.expenseSemanticsVersion === EXPENSE_SEMANTICS_VERSION
+      ? parsedExpenses
+      : settleLegacyExpenses(parsedExpenses);
   const debts = Array.isArray(raw.debts)
     ? raw.debts
         .map(parseDebtEntry)
@@ -415,6 +429,7 @@ export function normalizePersistedState(raw: unknown): PersistedState {
     emergencyShield,
     periodArchives,
     lastClosedMonthKey,
+    expenseSemanticsVersion: EXPENSE_SEMANTICS_VERSION,
   };
 }
 
@@ -425,13 +440,18 @@ export function normalizePersistedState(raw: unknown): PersistedState {
 export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
   if (!isRecord(raw)) return null;
 
-  if (raw.version !== 1 && raw.version !== 2) return null;
+  if (raw.version !== 1 && raw.version !== 2 && raw.version !== 3) return null;
   if (typeof raw.exportedAt !== "string" || !raw.exportedAt.trim()) return null;
 
   const incomes = parseArray(raw.incomes, parseIncomeEntry);
   const expenses = parseArray(raw.expenses, parseExpenseEntry);
   const debts = parseArray(raw.debts, parseDebtEntry);
   if (!incomes || !expenses || !debts) return null;
+
+  // Versions 1 and 2 counted unsettled rows as spent. Mark them paid on import
+  // so a later save under version 3 does not turn old spending into Upcoming.
+  const settledExpenses =
+    raw.version === 3 ? expenses : settleLegacyExpenses(expenses);
 
   // Allocations optional for older hand-crafted files; default empty.
   let allocations: AllocationEvent[] = [];
@@ -486,10 +506,10 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
     typeof raw.displayName === "string" ? raw.displayName : "";
 
   // Version 1 has no account contract. Ignore any stray `accounts` field so a
-  // version-1 file cannot smuggle balances. Version 2 requires a valid list;
+  // version-1 file cannot smuggle balances. Versions 2 and 3 require a valid list;
   // one bad row rejects the whole backup.
   let accounts: FinancialAccount[] = [];
-  if (raw.version === 2) {
+  if (raw.version === 2 || raw.version === 3) {
     if (raw.accounts === undefined) return null;
     const parsed = parseArray(raw.accounts, parseFinancialAccount);
     if (!parsed) return null;
@@ -500,7 +520,7 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
     version: raw.version,
     exportedAt: raw.exportedAt,
     incomes,
-    expenses,
+    expenses: settledExpenses,
     debts,
     allocations,
     budgetTargets,

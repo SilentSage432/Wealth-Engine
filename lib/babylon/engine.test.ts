@@ -56,7 +56,7 @@ function expense(
     category: partial.category ?? "need",
     date: partial.date ?? "2026-09-15",
     dueDate: partial.dueDate ?? "2026-09-15",
-    isSettled: partial.isSettled ?? false,
+    isSettled: partial.isSettled ?? true,
     ...partial,
   };
 }

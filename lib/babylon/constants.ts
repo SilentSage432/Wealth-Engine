@@ -97,4 +97,6 @@ export const EMPTY_STATE: PersistedState = {
   emergencyShield: 0,
   periodArchives: [],
   lastClosedMonthKey: null,
+  /** New vaults already use Upcoming semantics. Legacy vaults migrate on load. */
+  expenseSemanticsVersion: 2,
 };

@@ -2,7 +2,7 @@
 
 Executive personal ledger. Income is split 10% to Wealth Building, 20% to Debt Payoff, and 70% to a Living Budget. The 10/20/70 method was inspired by George S. Clason’s *The Richest Man in Babylon*. The product itself is Wealth Engine.
 
-Money that already exists is a separate Financial Position: manually entered checking, savings, and cash balances. Money Available is their sum. It is not income, not the Living Budget, and not safe-to-spend.
+Money that already exists is a separate Financial Position: manually entered checking, savings, and cash balances. Money Available is their sum. It is not income, not the Living Budget, and not safe-to-spend. Paid expenses are actual spending. Unpaid expenses are upcoming obligations. Upcoming Needs is not subtracted from Money Available.
 
 ## Quick start
 

@@ -47,6 +47,7 @@ A personal ledger that splits income 10% to Wealth Building, 20% to Debt Payoff,
 - [x] Plaid Link on the command bar and banks card (needs live PLAID_* + service role env)
 - [x] SecurityGate client-only mount (`ssr: false`) + PlaidLinkButton always-on DOM fallbacks
 - [x] Financial Position — local manual account balances and Money Available, separate from 10/20/70 (WE-BUDGET-002)
+- [x] Paid vs Upcoming — settled spending, upcoming Needs, one-time legacy migration (WE-BUDGET-003)
 - [ ] Path A dual-write for debts / period archives / activity_logs + hydrate remint
 - [ ] Speed-Tribute 1-tap commit (presets + bar mount; full amount autofill / zero-modal path still open)
 - [ ] Plaid transaction sync / steward review workflow

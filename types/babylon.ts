@@ -205,6 +205,12 @@ export interface PersistedState {
   periodArchives: PeriodArchive[];
   /** Last calendar month key successfully closed (YYYY-MM). */
   lastClosedMonthKey: string | null;
+  /**
+   * 2 means unsettled expenses are Upcoming.
+   * Missing or any other value is the pre-WE-BUDGET-003 vault, where unsettled
+   * rows were already counted as spent and must be migrated to paid once.
+   */
+  expenseSemanticsVersion: number;
 }
 
 export interface ChartMonthPoint {
@@ -242,15 +248,19 @@ export interface ExpenseInput {
   dueDate: string;
   category: ExpenseKind;
   budgetCategoryId: string;
+  /** True = Already Paid. False = Upcoming. */
+  isSettled: boolean;
 }
 
 /**
  * Portable ledger snapshot for export / import backups.
  * Version 1 predates Financial Position and has no accounts.
- * Version 2 includes `accounts`. Older builds reject version 2 instead of
- * dropping those balances.
+ * Version 2 includes `accounts`. Unsettled expenses in versions 1 and 2 were
+ * counted as spent, so import marks them paid.
+ * Version 3 keeps Upcoming (`isSettled: false`) as unpaid. Older builds reject
+ * version 3 instead of treating those rows as spent.
  */
-export type LedgerBackupVersion = 1 | 2;
+export type LedgerBackupVersion = 1 | 2 | 3;
 
 export interface LedgerBackup {
   version: LedgerBackupVersion;
@@ -265,7 +275,7 @@ export interface LedgerBackup {
   emergencyShield?: number;
   periodArchives?: PeriodArchive[];
   lastClosedMonthKey?: string | null;
-  /** Present on version 2. Version 1 imports as an empty list. */
+  /** Present on versions 2 and 3. Version 1 imports as an empty list. */
   accounts?: FinancialAccount[];
 }
 

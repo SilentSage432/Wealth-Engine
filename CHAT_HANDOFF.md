@@ -42,7 +42,8 @@ Open [http://localhost:3000](http://localhost:3000).
 ## State model
 Persisted in `localStorage` (`wealth-engine-babylon-v2`) as:
 - `incomes[]` — with precomputed `wealthShare` / `debtShare` / `expenditureShare`
-- `expenses[]` — `need` | `desire`, mandatory `dueDate`, optional `budgetCategoryId`, `isSettled`
+- `expenses[]` — `need` | `desire`, mandatory `dueDate`, optional `budgetCategoryId`, `isSettled` (paid vs upcoming)
+- `expenseSemanticsVersion` — `2` means unsettled expenses are upcoming. Missing on older vaults; those unsettled rows are marked paid once on load
 - `debts[]` — `totalDebt`, `remainingDebt`, `monthlyAllocation` (required on create)
 - `allocations[]` — historical events for charts (includes synthetic period-close rows)
 - `budgetTargets[]` — planned caps inside the Living Budget (starts empty)
@@ -54,28 +55,31 @@ Persisted in `localStorage` (`wealth-engine-babylon-v2`) as:
 - `displayName` — mirrored into vault for backup compatibility; canonical UI preference is `babylon_username`
 
 Hydration: load ledger from localStorage when present; username from `babylon_username` (soft-migrates from vault `displayName` once). Empty ledger + empty budget blueprint. No demo seed.
-Legacy expenses without `dueDate` soft-migrate to use `date`. Want expenses (`category: "desire"`) without `budgetCategoryId` map to the legacy discretionary id when present. Expenses without `isSettled` soft-migrate to `true`.
+Legacy expenses without `dueDate` soft-migrate to use `date`. Want expenses (`category: "desire"`) without `budgetCategoryId` map to the legacy discretionary id when present. Expenses without `isSettled` soft-migrate to `true`. Vaults without `expenseSemanticsVersion: 2` mark every remaining unsettled expense paid once, because those rows were already counted as spent.
 
 ## Mutations (hook exports)
 - `addAccount` / `updateAccount` / `removeAccount` — Financial Position only. Never calls `addIncome`, `proposeIncomeSplit`, or `allocateIncome`
 - `addIncome` — ID + 10/20/70 allocation (+ debt waterfall when active); appends activity log
-- `addExpense` — ID + Need/Want (`need` / `desire`) + due date + required `budgetCategoryId`; new rows start `isSettled: false`
+- `addExpense` — Need/Want, due date, category, and Already Paid (`isSettled: true`) or Upcoming (`isSettled: false`)
 - `addDebt` — ID + creditor tracking with mandatory monthly allocation
 - `addBudgetTarget` — ID + custom category; returns new id or `null`; optional `{ closeModal: false }` for inline create
 - `updateBudgetTarget` / `updateBudgetTargetFull` — adjust caps / name / essential flag
 - `deleteBudgetTarget(id, reassignToId?)` — remove bucket; reassign or uncategorize orphans
-- `toggleExpenseSettled(id)` — flip paid/settled; due-soon ignores settled rows
+- `toggleExpenseSettled(id)` — same row. Paying sets the transaction date to the local day and does not copy the due date. Reopening leaves that date unchanged
 - `autoScaleBudgetCaps()` — proportionally fit planned caps to `currentMonthExpenditurePool`
-- `closeMonth(disposition)` — archive period, dispose 70% surplus (`debt_wealth` | `emergency_shield`), settle month expenses, seal `lastClosedMonthKey`
+- `closeMonth(disposition)` — archive period, dispose 70% surplus, seal `lastClosedMonthKey`. Does not mark unpaid expenses paid
 - `clearAllData` — wipe vault + reset workspace
-- `exportBackup` / `importBackup` — versioned vault including activity log, shield, period archives, and accounts. New exports are version 2. Version 1 imports with an empty account list. Older builds reject version 2 rather than dropping balances.
+- `exportBackup` / `importBackup` — versioned vault including activity log, shield, period archives, and accounts. New exports are version 3. Version 1 imports with an empty account list. Versions 1 and 2 import unsettled expenses as paid. Version 3 keeps upcoming rows unpaid. Older builds reject version 3.
 
 ## Financial Position vs allocation
 - **Financial Position** — manually entered current account balances
 - **Income** — newly received money that enters the 10/20/70 Allocation Engine
 - **Living Budget** — the 70% allocation produced from new income
-- **Money Available** — sum of current manual account balances. It is not safe-to-spend, not Living Budget remaining, and not net worth
-- Overview places Financial Position above the Living Budget cards. Month close does not change account balances
+- **Money Available** — sum of current manual account balances. It is not safe-to-spend, not Living Budget remaining, and not net worth. Paying an expense does not change it
+- **Upcoming obligation** — an expense that is not yet paid (`isSettled: false`)
+- **Actual spending** — a paid expense. Living Budget remaining subtracts only this
+- **Upcoming Needs** — sum of every unpaid Need. It is not limited to this month or the next seven days, and it is not subtracted from Money Available
+- Overview places Financial Position, then Upcoming Needs, then the Living Budget. Month close does not settle unpaid expenses or change account balances
 
 ## Derived budget metrics
 - `budgetVariances` / `budgetPlannedTotal` / `budgetActualTotal`
@@ -100,7 +104,7 @@ Legacy expenses without `dueDate` soft-migrate to use `date`. Want expenses (`ca
 - Plaid success means the institution link was saved. Transactions are not imported.
 - Deleting an income reverses its `debtShare` via `reverseDebtAllocation` (remainingDebt clamped ≤ totalDebt).
 - The Living Budget card is **this month's** budget and spending.
-- Unsettled expenses due within 7 days show "Due soon"; legacy expenses without `isSettled` migrate to settled.
+- Unpaid expenses show Upcoming, Due soon (today through 7 days), or Overdue. Paid rows show Paid. Legacy vaults without the upcoming marker migrate unsettled rows to paid once.
 - A month may be closed once per calendar month key; historical ledgers remain for charts.
 - Overview does not embed the full Ledger.
 

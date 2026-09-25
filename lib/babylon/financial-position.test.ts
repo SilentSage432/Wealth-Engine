@@ -259,13 +259,13 @@ describe("as-of local date", () => {
 });
 
 describe("ledger backup accounts", () => {
-  it("exports version 2 and restores accounts", () => {
+  it("exports the current backup and restores accounts", () => {
     const state = assignAccounts(occupiedState(), [
       account({ id: "checking", balance: 1250, asOf: "2026-09-24" }),
     ]);
     const backup = buildLedgerBackup(state);
     expect(backup.version).toBe(LEDGER_BACKUP_VERSION);
-    expect(backup.version).toBe(2);
+    expect(backup.version).toBe(3);
     const restored = validateLedgerBackup(backup);
     expect(restored?.accounts).toEqual(state.accounts);
     expect(restored?.incomes).toEqual(state.incomes);

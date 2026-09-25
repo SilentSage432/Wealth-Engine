@@ -16,6 +16,7 @@ export { ConnectedBanksCard } from "@/components/babylon/connected-banks-card";
 export { SecurityGate } from "@/components/babylon/security-gate.client";
 export { DebtFreedomEngine } from "@/components/babylon/debt-freedom-engine";
 export { FinancialPosition } from "@/components/babylon/financial-position";
+export { UpcomingNeeds } from "@/components/babylon/upcoming-needs";
 export { VaultLoading } from "@/components/babylon/vault-loading";
 export { WealthEngineDashboard } from "@/components/babylon/wealth-engine-dashboard";
 export { WisdomBox } from "@/components/babylon/wisdom-box";

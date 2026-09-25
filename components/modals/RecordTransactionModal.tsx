@@ -113,6 +113,7 @@ export function RecordTransactionModal({
   const [expenseDate, setExpenseDate] = useState(todayIso());
   const [expenseDueDate, setExpenseDueDate] = useState(todayIso());
   const [expenseIsDesire, setExpenseIsDesire] = useState(false);
+  const [expenseAlreadyPaid, setExpenseAlreadyPaid] = useState(true);
   const [expenseBudgetId, setExpenseBudgetId] = useState("");
 
   const [debtCreditor, setDebtCreditor] = useState("");
@@ -141,6 +142,7 @@ export function RecordTransactionModal({
     setExpenseDate(todayIso());
     setExpenseDueDate(todayIso());
     setExpenseIsDesire(false);
+    setExpenseAlreadyPaid(true);
     setExpenseBudgetId(
       budgetTargets.find((t) => t.isEssential)?.id ??
         budgetTargets[0]?.id ??
@@ -328,6 +330,7 @@ export function RecordTransactionModal({
           dueDate: expenseDueDate,
           category: expenseIsDesire ? "desire" : "need",
           budgetCategoryId: expenseBudgetId,
+          isSettled: expenseAlreadyPaid,
         });
         if (!ok) {
           setFormFeedback({
@@ -339,7 +342,7 @@ export function RecordTransactionModal({
         }
         emitVaultToast({
           tone: "success",
-          message: "Expense saved.",
+          message: expenseAlreadyPaid ? "Expense saved." : "Upcoming expense saved.",
           durationMs: 0,
         });
         return;
@@ -750,9 +753,39 @@ export function RecordTransactionModal({
                   </div>
                 )}
               </div>
+              <div className="rounded-lg border border-slate-800 bg-slate-950/50 px-4 py-3">
+                <p className="text-sm font-medium text-slate-200">Status</p>
+                <div className="mt-3 flex gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={expenseAlreadyPaid ? "default" : "outline"}
+                    aria-pressed={expenseAlreadyPaid}
+                    onClick={() => setExpenseAlreadyPaid(true)}
+                  >
+                    Already Paid
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={!expenseAlreadyPaid ? "default" : "outline"}
+                    aria-pressed={!expenseAlreadyPaid}
+                    onClick={() => setExpenseAlreadyPaid(false)}
+                  >
+                    Upcoming
+                  </Button>
+                </div>
+                <p className="mt-2 text-xs text-slate-500">
+                  {expenseAlreadyPaid
+                    ? "This counts as spending on the transaction date."
+                    : "This stays unpaid until you mark it paid. It does not reduce your Living Budget yet."}
+                </p>
+              </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label htmlFor="expense-date">Transaction Date</Label>
+                  <Label htmlFor="expense-date">
+                    {expenseAlreadyPaid ? "Transaction Date" : "Date"}
+                  </Label>
                   <Input
                     id="expense-date"
                     type="date"
@@ -760,6 +793,11 @@ export function RecordTransactionModal({
                     onChange={(e) => setExpenseDate(e.target.value)}
                     required={mode === "expense"}
                   />
+                  {!expenseAlreadyPaid && (
+                    <p className="text-[11px] text-slate-500">
+                      The payment date is set when you mark this paid.
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="expense-due-date">Due Date</Label>

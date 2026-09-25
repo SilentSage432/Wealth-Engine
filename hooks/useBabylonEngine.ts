@@ -19,12 +19,15 @@ import {
 } from "@/lib/babylon/cloud-hydrate";
 import {
   allocateIncome,
+  actualSpendTotals,
   applyDebtAllocation,
   buildBudgetVariances,
   buildChartData,
   buildTributeEngineSnapshot,
   computeDesiresPoolRemaining,
   formatMonthLabel,
+  livingBudgetRemaining,
+  markExpensePaid,
   monthKeyFromDate,
   nextMonthKey,
   primaryHourlyRate,
@@ -36,6 +39,7 @@ import {
   todayIso,
   totalOriginalDebt,
   totalRemainingDebt,
+  upcomingNeedsTotal,
 } from "@/lib/babylon/engine";
 import { DISCREET_STORAGE_KEY } from "@/lib/babylon/discreet";
 import {
@@ -49,6 +53,7 @@ import {
   buildLedgerBackup,
   clearPersistedState,
   clearUsername,
+  EXPENSE_SEMANTICS_VERSION,
   loadPersistedState,
   loadUsername,
   savePersistedState,
@@ -99,6 +104,9 @@ export function useBabylonEngine() {
   const [periodArchives, setPeriodArchives] = useState<PeriodArchive[]>([]);
   const [lastClosedMonthKey, setLastClosedMonthKey] = useState<string | null>(
     null
+  );
+  const [expenseSemanticsVersion, setExpenseSemanticsVersion] = useState<number>(
+    EXPENSE_SEMANTICS_VERSION
   );
   /** Profile name input value — may be empty; greeting uses a visual fallback. */
   const [username, setUsernameState] = useState("");
@@ -239,6 +247,7 @@ export function useBabylonEngine() {
     setEmergencyShield(stored.emergencyShield);
     setPeriodArchives(stored.periodArchives);
     setLastClosedMonthKey(stored.lastClosedMonthKey);
+    setExpenseSemanticsVersion(stored.expenseSemanticsVersion);
     setUsernameState(loadUsername(stored.displayName));
     try {
       setIsDiscreetMode(
@@ -365,6 +374,7 @@ export function useBabylonEngine() {
       emergencyShield,
       periodArchives,
       lastClosedMonthKey,
+      expenseSemanticsVersion,
     };
     savePersistedState(payload);
   }, [
@@ -380,6 +390,7 @@ export function useBabylonEngine() {
     emergencyShield,
     periodArchives,
     lastClosedMonthKey,
+    expenseSemanticsVersion,
   ]);
 
   const setUsername = useCallback((value: string) => {
@@ -480,55 +491,25 @@ export function useBabylonEngine() {
     [accounts]
   );
 
-  const needSpend = useMemo(
-    () =>
-      roundMoney(
-        expenses
-          .filter((e) => e.category === "need")
-          .reduce((sum, e) => sum + e.amount, 0)
-      ),
+  const lifetimeActual = useMemo(
+    () => actualSpendTotals(expenses),
     [expenses]
   );
+  const needSpend = lifetimeActual.need;
+  const desireSpend = lifetimeActual.desire;
+  const lifetimeSpent = lifetimeActual.total;
 
-  const desireSpend = useMemo(
-    () =>
-      roundMoney(
-        expenses
-          .filter((e) => e.category === "desire")
-          .reduce((sum, e) => sum + e.amount, 0)
-      ),
-    [expenses]
-  );
-
-  /** Lifetime expenditure total — ledger need/desire mix (not Triad month card). */
-  const lifetimeSpent = useMemo(
-    () => roundMoney(needSpend + desireSpend),
-    [needSpend, desireSpend]
-  );
-
-  const currentMonthExpenses = useMemo(
-    () => expenses.filter((e) => monthKeyFromDate(e.date) === currentMonthKey),
+  const currentMonthActual = useMemo(
+    () => actualSpendTotals(expenses, currentMonthKey),
     [expenses, currentMonthKey]
   );
+  const currentMonthNeed = currentMonthActual.need;
+  const currentMonthDesire = currentMonthActual.desire;
+  const currentMonthSpent = currentMonthActual.total;
 
-  const currentMonthNeed = useMemo(
-    () =>
-      roundMoney(
-        currentMonthExpenses
-          .filter((e) => e.category === "need")
-          .reduce((sum, e) => sum + e.amount, 0)
-      ),
-    [currentMonthExpenses]
-  );
-
-  const currentMonthDesire = useMemo(
-    () =>
-      roundMoney(
-        currentMonthExpenses
-          .filter((e) => e.category === "desire")
-          .reduce((sum, e) => sum + e.amount, 0)
-      ),
-    [currentMonthExpenses]
+  const upcomingNeeds = useMemo(
+    () => upcomingNeedsTotal(expenses),
+    [expenses]
   );
 
   const currentMonthExpenditurePool = useMemo(
@@ -541,25 +522,20 @@ export function useBabylonEngine() {
     [allocations, currentMonthKey]
   );
 
-  const currentMonthSpent = useMemo(
-    () => roundMoney(currentMonthNeed + currentMonthDesire),
-    [currentMonthNeed, currentMonthDesire]
+  const currentMonthExpenses = useMemo(
+    () => expenses.filter((e) => monthKeyFromDate(e.date) === currentMonthKey),
+    [expenses, currentMonthKey]
   );
 
-  const currentMonthRemaining = useMemo(
-    () =>
-      roundMoney(Math.max(0, currentMonthExpenditurePool - currentMonthSpent)),
-    [currentMonthExpenditurePool, currentMonthSpent]
+  const currentMonthRemaining = livingBudgetRemaining(
+    currentMonthExpenditurePool,
+    currentMonthSpent
   );
 
   /** Golden Triad expenditure card — current calendar month only. */
   const expenditurePool = currentMonthExpenditurePool;
   const totalSpent = currentMonthSpent;
-
-  const expenditureRemaining = useMemo(
-    () => roundMoney(Math.max(0, expenditurePool - totalSpent)),
-    [expenditurePool, totalSpent]
-  );
+  const expenditureRemaining = currentMonthRemaining;
 
   const expenditureUsedPct = useMemo(() => {
     if (expenditurePool <= 0) return 0;
@@ -826,7 +802,8 @@ export function useBabylonEngine() {
         !Number.isFinite(input.amount) ||
         input.amount <= 0 ||
         !input.dueDate ||
-        !input.budgetCategoryId.trim()
+        !input.budgetCategoryId.trim() ||
+        typeof input.isSettled !== "boolean"
       ) {
         return false;
       }
@@ -844,14 +821,14 @@ export function useBabylonEngine() {
         date: input.date || todayIso(),
         dueDate: input.dueDate,
         budgetCategoryId: input.budgetCategoryId,
-        isSettled: false,
+        isSettled: input.isSettled,
       };
 
       setExpenses((prev) => [entry, ...prev]);
       pushActivity({
         kind: "expense",
         title: entry.name,
-        subtitle: "Expense added",
+        subtitle: entry.isSettled ? "Expense added" : "Upcoming expense added",
         amount: entry.amount,
       });
 
@@ -1024,6 +1001,7 @@ export function useBabylonEngine() {
       let nextSettled: boolean | null = null;
       let name = "";
       let amount = 0;
+      const paymentDate = todayIso();
 
       setExpenses((prev) => {
         const target = prev.find((e) => e.id === id);
@@ -1031,16 +1009,17 @@ export function useBabylonEngine() {
         nextSettled = !target.isSettled;
         name = target.name;
         amount = target.amount;
-        return prev.map((e) =>
-          e.id === id ? { ...e, isSettled: nextSettled! } : e
-        );
+        return prev.map((e) => {
+          if (e.id !== id) return e;
+          return nextSettled ? markExpensePaid(e, paymentDate) : { ...e, isSettled: false };
+        });
       });
 
       if (nextSettled !== null) {
         pushActivity({
           kind: "settle",
           title: name,
-          subtitle: nextSettled ? "Marked settled" : "Reopened as pending",
+          subtitle: nextSettled ? "Expense marked paid" : "Reopened as upcoming",
           amount,
         });
 
@@ -1152,13 +1131,6 @@ export function useBabylonEngine() {
         }
       }
 
-      setExpenses((prev) =>
-        prev.map((e) =>
-          monthKeyFromDate(e.date) === currentMonthKey
-            ? { ...e, isSettled: true }
-            : e
-        )
-      );
       setPeriodArchives((prev) => [archive, ...prev]);
       setLastClosedMonthKey(currentMonthKey);
 
@@ -1205,6 +1177,7 @@ export function useBabylonEngine() {
     setEmergencyShield(0);
     setPeriodArchives([]);
     setLastClosedMonthKey(null);
+    setExpenseSemanticsVersion(EXPENSE_SEMANTICS_VERSION);
     setUsernameState("");
     setTributeOpen(false);
     setTributeMode("income");
@@ -1226,6 +1199,7 @@ export function useBabylonEngine() {
       emergencyShield,
       periodArchives,
       lastClosedMonthKey,
+      expenseSemanticsVersion,
     });
     const blob = new Blob([JSON.stringify(backup, null, 2)], {
       type: "application/json",
@@ -1251,6 +1225,7 @@ export function useBabylonEngine() {
     emergencyShield,
     periodArchives,
     lastClosedMonthKey,
+    expenseSemanticsVersion,
   ]);
 
   const importBackup = useCallback((raw: unknown): string | null => {
@@ -1271,6 +1246,7 @@ export function useBabylonEngine() {
       emergencyShield: backup.emergencyShield ?? 0,
       periodArchives: backup.periodArchives ?? [],
       lastClosedMonthKey: backup.lastClosedMonthKey ?? null,
+      expenseSemanticsVersion: EXPENSE_SEMANTICS_VERSION,
     };
 
     savePersistedState(next);
@@ -1285,6 +1261,7 @@ export function useBabylonEngine() {
     setEmergencyShield(next.emergencyShield);
     setPeriodArchives(next.periodArchives);
     setLastClosedMonthKey(next.lastClosedMonthKey);
+    setExpenseSemanticsVersion(EXPENSE_SEMANTICS_VERSION);
     setUsernameState(backup.displayName);
     setTributeOpen(false);
     setTributeMode("income");
@@ -1410,6 +1387,7 @@ export function useBabylonEngine() {
     currentMonthNeed,
     currentMonthDesire,
     currentMonthRemaining,
+    upcomingNeeds,
     desiresPoolRemaining,
     tributeEngines,
     recentActivity,

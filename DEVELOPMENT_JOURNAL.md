@@ -1,5 +1,26 @@
 # Development Journal
 
+## 2026-09-24 — WE-BUDGET-003 paid vs upcoming
+
+### What changed
+- A paid expense (`isSettled: true`) is actual spending. It reduces Living Budget remaining, category actuals, and Need or Want totals for the transaction month.
+- An upcoming expense (`isSettled: false`) is a known unpaid obligation. It does not reduce those totals. Upcoming Needs is the sum of every unpaid Need, in any month.
+- Add Expense asks for Already Paid or Upcoming. Marking an upcoming row paid updates that same row and sets the transaction date to the local payment day, not the due date.
+- Month close no longer marks unpaid expenses paid. An unpaid bill stays upcoming into the next month and does not spend that month's Living Budget until it is paid.
+- Older local vaults and version 1–2 backups, where unsettled rows were already counted as spent, are migrated to paid once. Version 3 backups keep upcoming rows unpaid.
+
+### Ownership
+- Spending and upcoming totals: `lib/babylon/engine.ts`
+- One-time migration and backup version 3: `lib/babylon/persistence.ts`
+- Add and pay workflow: `hooks/useBabylonEngine.ts`, `components/modals/RecordTransactionModal.tsx`
+- Ledger status and Overview Upcoming Needs: `components/babylon/ledger-matrices.tsx`, `components/babylon/upcoming-needs.tsx`
+
+### Distinction
+- Financial Position is money entered as currently in accounts. Paying an expense does not change those balances.
+- Upcoming Needs is not subtracted from Money Available.
+- Money Available is not safe-to-spend. Protected starting amounts are still WE-BUDGET-004.
+- Income still allocates 10/20/70. Upcoming obligations and payments do not.
+
 ## 2026-09-24 — WE-BUDGET-002 financial position
 
 ### What changed

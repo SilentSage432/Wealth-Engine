@@ -9,6 +9,7 @@ import { CommandBar } from "@/components/babylon/command-bar";
 import { ConnectedBanksCard } from "@/components/babylon/connected-banks-card";
 import { DebtFreedomEngine } from "@/components/babylon/debt-freedom-engine";
 import { FinancialPosition } from "@/components/babylon/financial-position";
+import { UpcomingNeeds } from "@/components/babylon/upcoming-needs";
 import { GoldenTriad } from "@/components/babylon/golden-triad";
 import { LedgerMatrices } from "@/components/babylon/ledger-matrices";
 import { QuickStats } from "@/components/babylon/quick-stats";
@@ -142,6 +143,13 @@ export function WealthEngineDashboard() {
       onUpdateAccount={engine.updateAccount}
       onRemoveAccount={engine.removeAccount}
       onEditorOpenChange={setAccountEditorOpen}
+    />
+  );
+
+  const upcomingNeedsCard = (
+    <UpcomingNeeds
+      upcomingNeeds={engine.upcomingNeeds}
+      discreet={discreet}
     />
   );
 
@@ -299,6 +307,7 @@ export function WealthEngineDashboard() {
 
                 <TabsContent value="command" className="mt-4 space-y-4">
                   {financialPosition}
+                  {upcomingNeedsCard}
                   {focusCards}
                   {triad}
                   <ConnectedBanksCard
@@ -357,6 +366,7 @@ export function WealthEngineDashboard() {
                   {showOverview && (
                     <>
                       {financialPosition}
+                      {upcomingNeedsCard}
                       {focusCards}
                       {triad}
                       <ConnectedBanksCard
