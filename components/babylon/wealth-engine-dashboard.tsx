@@ -154,6 +154,7 @@ export function WealthEngineDashboard() {
   const upcomingNeedsCard = (
     <UpcomingNeeds
       upcomingNeeds={engine.upcomingNeeds}
+      comingUp={engine.comingUp}
       discreet={discreet}
     />
   );
@@ -227,6 +228,9 @@ export function WealthEngineDashboard() {
       onDeleteExpense={engine.deleteExpense}
       onDeleteDebt={engine.deleteDebt}
       onToggleExpenseSettled={engine.toggleExpenseSettled}
+      recurringObligations={engine.recurringObligations}
+      onUpdateExpense={engine.updateExpenseOccurrence}
+      onUpdateRecurringObligation={engine.updateRecurringObligation}
     />
   );
 

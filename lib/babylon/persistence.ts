@@ -5,6 +5,7 @@ import {
   USERNAME_STORAGE_KEY,
 } from "@/lib/babylon/constants";
 import { roundMoney } from "@/lib/babylon/engine";
+import { parseRecurringObligation } from "@/lib/babylon/recurring-obligations";
 import {
   isFinancialAccountKind,
   isLocalIsoDate,
@@ -24,11 +25,12 @@ import type {
   LedgerBackup,
   PeriodArchive,
   PersistedState,
+  RecurringObligation,
   SurplusDisposition,
 } from "@/types/babylon";
 
-/** Current export version. Version 4 adds existing protected designations. */
-export const LEDGER_BACKUP_VERSION = 4 as const;
+/** Current export version. Version 5 adds monthly recurring obligations. */
+export const LEDGER_BACKUP_VERSION = 5 as const;
 
 /** Local vault marker. 2 means `isSettled: false` is an Upcoming obligation. */
 export const EXPENSE_SEMANTICS_VERSION = 2 as const;
@@ -150,6 +152,17 @@ function parseExpenseEntry(value: unknown): ExpenseEntry | null {
   const isSettled =
     typeof value.isSettled === "boolean" ? value.isSettled : true;
 
+  const recurringObligationId =
+    typeof value.recurringObligationId === "string" &&
+    value.recurringObligationId.trim()
+      ? value.recurringObligationId.trim()
+      : undefined;
+  const recurrenceMonth =
+    typeof value.recurrenceMonth === "string" &&
+    /^\d{4}-\d{2}$/.test(value.recurrenceMonth)
+      ? value.recurrenceMonth
+      : undefined;
+
   return {
     id: value.id,
     name: value.name.trim(),
@@ -159,6 +172,9 @@ function parseExpenseEntry(value: unknown): ExpenseEntry | null {
     dueDate,
     isSettled,
     ...(budgetCategoryId ? { budgetCategoryId } : {}),
+    ...(recurringObligationId && recurrenceMonth
+      ? { recurringObligationId, recurrenceMonth }
+      : {}),
   };
 }
 
@@ -424,6 +440,11 @@ export function normalizePersistedState(raw: unknown): PersistedState {
 
   const openingWealthBuilding = nonNegativeMoney(raw.openingWealthBuilding) ?? 0;
   const openingEmergencyFund = nonNegativeMoney(raw.openingEmergencyFund) ?? 0;
+  const recurringObligations = Array.isArray(raw.recurringObligations)
+    ? raw.recurringObligations
+        .map(parseRecurringObligation)
+        .filter((rule): rule is RecurringObligation => rule !== null)
+    : [];
 
   return {
     incomes,
@@ -440,6 +461,7 @@ export function normalizePersistedState(raw: unknown): PersistedState {
     expenseSemanticsVersion: EXPENSE_SEMANTICS_VERSION,
     openingWealthBuilding,
     openingEmergencyFund,
+    recurringObligations,
   };
 }
 
@@ -454,7 +476,8 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
     raw.version !== 1 &&
     raw.version !== 2 &&
     raw.version !== 3 &&
-    raw.version !== 4
+    raw.version !== 4 &&
+    raw.version !== 5
   ) {
     return null;
   }
@@ -466,10 +489,10 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
   if (!incomes || !expenses || !debts) return null;
 
   // Versions 1 and 2 counted unsettled rows as spent. Mark them paid on import
-  // so a later save does not turn old spending into Upcoming. Versions 3 and 4
+  // so a later save does not turn old spending into Upcoming. Versions 3–5
   // keep Upcoming unpaid.
   const settledExpenses =
-    raw.version === 3 || raw.version === 4
+    raw.version === 3 || raw.version === 4 || raw.version === 5
       ? expenses
       : settleLegacyExpenses(expenses);
 
@@ -526,10 +549,15 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
     typeof raw.displayName === "string" ? raw.displayName : "";
 
   // Version 1 has no account contract. Ignore any stray `accounts` field so a
-  // version-1 file cannot smuggle balances. Versions 2, 3, and 4 require a valid
-  // list; one bad row rejects the whole backup.
+  // version-1 file cannot smuggle balances. Versions 2–5 require a valid list;
+  // one bad row rejects the whole backup.
   let accounts: FinancialAccount[] = [];
-  if (raw.version === 2 || raw.version === 3 || raw.version === 4) {
+  if (
+    raw.version === 2 ||
+    raw.version === 3 ||
+    raw.version === 4 ||
+    raw.version === 5
+  ) {
     if (raw.accounts === undefined) return null;
     const parsed = parseArray(raw.accounts, parseFinancialAccount);
     if (!parsed) return null;
@@ -537,16 +565,27 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
   }
 
   // Versions 1–3 have no protected-designation contract. Force zero even if
-  // stray fields are present. Version 4 must include both amounts; a missing
-  // field rejects the backup instead of silently dropping a designation.
+  // stray fields are present. Versions 4 and 5 must include both amounts; a
+  // missing field rejects the backup instead of silently dropping a designation.
   let openingWealthBuilding = 0;
   let openingEmergencyFund = 0;
-  if (raw.version === 4) {
+  if (raw.version === 4 || raw.version === 5) {
     const wealth = nonNegativeMoney(raw.openingWealthBuilding);
     const emergency = nonNegativeMoney(raw.openingEmergencyFund);
     if (wealth === null || emergency === null) return null;
     openingWealthBuilding = wealth;
     openingEmergencyFund = emergency;
+  }
+
+  // Versions 1–4 have no recurring-rule contract. Force an empty list even if
+  // stray rules are present. Version 5 must include the list; a missing list
+  // rejects the backup instead of silently dropping recurrence.
+  let recurringObligations: RecurringObligation[] = [];
+  if (raw.version === 5) {
+    if (raw.recurringObligations === undefined) return null;
+    const parsed = parseArray(raw.recurringObligations, parseRecurringObligation);
+    if (!parsed) return null;
+    recurringObligations = parsed;
   }
 
   return {
@@ -565,6 +604,7 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
     accounts,
     openingWealthBuilding,
     openingEmergencyFund,
+    recurringObligations,
   };
 }
 
@@ -585,6 +625,7 @@ export function buildLedgerBackup(state: PersistedState): LedgerBackup {
     accounts: state.accounts,
     openingWealthBuilding: state.openingWealthBuilding,
     openingEmergencyFund: state.openingEmergencyFund,
+    recurringObligations: state.recurringObligations,
   };
 }
 

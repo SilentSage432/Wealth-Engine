@@ -1,5 +1,27 @@
 # Development Journal
 
+## 2026-09-24 — WE-BUDGET-005 monthly recurring obligations
+
+### What changed
+- A monthly rule describes a bill: name, amount, Need or Want, category, due day, first month, and whether it is active.
+- Wealth Engine creates one Upcoming expense for the current month and one for the next month. It does not create earlier months, and it does not mark those rows paid.
+- The rule is not added into Upcoming Needs or the Living Budget. Only the expense occurrence counts, and only after it is marked paid does it become spending.
+- Deleting one month remembers that month so a reload does not create it again. The rule stays until the user turns it off.
+- Editing one month changes that expense only. Editing the rule changes months generated after the save. Months already on the ledger stay as they are.
+- Backups are version 5. Versions 1–4 import with no recurring rules. Version 5 keeps the rules and skipped months.
+
+### Ownership
+- Rule, calendar day, horizon, and skip: `lib/babylon/recurring-obligations.ts`
+- Local vault and backup version 5: `lib/babylon/persistence.ts`
+- Add, catch-up, pay, and edit: `hooks/useBabylonEngine.ts`
+- Upcoming entry and ledger: `components/modals/RecordTransactionModal.tsx`, `components/babylon/ledger-matrices.tsx`
+
+### Distinction
+- Recurrence creates obligations. It does not create spending, income, allocations, or account changes.
+- An expected payday is not received income. This tranche does not generate income.
+- Recurring rules are local. They are not a Supabase table and they are not inferred from Plaid.
+- A future Sindarin forecast may compare an expected bill with what reality shows. Wealth Engine still waits for the user to confirm a change. No Sindarin code was added.
+
 ## 2026-09-24 — WE-BUDGET-004 existing protected money
 
 ### What changed

@@ -147,7 +147,9 @@ Financial Position (`lib/babylon/financial-position.ts`) is separate from that s
 
 Existing protected money (`lib/babylon/protected-money.ts`) is a designation inside that Money Available. Existing Wealth Building and Existing Emergency Fund say how much of the current balances is already set aside. Protected Money is their sum. It is included in Money Available. It is not extra money, and entering it does not change Money Available. The user-facing Wealth Building total adds tracked allocation wealth. The user-facing Emergency Fund total adds tracked month-close surplus. Historical allocations are not treated as cash still in the accounts. A designation that exceeds Money Available cannot be saved. If balances later fall below a stored designation, the amounts stay and the conflict is shown.
 
-Actual spending is settled expenses only (`actualSpendTotals`, `buildBudgetVariances`). An unsettled expense is an upcoming obligation. Upcoming Needs sums every unpaid Need. Living Budget remaining is the 70% pool minus settled spending. Those figures are not subtracted from Money Available, and protected designations do not change them.
+A monthly recurring obligation (`lib/babylon/recurring-obligations.ts`) describes a bill. It is not a second ledger. Wealth Engine materializes the current month and the next month as ordinary Upcoming expenses, starting at the rule's first month. The due day is a calendar day: day 31 in a short month uses that month's last day, and the rule stays 31. A deleted month is stored on the rule and is not created again. The rule amount is not added to Upcoming Needs. An occurrence reduces the Living Budget only after it is marked paid. Catch-up runs when the local vault loads and when the existing local-day clock moves into a new month. It does not add a recurrence timer, a service worker schedule, or a cron. Recurring rules are local. Generated occurrences are not cloud-written. Recurrence does not create income. An expected payday is not received income.
+
+Actual spending is settled expenses only (`actualSpendTotals`, `buildBudgetVariances`). An unsettled expense is an upcoming obligation. Upcoming Needs sums every unpaid Need. Living Budget remaining is the 70% pool minus settled spending. Those figures are not subtracted from Money Available, and protected designations do not change them. A future Sindarin forecast may describe what reality appears to show. It does not replace the Wealth Engine plan, and this tranche does not call Sindarin.
 
 **Never owns**
 
@@ -229,6 +231,7 @@ Canonical ownership reference for Wealth Engine:
 | Allocation math | `lib/babylon/engine.ts` | Domain |
 | Financial Position | `lib/babylon/financial-position.ts` (`sumAccountBalances`); local `accounts[]` via `lib/babylon/persistence.ts` | Domain / Persistence |
 | Existing protected money | `lib/babylon/protected-money.ts`; local `openingWealthBuilding` and `openingEmergencyFund` via `lib/babylon/persistence.ts` | Domain / Persistence |
+| Monthly recurring obligations | `lib/babylon/recurring-obligations.ts`; local `recurringObligations[]` via `lib/babylon/persistence.ts` | Domain / Persistence |
 | Budget variance math | `lib/babylon/engine.ts` (`buildBudgetVariances`, `scaleBudgetCapsToPool`) | Domain |
 | Affordability and income-type totals | `lib/babylon/engine.ts` | Domain |
 | Type contracts | `types/babylon.ts` | Domain |

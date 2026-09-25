@@ -49,6 +49,7 @@ Persisted in `localStorage` (`wealth-engine-babylon-v2`) as:
 - `budgetTargets[]` — planned caps inside the Living Budget (starts empty)
 - `accounts[]` — manual Financial Position (checking / savings / cash, balance, local `asOf`). Missing on older vaults; loads as `[]`. Never inferred from income or spending. Not cloud-backed.
 - `openingWealthBuilding` / `openingEmergencyFund` — existing designations inside current Money Available. Missing on older vaults; loads as `0`. Not income, not allocation events, and not cloud-backed.
+- `recurringObligations[]` — monthly bill rules. Missing on older vaults; loads as `[]`. Not spending and not cloud-backed. Generated months are ordinary expenses with `recurringObligationId` and `recurrenceMonth`. `skippedMonths` stops a deleted month from coming back.
 - `activityLog[]` — mutation feed for Recent Activity (newest first, capped)
 - `emergencyShield` — tracked Emergency Fund from Monthly Close surplus only
 - `periodArchives[]` — sealed month snapshots
@@ -62,16 +63,18 @@ Legacy expenses without `dueDate` soft-migrate to use `date`. Want expenses (`ca
 - `addAccount` / `updateAccount` / `removeAccount` — Financial Position only. Never calls `addIncome`, `proposeIncomeSplit`, or `allocateIncome`
 - `updateProtectedDesignations` — sets Existing Wealth Building and Existing Emergency Fund when their sum fits inside Money Available. Does not change balances, income, allocations, or the activity log
 - `addIncome` — ID + 10/20/70 allocation (+ debt waterfall when active); appends activity log
-- `addExpense` — Need/Want, due date, category, and Already Paid (`isSettled: true`) or Upcoming (`isSettled: false`)
+- `addExpense` — Need/Want, due date, category, and Already Paid (`isSettled: true`) or Upcoming (`isSettled: false`). Upcoming may repeat monthly. Already Paid cannot. A monthly rule does not cloud-write its generated occurrences
+- `updateExpenseOccurrence` — changes one expense amount and due date. A generated month does not rewrite the rule
+- `updateRecurringObligation` — changes the rule for months generated after the save. Existing occurrences stay. `isActive: false` stops new months and keeps history
 - `addDebt` — ID + creditor tracking with mandatory monthly allocation
 - `addBudgetTarget` — ID + custom category; returns new id or `null`; optional `{ closeModal: false }` for inline create
 - `updateBudgetTarget` / `updateBudgetTargetFull` — adjust caps / name / essential flag
 - `deleteBudgetTarget(id, reassignToId?)` — remove bucket; reassign or uncategorize orphans
 - `toggleExpenseSettled(id)` — same row. Paying sets the transaction date to the local day and does not copy the due date. Reopening leaves that date unchanged
 - `autoScaleBudgetCaps()` — proportionally fit planned caps to `currentMonthExpenditurePool`
-- `closeMonth(disposition)` — archive period, dispose 70% surplus, seal `lastClosedMonthKey`. Does not mark unpaid expenses paid and does not change existing protected designations
-- `clearAllData` — wipe vault + reset workspace, including existing protected designations
-- `exportBackup` / `importBackup` — versioned vault including activity log, shield, period archives, accounts, and existing protected designations. New exports are version 4. Version 1 imports with an empty account list. Versions 1 and 2 import unsettled expenses as paid. Versions 3 and 4 keep upcoming rows unpaid. Versions 1–3 import protected designations as 0. A version 4 file missing those amounts is rejected. Older builds reject version 4.
+- `closeMonth(disposition)` — archive period, dispose 70% surplus, seal `lastClosedMonthKey`. Does not mark unpaid expenses paid, does not change existing protected designations, and does not generate or pay recurring bills
+- `clearAllData` — wipe vault + reset workspace, including existing protected designations and recurring rules
+- `exportBackup` / `importBackup` — versioned vault including activity log, shield, period archives, accounts, protected designations, and recurring rules. New exports are version 5. Version 1 imports with an empty account list. Versions 1 and 2 import unsettled expenses as paid. Versions 3–5 keep upcoming rows unpaid. Versions 1–3 import protected designations as 0. Versions 4 and 5 keep them. Versions 1–4 import with no recurring rules. A version 5 file missing rules or protected amounts is rejected. Older builds reject version 5. Import does not duplicate a rule month that is already present or skipped
 
 ## Financial Position vs allocation
 - **Financial Position** — manually entered current account balances
@@ -84,7 +87,11 @@ Legacy expenses without `dueDate` soft-migrate to use `date`. Want expenses (`ca
 - **Upcoming obligation** — an expense that is not yet paid (`isSettled: false`)
 - **Actual spending** — a paid expense. Living Budget remaining subtracts only this
 - **Upcoming Needs** — sum of every unpaid Need. It is not limited to this month or the next seven days, and it is not subtracted from Money Available
-- Overview places Financial Position (Money Available and Protected Money), then Upcoming Needs, then the Living Budget. Month close does not settle unpaid expenses, change account balances, or clear protected designations
+- **Recurring obligation** — a monthly rule. It is not spending and it is not added to Upcoming Needs
+- **Occurrence** — one month's Upcoming expense generated from that rule. It becomes spending only when marked paid
+- Overview places Financial Position (Money Available and Protected Money), then Upcoming Needs, then the Living Budget. Coming up, under Upcoming Needs, lists the next unpaid bills, including Wants. Month close does not settle unpaid expenses, change account balances, clear protected designations, or pay recurring bills
+- An expected payday is not received income. Recurrence does not create income or run 10/20/70
+- A future Sindarin forecast is external context. It may disagree with a Wealth Engine bill. The user confirms any change. Sindarin is not integrated
 
 ## Derived budget metrics
 - `budgetVariances` / `budgetPlannedTotal` / `budgetActualTotal`

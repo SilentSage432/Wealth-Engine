@@ -156,7 +156,7 @@ describe("upcoming backup semantics", () => {
 
   it("keeps upcoming rows unpaid on the current backup", () => {
     const backup = buildLedgerBackup(stateWith(upcoming));
-    expect(backup.version).toBe(4);
+    expect(backup.version).toBe(5);
     const restored = validateLedgerBackup(backup);
     expect(restored?.expenses[0]?.isSettled).toBe(false);
   });

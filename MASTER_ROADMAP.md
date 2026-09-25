@@ -49,6 +49,7 @@ A personal ledger that splits income 10% to Wealth Building, 20% to Debt Payoff,
 - [x] Financial Position — local manual account balances and Money Available, separate from 10/20/70 (WE-BUDGET-002)
 - [x] Paid vs Upcoming — settled spending, upcoming Needs, one-time legacy migration (WE-BUDGET-003)
 - [x] Existing protected money — designations inside Money Available, separate from tracked allocations (WE-BUDGET-004)
+- [x] Monthly recurring obligations — upcoming occurrences only, current month and next month (WE-BUDGET-005)
 - [ ] Path A dual-write for debts / period archives / activity_logs + hydrate remint
 - [ ] Speed-Tribute 1-tap commit (presets + bar mount; full amount autofill / zero-modal path still open)
 - [ ] Plaid transaction sync / steward review workflow
@@ -77,6 +78,7 @@ Canonical map: [`ARCHITECTURE.md`](./ARCHITECTURE.md) (layers, dependency rules,
 | Allocation math | `lib/babylon/engine.ts` |
 | Financial Position (manual balances, Money Available) | `lib/babylon/financial-position.ts` |
 | Existing protected money | `lib/babylon/protected-money.ts` |
+| Monthly recurring obligations | `lib/babylon/recurring-obligations.ts` |
 | Budget variance math | `lib/babylon/engine.ts` (`buildBudgetVariances`, `scaleBudgetCapsToPool`) |
 | Period close / surplus | `hooks/useBabylonEngine.ts` (`closeMonth`, `splitSurplusToDebtWealth`) |
 | Ledger state + persistence | `hooks/useBabylonEngine.ts` |

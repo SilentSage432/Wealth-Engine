@@ -73,6 +73,10 @@ export interface ExpenseEntry {
    * Legacy payloads without the field soft-migrate to `true`.
    */
   isSettled: boolean;
+  /** Present when this row was generated from a monthly rule. */
+  recurringObligationId?: string;
+  /** YYYY-MM the rule generated this row for. Identity is this pair, not the name. */
+  recurrenceMonth?: string;
 }
 
 /**
@@ -107,6 +111,27 @@ export interface FinancialAccount {
   balance: number;
   /** Local calendar date (YYYY-MM-DD) the balance was last known to be accurate. */
   asOf: string;
+}
+
+/**
+ * Monthly bill the user expects. This is not spending and not an account.
+ * Occurrences are ordinary expenses generated from the rule.
+ */
+export interface RecurringObligation {
+  id: string;
+  name: string;
+  amount: number;
+  category: ExpenseKind;
+  budgetCategoryId: string;
+  /** Calendar day 1–31. Shorter months use the last valid day. The rule stays 31. */
+  dueDay: number;
+  /** First YYYY-MM that may be generated. Earlier months are not created. */
+  startMonth: string;
+  isActive: boolean;
+  /** Local calendar date the rule was created. */
+  createdAt: string;
+  /** YYYY-MM keys the user deleted. Those months are not generated again. */
+  skippedMonths: string[];
 }
 
 export interface FinancialAccountInput {
@@ -221,6 +246,8 @@ export interface PersistedState {
    * before tracked month-close surplus. Not an extra balance.
    */
   openingEmergencyFund: number;
+  /** Monthly obligation rules. Missing on older vaults; loads as []. */
+  recurringObligations: RecurringObligation[];
 }
 
 export interface ChartMonthPoint {
@@ -260,6 +287,8 @@ export interface ExpenseInput {
   budgetCategoryId: string;
   /** True = Already Paid. False = Upcoming. */
   isSettled: boolean;
+  /** Upcoming only. Creates a monthly rule. Already Paid cannot repeat. */
+  repeatsMonthly?: boolean;
 }
 
 /**
@@ -270,8 +299,10 @@ export interface ExpenseInput {
  * Version 3 keeps Upcoming (`isSettled: false`) as unpaid.
  * Version 4 also stores existing Wealth Building and Emergency Fund
  * designations. Older builds reject version 4 instead of dropping them.
+ * Version 5 stores monthly recurring rules and skipped months. Older builds
+ * reject version 5 instead of dropping them.
  */
-export type LedgerBackupVersion = 1 | 2 | 3 | 4;
+export type LedgerBackupVersion = 1 | 2 | 3 | 4 | 5;
 
 export interface LedgerBackup {
   version: LedgerBackupVersion;
@@ -286,12 +317,14 @@ export interface LedgerBackup {
   emergencyShield?: number;
   periodArchives?: PeriodArchive[];
   lastClosedMonthKey?: string | null;
-  /** Present on versions 2, 3, and 4. Version 1 imports as an empty list. */
+  /** Present on versions 2, 3, 4, and 5. Version 1 imports as an empty list. */
   accounts?: FinancialAccount[];
   /** Present on version 4. Earlier versions import as zero. */
   openingWealthBuilding?: number;
-  /** Present on version 4. Earlier versions import as zero. */
+  /** Present on version 4. Earlier versions import as zero. Version 5 keeps them. */
   openingEmergencyFund?: number;
+  /** Present on version 5. Earlier versions import as an empty list. */
+  recurringObligations?: RecurringObligation[];
 }
 
 export interface AffordabilitySnapshot {

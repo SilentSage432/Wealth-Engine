@@ -114,6 +114,7 @@ export function RecordTransactionModal({
   const [expenseDueDate, setExpenseDueDate] = useState(todayIso());
   const [expenseIsDesire, setExpenseIsDesire] = useState(false);
   const [expenseAlreadyPaid, setExpenseAlreadyPaid] = useState(true);
+  const [expenseRepeatsMonthly, setExpenseRepeatsMonthly] = useState(false);
   const [expenseBudgetId, setExpenseBudgetId] = useState("");
 
   const [debtCreditor, setDebtCreditor] = useState("");
@@ -143,6 +144,7 @@ export function RecordTransactionModal({
     setExpenseDueDate(todayIso());
     setExpenseIsDesire(false);
     setExpenseAlreadyPaid(true);
+    setExpenseRepeatsMonthly(false);
     setExpenseBudgetId(
       budgetTargets.find((t) => t.isEssential)?.id ??
         budgetTargets[0]?.id ??
@@ -331,6 +333,7 @@ export function RecordTransactionModal({
           category: expenseIsDesire ? "desire" : "need",
           budgetCategoryId: expenseBudgetId,
           isSettled: expenseAlreadyPaid,
+          repeatsMonthly: !expenseAlreadyPaid && expenseRepeatsMonthly,
         });
         if (!ok) {
           setFormFeedback({
@@ -342,7 +345,11 @@ export function RecordTransactionModal({
         }
         emitVaultToast({
           tone: "success",
-          message: expenseAlreadyPaid ? "Expense saved." : "Upcoming expense saved.",
+          message: expenseAlreadyPaid
+            ? "Expense saved."
+            : expenseRepeatsMonthly
+              ? "Monthly bill saved. It stays unpaid until you mark it paid."
+              : "Upcoming expense saved.",
           durationMs: 0,
         });
         return;
@@ -761,7 +768,10 @@ export function RecordTransactionModal({
                     size="sm"
                     variant={expenseAlreadyPaid ? "default" : "outline"}
                     aria-pressed={expenseAlreadyPaid}
-                    onClick={() => setExpenseAlreadyPaid(true)}
+                    onClick={() => {
+                      setExpenseAlreadyPaid(true);
+                      setExpenseRepeatsMonthly(false);
+                    }}
                   >
                     Already Paid
                   </Button>
@@ -780,6 +790,24 @@ export function RecordTransactionModal({
                     ? "This counts as spending on the transaction date."
                     : "This stays unpaid until you mark it paid. It does not reduce your Living Budget yet."}
                 </p>
+                {!expenseAlreadyPaid ? (
+                  <div className="mt-3 flex items-center justify-between gap-3 border-t border-slate-800 pt-3">
+                    <div>
+                      <p className="text-sm font-medium text-slate-200">
+                        Repeats monthly
+                      </p>
+                      <p className="text-xs text-slate-500">
+                        Adds this bill as Upcoming each month. It is not paid
+                        until you mark that month paid.
+                      </p>
+                    </div>
+                    <Switch
+                      checked={expenseRepeatsMonthly}
+                      onCheckedChange={setExpenseRepeatsMonthly}
+                      aria-label="Repeats monthly"
+                    />
+                  </div>
+                ) : null}
               </div>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="space-y-2">
@@ -800,7 +828,11 @@ export function RecordTransactionModal({
                   )}
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="expense-due-date">Due Date</Label>
+                  <Label htmlFor="expense-due-date">
+                    {expenseRepeatsMonthly && !expenseAlreadyPaid
+                      ? "First due"
+                      : "Due Date"}
+                  </Label>
                   <Input
                     id="expense-due-date"
                     type="date"

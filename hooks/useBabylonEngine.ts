@@ -57,6 +57,14 @@ import {
   totalWealthBuilding,
 } from "@/lib/babylon/protected-money";
 import {
+  buildRecurringObligation,
+  comingUpObligations,
+  deleteExpenseOccurrence,
+  materializeRecurringObligations,
+  replaceExpenseOccurrence,
+  replaceRecurringObligation,
+} from "@/lib/babylon/recurring-obligations";
+import {
   buildLedgerBackup,
   clearPersistedState,
   clearUsername,
@@ -88,6 +96,7 @@ import type {
   NavSection,
   PeriodArchive,
   PersistedState,
+  RecurringObligation,
   SurplusDisposition,
   TributeMode,
 } from "@/types/babylon";
@@ -117,6 +126,9 @@ export function useBabylonEngine() {
   );
   const [openingWealthBuilding, setOpeningWealthBuilding] = useState(0);
   const [openingEmergencyFund, setOpeningEmergencyFund] = useState(0);
+  const [recurringObligations, setRecurringObligations] = useState<
+    RecurringObligation[]
+  >([]);
   /** Profile name input value — may be empty; greeting uses a visual fallback. */
   const [username, setUsernameState] = useState("");
   /** Auth user id when a verified Supabase session is present; null = local-only. */
@@ -164,7 +176,7 @@ export function useBabylonEngine() {
   useEffect(() => {
     ledgerSnapshotRef.current = {
       incomes,
-      expenses,
+      expenses: expenses.filter((expense) => !expense.recurringObligationId),
       budgetTargets,
       username,
       monthKey: currentMonthKey,
@@ -259,6 +271,7 @@ export function useBabylonEngine() {
     setExpenseSemanticsVersion(stored.expenseSemanticsVersion);
     setOpeningWealthBuilding(stored.openingWealthBuilding);
     setOpeningEmergencyFund(stored.openingEmergencyFund);
+    setRecurringObligations(stored.recurringObligations);
     setUsernameState(loadUsername(stored.displayName));
     try {
       setIsDiscreetMode(
@@ -388,6 +401,7 @@ export function useBabylonEngine() {
       expenseSemanticsVersion,
       openingWealthBuilding,
       openingEmergencyFund,
+      recurringObligations,
     };
     savePersistedState(payload);
   }, [
@@ -406,6 +420,7 @@ export function useBabylonEngine() {
     expenseSemanticsVersion,
     openingWealthBuilding,
     openingEmergencyFund,
+    recurringObligations,
   ]);
 
   const setUsername = useCallback((value: string) => {
@@ -459,6 +474,19 @@ export function useBabylonEngine() {
       document.removeEventListener("visibilitychange", onVisible);
     };
   }, []);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    setExpenses((prev) => {
+      const result = materializeRecurringObligations(
+        recurringObligations,
+        prev,
+        financialToday,
+        generateId
+      );
+      return result.created.length === 0 ? prev : result.expenses;
+    });
+  }, [hydrated, financialToday, recurringObligations]);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -547,6 +575,8 @@ export function useBabylonEngine() {
     () => upcomingNeedsTotal(expenses),
     [expenses]
   );
+
+  const comingUp = useMemo(() => comingUpObligations(expenses), [expenses]);
 
   const currentMonthExpenditurePool = useMemo(
     () =>
@@ -849,6 +879,31 @@ export function useBabylonEngine() {
       );
       if (!knownTarget) return false;
 
+      if (input.repeatsMonthly) {
+        if (input.isSettled) return false;
+        const rule = buildRecurringObligation(
+          {
+            name: input.name,
+            amount: input.amount,
+            category: input.category,
+            budgetCategoryId: input.budgetCategoryId,
+            firstDueDate: input.dueDate,
+          },
+          generateId(),
+          todayIso()
+        );
+        if (!rule) return false;
+        setRecurringObligations((prev) => [rule, ...prev]);
+        pushActivity({
+          kind: "expense",
+          title: rule.name,
+          subtitle: "Repeats monthly",
+          amount: rule.amount,
+        });
+        setTributeOpen(false);
+        return true;
+      }
+
       const entry: ExpenseEntry = {
         id: generateId(),
         name: input.name.trim(),
@@ -1037,6 +1092,7 @@ export function useBabylonEngine() {
       let nextSettled: boolean | null = null;
       let name = "";
       let amount = 0;
+      let generated = false;
       const paymentDate = todayIso();
 
       setExpenses((prev) => {
@@ -1045,6 +1101,7 @@ export function useBabylonEngine() {
         nextSettled = !target.isSettled;
         name = target.name;
         amount = target.amount;
+        generated = Boolean(target.recurringObligationId);
         return prev.map((e) => {
           if (e.id !== id) return e;
           return nextSettled ? markExpensePaid(e, paymentDate) : { ...e, isSettled: false };
@@ -1060,13 +1117,15 @@ export function useBabylonEngine() {
         });
 
         const settled = nextSettled;
-        queueCloudWrite((userId) => {
-          mutateUpdateExpenseSettled({
-            userId,
-            expenseId: id,
-            isSettled: settled,
+        if (!generated) {
+          queueCloudWrite((userId) => {
+            mutateUpdateExpenseSettled({
+              userId,
+              expenseId: id,
+              isSettled: settled,
+            });
           });
-        });
+        }
       }
     },
     [pushActivity, queueCloudWrite, mutateUpdateExpenseSettled]
@@ -1216,6 +1275,7 @@ export function useBabylonEngine() {
     setExpenseSemanticsVersion(EXPENSE_SEMANTICS_VERSION);
     setOpeningWealthBuilding(0);
     setOpeningEmergencyFund(0);
+    setRecurringObligations([]);
     setUsernameState("");
     setTributeOpen(false);
     setTributeMode("income");
@@ -1240,6 +1300,7 @@ export function useBabylonEngine() {
       expenseSemanticsVersion,
       openingWealthBuilding,
       openingEmergencyFund,
+      recurringObligations,
     });
     const blob = new Blob([JSON.stringify(backup, null, 2)], {
       type: "application/json",
@@ -1268,6 +1329,7 @@ export function useBabylonEngine() {
     expenseSemanticsVersion,
     openingWealthBuilding,
     openingEmergencyFund,
+    recurringObligations,
   ]);
 
   const importBackup = useCallback((raw: unknown): string | null => {
@@ -1291,6 +1353,7 @@ export function useBabylonEngine() {
       expenseSemanticsVersion: EXPENSE_SEMANTICS_VERSION,
       openingWealthBuilding: backup.openingWealthBuilding ?? 0,
       openingEmergencyFund: backup.openingEmergencyFund ?? 0,
+      recurringObligations: backup.recurringObligations ?? [],
     };
 
     savePersistedState(next);
@@ -1308,6 +1371,7 @@ export function useBabylonEngine() {
     setExpenseSemanticsVersion(EXPENSE_SEMANTICS_VERSION);
     setOpeningWealthBuilding(next.openingWealthBuilding);
     setOpeningEmergencyFund(next.openingEmergencyFund);
+    setRecurringObligations(next.recurringObligations);
     setUsernameState(backup.displayName);
     setTributeOpen(false);
     setTributeMode("income");
@@ -1366,9 +1430,71 @@ export function useBabylonEngine() {
     setAllocations((prev) => prev.filter((a) => a.incomeId !== id));
   }, []);
 
+  const recurringRef = useRef(recurringObligations);
+  const expensesRef = useRef(expenses);
+  recurringRef.current = recurringObligations;
+  expensesRef.current = expenses;
+
   const deleteExpense = useCallback((id: string) => {
-    setExpenses((prev) => prev.filter((e) => e.id !== id));
+    const result = deleteExpenseOccurrence(
+      recurringRef.current,
+      expensesRef.current,
+      id
+    );
+    if (!result) return;
+    recurringRef.current = result.rules;
+    expensesRef.current = result.expenses;
+    setRecurringObligations(result.rules);
+    setExpenses(result.expenses);
   }, []);
+
+  const updateExpenseOccurrence = useCallback(
+    (id: string, patch: { amount: number; dueDate: string }): boolean => {
+      let ok = false;
+      setExpenses((prev) => {
+        const next = replaceExpenseOccurrence(prev, id, patch);
+        if (!next) return prev;
+        ok = true;
+        return next;
+      });
+      return ok;
+    },
+    []
+  );
+
+  const updateRecurringObligation = useCallback(
+    (
+      id: string,
+      patch: {
+        name: string;
+        amount: number;
+        category: "need" | "desire";
+        budgetCategoryId: string;
+        dueDay: number;
+        isActive: boolean;
+      }
+    ): boolean => {
+      const current = recurringObligations.find((rule) => rule.id === id);
+      if (!current) return false;
+      if (
+        patch.budgetCategoryId !== current.budgetCategoryId &&
+        !budgetTargets.some((target) => target.id === patch.budgetCategoryId)
+      ) {
+        return false;
+      }
+      const next = replaceRecurringObligation(recurringObligations, id, patch);
+      if (!next) return false;
+      setRecurringObligations(next);
+      pushActivity({
+        kind: "expense",
+        title: patch.name.trim(),
+        subtitle: patch.isActive ? "Monthly bill updated" : "Monthly bill stopped",
+        amount: roundMoney(patch.amount),
+      });
+      return true;
+    },
+    [budgetTargets, pushActivity, recurringObligations]
+  );
 
   const deleteDebt = useCallback((id: string) => {
     setDebts((prev) => prev.filter((d) => d.id !== id));
@@ -1455,6 +1581,8 @@ export function useBabylonEngine() {
     currentMonthDesire,
     currentMonthRemaining,
     upcomingNeeds,
+    comingUp,
+    recurringObligations,
     desiresPoolRemaining,
     tributeEngines,
     recentActivity,
@@ -1483,6 +1611,8 @@ export function useBabylonEngine() {
     deleteBudgetTarget,
     addBudgetTarget,
     toggleExpenseSettled,
+    updateExpenseOccurrence,
+    updateRecurringObligation,
     autoScaleBudgetCaps,
     closeMonth,
     clearAllData,

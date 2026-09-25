@@ -1,8 +1,26 @@
 "use client";
 
-import { useState } from "react";
-import { Check, Plus, Trash2 } from "lucide-react";
+import { useState, type FormEvent } from "react";
+import { Check, Pencil, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import {
   Card,
   CardContent,
@@ -27,7 +45,9 @@ import type {
   BudgetTarget,
   DebtEntry,
   ExpenseEntry,
+  ExpenseKind,
   IncomeEntry,
+  RecurringObligation,
   TributeMode,
 } from "@/types/babylon";
 
@@ -44,6 +64,22 @@ interface LedgerMatricesProps {
   onDeleteExpense: (id: string) => void;
   onDeleteDebt: (id: string) => void;
   onToggleExpenseSettled: (id: string) => void;
+  recurringObligations: RecurringObligation[];
+  onUpdateExpense: (
+    id: string,
+    patch: { amount: number; dueDate: string }
+  ) => boolean;
+  onUpdateRecurringObligation: (
+    id: string,
+    patch: {
+      name: string;
+      amount: number;
+      category: ExpenseKind;
+      budgetCategoryId: string;
+      dueDay: number;
+      isActive: boolean;
+    }
+  ) => boolean;
 }
 
 export function LedgerMatrices({
@@ -59,8 +95,23 @@ export function LedgerMatrices({
   onDeleteExpense,
   onDeleteDebt,
   onToggleExpenseSettled,
+  recurringObligations,
+  onUpdateExpense,
+  onUpdateRecurringObligation,
 }: LedgerMatricesProps) {
   const [pulsingSettledId, setPulsingSettledId] = useState<string | null>(null);
+  const [editingExpense, setEditingExpense] = useState<ExpenseEntry | null>(null);
+  const [expenseAmount, setExpenseAmount] = useState("");
+  const [expenseDue, setExpenseDue] = useState("");
+  const [expenseError, setExpenseError] = useState<string | null>(null);
+  const [editingRule, setEditingRule] = useState<RecurringObligation | null>(null);
+  const [ruleName, setRuleName] = useState("");
+  const [ruleAmount, setRuleAmount] = useState("");
+  const [ruleCategory, setRuleCategory] = useState<ExpenseKind>("need");
+  const [ruleBudgetId, setRuleBudgetId] = useState("");
+  const [ruleDueDay, setRuleDueDay] = useState("1");
+  const [ruleActive, setRuleActive] = useState(true);
+  const [ruleError, setRuleError] = useState<string | null>(null);
 
   const categoryLabel = (id: string | undefined) => {
     if (!id) return "Uncategorized";
@@ -73,6 +124,58 @@ export function LedgerMatrices({
     const willSettle = !row.isSettled;
     onToggleExpenseSettled(row.id);
     if (willSettle) setPulsingSettledId(row.id);
+  };
+
+  const openExpenseEdit = (row: ExpenseEntry) => {
+    setEditingExpense(row);
+    setExpenseAmount(String(row.amount));
+    setExpenseDue(row.dueDate);
+    setExpenseError(null);
+  };
+
+  const submitExpenseEdit = (event: FormEvent) => {
+    event.preventDefault();
+    if (!editingExpense) return;
+    const ok = onUpdateExpense(editingExpense.id, {
+      amount: Number.parseFloat(expenseAmount),
+      dueDate: expenseDue,
+    });
+    if (!ok) {
+      setExpenseError("Enter a positive amount and a real due date.");
+      return;
+    }
+    setEditingExpense(null);
+  };
+
+  const openRuleEdit = (ruleId: string) => {
+    const rule = recurringObligations.find((item) => item.id === ruleId);
+    if (!rule) return;
+    setEditingRule(rule);
+    setRuleName(rule.name);
+    setRuleAmount(String(rule.amount));
+    setRuleCategory(rule.category);
+    setRuleBudgetId(rule.budgetCategoryId);
+    setRuleDueDay(String(rule.dueDay));
+    setRuleActive(rule.isActive);
+    setRuleError(null);
+  };
+
+  const submitRuleEdit = (event: FormEvent) => {
+    event.preventDefault();
+    if (!editingRule) return;
+    const ok = onUpdateRecurringObligation(editingRule.id, {
+      name: ruleName,
+      amount: Number.parseFloat(ruleAmount),
+      category: ruleCategory,
+      budgetCategoryId: ruleBudgetId,
+      dueDay: Number.parseInt(ruleDueDay, 10),
+      isActive: ruleActive,
+    });
+    if (!ok) {
+      setRuleError("Check the name, amount, category, and due day.");
+      return;
+    }
+    setEditingRule(null);
   };
 
   return (
@@ -293,6 +396,16 @@ export function LedgerMatrices({
                           !row.isSettled && isDueWithinWeek(row.dueDate);
                         const overdue = !row.isSettled && isOverdue(row.dueDate);
                         const bucket = categoryLabel(row.budgetCategoryId);
+                        const timing = row.isSettled
+                          ? "Paid"
+                          : overdue
+                            ? "Overdue"
+                            : dueSoon
+                              ? "Due soon"
+                              : "Upcoming";
+                        const statusLabel = row.recurringObligationId
+                          ? `Monthly · ${timing}`
+                          : timing;
                         return (
                           <TableRow
                             key={row.id}
@@ -341,26 +454,31 @@ export function LedgerMatrices({
                             >
                               <span className="inline-flex flex-wrap items-center gap-2">
                                 {row.name}
-                                {overdue && (
-                                  <span className="text-[11px] font-medium text-rose-300 no-underline">
-                                    Overdue
-                                  </span>
-                                )}
-                                {dueSoon && (
-                                  <span className="text-[11px] font-medium text-amber-400 no-underline">
-                                    Due soon
-                                  </span>
-                                )}
-                                {!row.isSettled && !overdue && !dueSoon && (
-                                  <span className="text-[11px] font-medium text-slate-400 no-underline">
-                                    Upcoming
-                                  </span>
-                                )}
-                                {row.isSettled && (
-                                  <span className="text-[11px] font-medium text-emerald-500/80 no-underline">
-                                    Paid
-                                  </span>
-                                )}
+                                <span
+                                  className={cn(
+                                    "text-[11px] font-medium no-underline",
+                                    overdue
+                                      ? "text-rose-300"
+                                      : dueSoon
+                                        ? "text-amber-400"
+                                        : row.isSettled
+                                          ? "text-emerald-500/80"
+                                          : "text-slate-400"
+                                  )}
+                                >
+                                  {statusLabel}
+                                </span>
+                                {row.recurringObligationId ? (
+                                  <button
+                                    type="button"
+                                    className="text-[11px] font-medium text-slate-400 underline-offset-2 hover:text-slate-200 hover:underline"
+                                    onClick={() =>
+                                      openRuleEdit(row.recurringObligationId!)
+                                    }
+                                  >
+                                    Edit rule
+                                  </button>
+                                ) : null}
                               </span>
                               <p className="mt-0.5 text-[11px] font-normal text-slate-500 no-underline">
                                 {bucket}
@@ -403,6 +521,19 @@ export function LedgerMatrices({
                               {row.dueDate}
                             </TableCell>
                             <TableCell>
+                              <div className="flex items-center justify-end">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-10 w-10 text-slate-500 hover:text-slate-200 md:h-8 md:w-8"
+                                onClick={() => openExpenseEdit(row)}
+                                aria-label={`Edit expense ${row.name}`}
+                              >
+                                <Pencil
+                                  className="h-3.5 w-3.5"
+                                  aria-hidden="true"
+                                />
+                              </Button>
                               <Button
                                 variant="ghost"
                                 size="icon"
@@ -415,6 +546,7 @@ export function LedgerMatrices({
                                   aria-hidden="true"
                                 />
                               </Button>
+                              </div>
                             </TableCell>
                           </TableRow>
                         );
@@ -509,6 +641,184 @@ export function LedgerMatrices({
           </Tabs>
         </CardContent>
       </Card>
+
+      <Dialog
+        open={editingExpense !== null}
+        onOpenChange={(open) => {
+          if (!open) setEditingExpense(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <form onSubmit={submitExpenseEdit} className="space-y-4">
+            <DialogHeader>
+              <DialogTitle>Edit this month</DialogTitle>
+              <DialogDescription>
+                This changes only this occurrence. The monthly rule keeps its
+                normal amount.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-2">
+              <Label htmlFor="occurrence-amount">Amount</Label>
+              <Input
+                id="occurrence-amount"
+                type="number"
+                min="0.01"
+                step="0.01"
+                inputMode="decimal"
+                value={expenseAmount}
+                onChange={(event) => setExpenseAmount(event.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="occurrence-due">Due date</Label>
+              <Input
+                id="occurrence-due"
+                type="date"
+                value={expenseDue}
+                onChange={(event) => setExpenseDue(event.target.value)}
+                required
+              />
+            </div>
+            {expenseError ? (
+              <p role="alert" className="text-xs text-amber-200">
+                {expenseError}
+              </p>
+            ) : null}
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setEditingExpense(null)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit">Save</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={editingRule !== null}
+        onOpenChange={(open) => {
+          if (!open) setEditingRule(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <form onSubmit={submitRuleEdit} className="space-y-4">
+            <DialogHeader>
+              <DialogTitle>Monthly bill</DialogTitle>
+              <DialogDescription>
+                Changes apply to months generated after this save. Months
+                already on the ledger stay as they are.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-2">
+              <Label htmlFor="rule-name">Name</Label>
+              <Input
+                id="rule-name"
+                value={ruleName}
+                onChange={(event) => setRuleName(event.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="rule-amount">Normal amount</Label>
+              <Input
+                id="rule-amount"
+                type="number"
+                min="0.01"
+                step="0.01"
+                inputMode="decimal"
+                value={ruleAmount}
+                onChange={(event) => setRuleAmount(event.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="rule-category">Category</Label>
+              <Select value={ruleBudgetId} onValueChange={setRuleBudgetId}>
+                <SelectTrigger id="rule-category" aria-label="Category">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {budgetTargets.map((target) => (
+                    <SelectItem key={target.id} value={target.id}>
+                      {target.categoryName}
+                    </SelectItem>
+                  ))}
+                  {!budgetTargets.some((target) => target.id === ruleBudgetId) &&
+                  ruleBudgetId ? (
+                    <SelectItem value={ruleBudgetId}>
+                      {categoryLabel(ruleBudgetId)}
+                    </SelectItem>
+                  ) : null}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm text-slate-200">Need or Want</p>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-slate-400">Need</span>
+                <Switch
+                  checked={ruleCategory === "desire"}
+                  onCheckedChange={(checked) =>
+                    setRuleCategory(checked ? "desire" : "need")
+                  }
+                  aria-label="Toggle want"
+                />
+                <span className="text-xs text-slate-400">Want</span>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="rule-day">Due day</Label>
+              <Input
+                id="rule-day"
+                type="number"
+                min="1"
+                max="31"
+                step="1"
+                value={ruleDueDay}
+                onChange={(event) => setRuleDueDay(event.target.value)}
+                required
+              />
+              <p className="text-[11px] text-slate-500">
+                Shorter months use the last valid day. February does not
+                change this day.
+              </p>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-sm text-slate-200">Active</p>
+                <p className="text-[11px] text-slate-500">
+                  Turning this off stops new months. Existing bills stay.
+                </p>
+              </div>
+              <Switch
+                checked={ruleActive}
+                onCheckedChange={setRuleActive}
+                aria-label="Monthly bill active"
+              />
+            </div>
+            {ruleError ? (
+              <p role="alert" className="text-xs text-amber-200">
+                {ruleError}
+              </p>
+            ) : null}
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setEditingRule(null)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit">Save</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }
