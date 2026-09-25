@@ -1,5 +1,28 @@
 # Development Journal
 
+## 2026-09-25 — WE-SYNC-002 cloud vault foundation
+
+### What changed
+- Signing in no longer copies local income, expenses, or budget categories to Supabase. `migrateLocalLedgerToCloud` is gone.
+- The repository now has one vault table, `wealth_engine_vaults`: one row per user, schema version, JSON document, revision, and `updated_at`.
+- Initialize creates revision 1 only when that user has no row. A second initialize does not overwrite.
+- A later edit is a single database update that succeeds only when the stored revision and schema version still match. Revision 17 becomes 18. A stale 17 does not change the row.
+- The application does not call those primitives yet. The desktop vault was not uploaded. The new Supabase project was not migrated.
+- A separate local key, `wealth-engine-cloud-owner`, can remember which Supabase user owns a future sync. Sign-in does not write it.
+- Sign-up can still save a display name on `profiles`. That is not financial state.
+- Backup export stays version 5. Available After Planned Needs stays derived.
+
+### Ownership
+- Vault schema: `supabase/migrations/20260925_wealth_engine_vault.sql`
+- Read, create-only init, and revision update: `lib/babylon/cloud-vault.ts`
+- Unset owner binding: `lib/babylon/cloud-owner.ts`
+- Sign-in no longer migrates: `hooks/useBabylonEngine.ts`
+
+### Not in this tranche
+- No cloud hydration, no desktop bootstrap, and no upload after each edit.
+- Plaid tables and financial formulas are unchanged.
+- WE-SYNC-003 must confirm before the first upload, and must refuse a different signed-in user once the owner key is set.
+
 ## 2026-09-24 — WE-BUDGET-006 available after planned needs
 
 ### What changed
@@ -306,6 +329,8 @@
 - No code or runtime behavior changes
 
 ## 2026-07-19 — Phase 3 Path A: Auth UI + local→cloud hydration (complete)
+
+WE-SYNC-002 later removed this financial migrator. The notes below describe what that July session added.
 
 ### What changed
 - **Auth modal:** `components/modals/AuthModal.tsx` — Sign In / Create Steward Account with username (create), email, password; validation + error/success feedback; Supabase `signInWithPassword` / `signUpWithPassword`

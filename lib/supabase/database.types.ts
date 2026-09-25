@@ -1,8 +1,10 @@
 /**
- * Hand-maintained Supabase Database contract for Path A schema.
+ * Hand-maintained Supabase Database contract.
  * Mirrors:
  * - `supabase/migrations/20260719_init_babylon_schema.sql`
  * - `supabase/migrations/20260807_add_debts_archives_logs.sql`
+ * - `supabase/migrations/20260808_plaid_tables.sql`
+ * - `supabase/migrations/20260925_wealth_engine_vault.sql`
  */
 
 export type IncomeStreamKindDb =
@@ -318,9 +320,49 @@ export interface Database {
         };
         Relationships: [];
       };
+      wealth_engine_vaults: {
+        Row: {
+          user_id: string;
+          schema_version: number;
+          vault_data: Json;
+          revision: number;
+          updated_at: string;
+        };
+        Insert: {
+          user_id: string;
+          schema_version: number;
+          vault_data: Json;
+          revision: number;
+          updated_at?: string;
+        };
+        Update: {
+          user_id?: string;
+          schema_version?: number;
+          vault_data?: Json;
+          revision?: number;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      initialize_wealth_engine_vault: {
+        Args: {
+          known_schema_version: number;
+          next_vault_data: Json;
+        };
+        Returns: Json;
+      };
+      cas_update_wealth_engine_vault: {
+        Args: {
+          expected_revision: number;
+          known_schema_version: number;
+          next_vault_data: Json;
+        };
+        Returns: Json;
+      };
+    };
     Enums: {
       income_stream_kind: IncomeStreamKindDb;
       income_interval: IncomeIntervalDb;
@@ -355,3 +397,5 @@ export type DebtEntryInsert =
   Database["public"]["Tables"]["debt_entries"]["Insert"];
 export type PeriodArchiveInsert =
   Database["public"]["Tables"]["period_archives"]["Insert"];
+export type WealthEngineVaultRow =
+  Database["public"]["Tables"]["wealth_engine_vaults"]["Row"];

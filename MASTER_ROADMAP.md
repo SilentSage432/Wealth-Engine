@@ -38,7 +38,7 @@ A personal ledger that splits income 10% to Wealth Building, 20% to Debt Payoff,
 - [x] High-end micro-animations & UI polish (settled pulse, inline expand, wisdom console, engine tooltips)
 - [x] Path A cloud schema foundation (`supabase/migrations/20260719_init_babylon_schema.sql`)
 - [x] Path A client connectivity (Supabase SDK + TanStack Query + dual-write mutations)
-- [x] Path A auth UI + local→cloud hydration (AuthModal, sidebar vault anchor, one-time migrate)
+- [x] Path A auth UI (AuthModal, sidebar vault anchor). The first-login financial migrator was removed in WE-SYNC-002.
 - [x] Mobile layout (focus cards, compact 10/20/70 cards, Overview / Analytics / Ledger tabs)
 - [x] Mobile runtime paint and mount (opaque scrolling surfaces, CommandBar-local clock, one layout tree per breakpoint)
 - [x] Path A entity parity schema (`debt_entries`, `period_archives` — `20260807_add_debts_archives_logs.sql`)
@@ -51,24 +51,23 @@ A personal ledger that splits income 10% to Wealth Building, 20% to Debt Payoff,
 - [x] Existing protected money — designations inside Money Available, separate from tracked allocations (WE-BUDGET-004)
 - [x] Monthly recurring obligations — upcoming occurrences only, current month and next month (WE-BUDGET-005)
 - [x] Available After Planned Needs — derived from Money Available, Protected Money, and Upcoming Needs (WE-BUDGET-006)
-- [ ] Path A dual-write for debts / period archives / activity_logs + hydrate remint
+- [x] WE-SYNC-002 versioned vault schema and revision primitives (not yet called by the app)
+- [ ] WE-SYNC-003 explicit desktop bootstrap and phone hydration
+- [ ] Path A relational dual-write is not the vault. Do not extend it into the planning document.
 - [ ] Speed-Tribute 1-tap commit (presets + bar mount; full amount autofill / zero-modal path still open)
 - [ ] Plaid transaction sync / steward review workflow
 - [ ] Multi-currency
 - [ ] Shared household vaults
 - [ ] Institutional knowledge composition (read-only Observatory views)
 
-## Phase 3 Path A — Cloud synchronization (complete)
-Relational + client bridge fully wired:
-- Enums / tables / RLS / indexes — `supabase/migrations/20260719_init_babylon_schema.sql`
-- Client: `lib/supabase/client.ts` + `lib/supabase/auth.ts` + `lib/supabase/database.types.ts`
-- Cache: `app/providers.tsx` → TanStack Query (`staleTime` 5m)
-- Dual-write: `hooks/useBabylonEngine.ts` (income / expense / settled / auto-scale)
-- Hydration: `lib/babylon/cloud-hydrate.ts` — first sign-in migrates local vault when cloud is empty
-- Auth UI: `components/modals/AuthModal.tsx` (sign-in / create steward)
-- Sidebar anchor: Connect Cloud Vault ↔ "Cloud connected" (session only; local cache retained; not a full ledger mirror)
-- Mappers: `lib/babylon/cloud-mappers.ts` + `lib/babylon/cloud-sync.ts`
-- Ownership: SQL owns schema; `types/babylon.ts` owns app contracts; sync adapters compose the boundary
+## Phase 3 — Cloud vault (WE-SYNC-002 foundation only)
+The planning document is one row per user, not the older relational ledger.
+- Vault table and compare-and-swap functions — `supabase/migrations/20260925_wealth_engine_vault.sql`
+- Primitives, not yet used by the screen — `lib/babylon/cloud-vault.ts`
+- Owner key, unset until an explicit bootstrap — `lib/babylon/cloud-owner.ts`
+- Sign-in does not upload financial rows and does not download a vault
+- Older relational dual-write still runs only after a later edit of income, a one-time expense, a paid toggle, or auto-scale (`lib/babylon/cloud-sync.ts`)
+- Sidebar “Cloud connected” means a session exists. It does not mean the vault is shared.
 
 ## Architectural ownership
 
@@ -89,7 +88,8 @@ Canonical map: [`ARCHITECTURE.md`](./ARCHITECTURE.md) (layers, dependency rules,
 | Cloud relational schema | `supabase/migrations/*` |
 | Supabase browser client | `lib/supabase/client.ts` |
 | Auth session methods | `lib/supabase/auth.ts` |
-| Local→cloud hydration | `lib/babylon/cloud-hydrate.ts` |
+| Versioned cloud vault | `lib/babylon/cloud-vault.ts` |
+| Cloud owner binding | `lib/babylon/cloud-owner.ts` |
 | Cloud ↔ domain mappers | `lib/babylon/cloud-mappers.ts` |
 | Cloud mutation primitives | `lib/babylon/cloud-sync.ts` |
 | Server-state cache | `app/providers.tsx` (TanStack Query) |

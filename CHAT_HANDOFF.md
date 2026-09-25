@@ -7,7 +7,7 @@
 
 ## Entry points
 - App surface: `app/page.tsx` → `components/babylon/wealth-engine-dashboard.tsx`
-- Domain hook: `hooks/useBabylonEngine.ts` (state, persistence, dual-write, hydration, auth, actions, metrics)
+- Domain hook: `hooks/useBabylonEngine.ts` (state, persistence, auth, actions, metrics). Sign-in does not hydrate or upload the vault.
 - Pure engine: `lib/babylon/engine.ts`
 - Speed-Tribute presets: `lib/babylon/presets.ts` (`QuickPreset`, `DEFAULT_PRESETS`, kind resolvers → domain)
 - Quick Add bar: `components/babylon/speed-tribute-bar.tsx` (chips open Add; full 1-tap commit pending)
@@ -24,8 +24,9 @@
 - Types: `types/babylon.ts`
 - Shell: `app/layout.tsx` → `app/providers.tsx` (TanStack Query), `app/globals.css`, `app/manifest.ts`
 - Cloud client: `lib/supabase/client.ts`, `lib/supabase/auth.ts`, `lib/supabase/server.ts` (API JWT + service role), `lib/supabase/database.types.ts`
-- Cloud sync: `lib/babylon/cloud-mappers.ts`, `lib/babylon/cloud-sync.ts`, `lib/babylon/cloud-hydrate.ts`
-- Schema: `supabase/migrations/20260719_init_babylon_schema.sql`, `supabase/migrations/20260807_add_debts_archives_logs.sql` (`debt_entries`, `period_archives`; `activity_logs` from init)
+- Cloud vault: `lib/babylon/cloud-vault.ts`, `lib/babylon/cloud-owner.ts`, `supabase/migrations/20260925_wealth_engine_vault.sql`
+- Older relational sync (not the vault): `lib/babylon/cloud-mappers.ts`, `lib/babylon/cloud-sync.ts`
+- Schema: `supabase/migrations/20260719_init_babylon_schema.sql`, `supabase/migrations/20260807_add_debts_archives_logs.sql` (`debt_entries`, `period_archives`; `activity_logs` from init), `supabase/migrations/20260925_wealth_engine_vault.sql` (one planning document per user; not applied to the new project yet)
 - Auth UI: `components/modals/AuthModal.tsx`
 - PWA: `public/sw.js` (network-first `/`, offline document fallback, cache `babylon-engine-v2`), `components/layout/ServiceWorkerRegistrar.tsx` (not registered on localhost; `updateViaCache: "none"`), `public/icons/*`
 - Primitives: `components/ui/*`
@@ -114,7 +115,7 @@ Legacy expenses without `dueDate` soft-migrate to use `date`. Want expenses (`ca
 - Recording income runs `allocateIncome()` (penny-exact 10/20/70; shares sum to gross) and optionally `applyDebtAllocation()`.
 - Financial "today" is the local calendar day (`todayIso`), not UTC. The ledger hook advances that day at the next local midnight (and when a backgrounded tab returns on a new day). The visible CommandBar clock is a local one-second timer and does not rerender the dashboard.
 - Main income rate is the latest recurring deposit per income source. Repeated paychecks from the same source do not stack into extra wages. `source` is the only way two simultaneous jobs stay separate.
-- Sidebar cloud state reads "Cloud connected" (session present). It does not mean the ledger is fully mirrored.
+- Sidebar cloud state reads "Cloud connected" (session present). Sign-in does not upload or download the financial vault.
 - Plaid success means the institution link was saved. Transactions are not imported.
 - Deleting an income reverses its `debtShare` via `reverseDebtAllocation` (remainingDebt clamped ≤ totalDebt).
 - The Living Budget card is **this month's** budget and spending.
@@ -126,17 +127,18 @@ Legacy expenses without `dueDate` soft-migrate to use `date`. Want expenses (`ca
 - Multi-currency / shared household vaults
 - Debt payment waterfall visualization
 - Recurring income scheduling automation
-- Cloud→local pull / multi-device conflict policy (Path A is local-first dual-write + first-login migrate)
+- WE-SYNC-003 explicit bootstrap and hydration. The vault primitives exist and are not called yet.
 
-## Path A — Cloud synchronization (complete)
-- Env: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (see `.env.example`; legacy `ANON_KEY` still accepted)
-- Migration: `supabase/migrations/20260719_init_babylon_schema.sql`
-- Auth: sidebar “☁️ Connect Cloud Vault” → `AuthModal` (sign-in / create steward)
-- Hydration: first session with local data + empty cloud → batch upsert incomes / expenses / budget_targets
-- Dual-write: subsequent mutations while `isCloudSynced`
-- Badge copy: "Cloud connected". A session is not a full ledger mirror.
-- Sign out: clears the Supabase session only; the local ledger in `localStorage` stays
-- Map at sync: TS `IncomeInterval` / `ActivityKind` ↔ DB enums via `cloud-mappers`
+## Cloud vault — WE-SYNC-002
+- The financial plan will live in `wealth_engine_vaults` (`user_id`, `schema_version`, `vault_data`, `revision`, `updated_at`). Schema version 5 matches the current backup generation. The localStorage key suffix `v2` is not that version.
+- `getCloudVault`, `initializeCloudVault`, and `updateCloudVault` exist in `lib/babylon/cloud-vault.ts`. The screen does not call them.
+- Initialize is create-only. Update is one Postgres function: the row changes only when `revision` and `schema_version` still match, then revision increases by one.
+- Sign-in stores the Supabase user id in memory. It does not upload income, expenses, categories, or the vault, and it does not replace local state.
+- `wealth-engine-cloud-owner` is a separate local key for a future owner check. It is unset. It is not inside the financial vault or the version 5 backup.
+- Sign-up can still write `profiles.username`. That is a display name, not the ledger.
+- Older dual-write still sends a new income, a new one-time expense, a non-recurring paid toggle, or an auto-scale to the relational tables if a session exists. Those tables are not the vault.
+- Sign out still clears only the Supabase session. The local ledger stays.
+- The new Supabase project has not had this migration applied, and the desktop has not been pointed at it.
 
 ## Path B polish (complete)
 - Add hotkeys: `N` / `Ctrl+N` / `Cmd+N` via `useTributeHotkeys`

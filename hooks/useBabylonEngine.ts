@@ -14,10 +14,6 @@ import {
   cloudUpsertIncome,
 } from "@/lib/babylon/cloud-sync";
 import {
-  migrateLocalLedgerToCloud,
-  type LocalVaultSnapshot,
-} from "@/lib/babylon/cloud-hydrate";
-import {
   allocateIncome,
   actualSpendTotals,
   applyDebtAllocation,
@@ -135,21 +131,9 @@ export function useBabylonEngine() {
   /** Auth user id when a verified Supabase session is present; null = local-only. */
   const [cloudUserId, setCloudUserId] = useState<string | null>(null);
   const cloudUserIdRef = useRef<string | null>(null);
-  /**
-   * True after the auth client's initial session sweep has been applied
-   * outside its exclusive lock (see onAuthStateChange insulation below).
-   */
-  const [authReady, setAuthReady] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
-  const [cloudHydrating, setCloudHydrating] = useState(false);
-  const hydrationAttemptedRef = useRef<Set<string>>(new Set());
-  const ledgerSnapshotRef = useRef<LocalVaultSnapshot>({
-    incomes: [],
-    expenses: [],
-    budgetTargets: [],
-    username: "",
-    monthKey: "",
-  });
+  /** Sign-in does not migrate the ledger. This stays false until a later explicit sync. */
+  const cloudHydrating = false;
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeNav, setActiveNav] = useState<NavSection>("overview");
@@ -173,16 +157,6 @@ export function useBabylonEngine() {
     () => monthKeyFromDate(financialToday),
     [financialToday]
   );
-
-  useEffect(() => {
-    ledgerSnapshotRef.current = {
-      incomes,
-      expenses: expenses.filter((expense) => !expense.recurringObligationId),
-      budgetTargets,
-      username,
-      monthKey: currentMonthKey,
-    };
-  }, [incomes, expenses, budgetTargets, username, currentMonthKey]);
 
   const { mutate: mutateUpsertIncome } = useMutation({
     mutationFn: ({
@@ -301,7 +275,6 @@ export function useBabylonEngine() {
     const supabase = getSupabaseBrowserClient();
     if (!supabase) {
       setCloudUserId(null);
-      setAuthReady(true);
       return;
     }
 
@@ -318,11 +291,11 @@ export function useBabylonEngine() {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
+      // Session identity only. Do not upload or download the financial vault here.
       const timer = setTimeout(() => {
         deferredTimers.delete(timer);
         if (!active) return;
         setCloudUserId(session?.user.id ?? null);
-        setAuthReady(true);
       }, 0);
       deferredTimers.add(timer);
     });
@@ -336,54 +309,6 @@ export function useBabylonEngine() {
       subscription.unsubscribe();
     };
   }, []);
-
-  /** One-time local → cloud hydration when a session appears over an empty vault. */
-  useEffect(() => {
-    // Wait for authReady so hydration never races the insulated INITIAL_SESSION apply.
-    if (!hydrated || !authReady || !cloudUserId) return;
-    if (hydrationAttemptedRef.current.has(cloudUserId)) return;
-
-    let cancelled = false;
-    setCloudHydrating(true);
-
-    void (async () => {
-      try {
-        const result = await migrateLocalLedgerToCloud(
-          cloudUserId,
-          ledgerSnapshotRef.current
-        );
-        if (cancelled) return;
-
-        if (result.remapped) {
-          setIncomes(result.remapped.incomes);
-          setExpenses(result.remapped.expenses);
-          setBudgetTargets(result.remapped.budgetTargets);
-        }
-
-        if (result.migrated) {
-          pushActivity({
-            kind: "close",
-            title: "Ledger copied to your account",
-            subtitle: "Local ledger copied to your account",
-          });
-        }
-      } catch (error) {
-        console.error(
-          "[cloud-hydrate] local→cloud migration failed — local vault retained.",
-          error
-        );
-      } finally {
-        if (!cancelled) {
-          hydrationAttemptedRef.current.add(cloudUserId);
-          setCloudHydrating(false);
-        }
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [hydrated, authReady, cloudUserId, pushActivity]);
 
   useEffect(() => {
     if (!hydrated) return;
