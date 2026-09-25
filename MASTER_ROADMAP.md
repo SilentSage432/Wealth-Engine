@@ -53,7 +53,8 @@ A personal ledger that splits income 10% to Wealth Building, 20% to Debt Payoff,
 - [x] Available After Planned Needs — derived from Money Available, Protected Money, and Upcoming Needs (WE-BUDGET-006)
 - [x] WE-SYNC-002 versioned vault schema and revision primitives
 - [x] WE-SYNC-003 explicit desktop bootstrap and empty-device hydration
-- [ ] WE-SYNC-004 continuous sync, offline edits, and conflict choice
+- [x] WE-SYNC-004 revision sync, offline edits, and conflict stop
+- [ ] WE-SYNC-005 choose cloud or this device after a conflict, with a backup first
 - [ ] Speed-Tribute 1-tap commit (presets + bar mount; full amount autofill / zero-modal path still open)
 - [ ] Plaid transaction sync / steward review workflow
 - [ ] Multi-currency
@@ -61,12 +62,14 @@ A personal ledger that splits income 10% to Wealth Building, 20% to Debt Payoff,
 - [ ] Institutional knowledge composition (read-only Observatory views)
 
 ## Phase 3 — Cloud vault
-The planning document is one row per user.
-- Vault table and compare-and-swap — `supabase/migrations/20260925_wealth_engine_vault.sql` (not applied until a deliberate manual step)
+The planning document is one row per user. The cloud revision is the concurrency authority.
+- Vault table and compare-and-swap — `supabase/migrations/20260925_wealth_engine_vault.sql`
 - Explicit setup — `lib/babylon/cloud-setup.ts`. Sign-in does not upload or download.
-- Initialize only after confirmation, and only when this device has financial data and the cloud vault is absent. The owner key is saved after revision 1 matches.
-- An empty device can load that vault after a second confirmation. A device that already has data is left alone.
-- New entries after that stay on the device until WE-SYNC-004. The sidebar does not call that synchronized.
+- Revision sync — `lib/babylon/vault-sync.ts`. Local edits save first. A matching cloud revision can be pushed. A newer cloud revision is pulled only when this device is still clean.
+- `wealth-engine-cloud-sync` remembers the last verified revision and document fingerprint. It is separate from the financial vault.
+- If both sides changed, the screen stops. It does not pick a winner.
+- An empty device still confirms a load. A non-empty device is adopted only when its document matches the cloud.
+- Plaid stays outside the vault. The service worker does not sync it.
 
 ## Architectural ownership
 
@@ -89,6 +92,7 @@ Canonical map: [`ARCHITECTURE.md`](./ARCHITECTURE.md) (layers, dependency rules,
 | Auth session methods | `lib/supabase/auth.ts` |
 | Versioned cloud vault | `lib/babylon/cloud-vault.ts` |
 | Explicit cloud setup | `lib/babylon/cloud-setup.ts` |
+| Revision sync | `lib/babylon/vault-sync.ts` |
 | Cloud owner binding | `lib/babylon/cloud-owner.ts` |
 | Supabase id check | `lib/babylon/cloud-mappers.ts` |
 | Server-state cache | `app/providers.tsx` (TanStack Query) |

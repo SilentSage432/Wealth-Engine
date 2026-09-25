@@ -7,7 +7,7 @@
 
 ## Entry points
 - App surface: `app/page.tsx` → `components/babylon/wealth-engine-dashboard.tsx`
-- Domain hook: `hooks/useBabylonEngine.ts` (state, persistence, auth, actions, metrics). Sign-in does not hydrate or upload the vault.
+- Domain hook: `hooks/useBabylonEngine.ts` (state, persistence, auth, actions, metrics). Sign-in does not itself upload or download. Later edits sync through the revision cycle.
 - Pure engine: `lib/babylon/engine.ts`
 - Speed-Tribute presets: `lib/babylon/presets.ts` (`QuickPreset`, `DEFAULT_PRESETS`, kind resolvers → domain)
 - Quick Add bar: `components/babylon/speed-tribute-bar.tsx` (chips open Add; full 1-tap commit pending)
@@ -26,7 +26,8 @@
 - Cloud client: `lib/supabase/client.ts`, `lib/supabase/auth.ts`, `lib/supabase/server.ts` (API JWT + service role), `lib/supabase/database.types.ts`
 - Cloud vault: `lib/babylon/cloud-vault.ts`, `lib/babylon/cloud-owner.ts`, `supabase/migrations/20260925_wealth_engine_vault.sql`
 - Cloud setup: `lib/babylon/cloud-setup.ts`. Relational ledger writes in `cloud-sync.ts` were removed.
-- Schema: `supabase/migrations/20260719_init_babylon_schema.sql`, `supabase/migrations/20260807_add_debts_archives_logs.sql` (`debt_entries`, `period_archives`; `activity_logs` from init), `supabase/migrations/20260925_wealth_engine_vault.sql` (one planning document per user; not applied to the new project yet)
+- Revision sync: `lib/babylon/vault-sync.ts`. Baseline key `wealth-engine-cloud-sync`.
+- Schema: `supabase/migrations/20260719_init_babylon_schema.sql`, `supabase/migrations/20260807_add_debts_archives_logs.sql` (`debt_entries`, `period_archives`; `activity_logs` from init), `supabase/migrations/20260925_wealth_engine_vault.sql` (one planning document per user)
 - Auth UI: `components/modals/AuthModal.tsx`
 - PWA: `public/sw.js` (network-first `/`, offline document fallback, cache `babylon-engine-v2`), `components/layout/ServiceWorkerRegistrar.tsx` (not registered on localhost; `updateViaCache: "none"`), `public/icons/*`
 - Primitives: `components/ui/*`
@@ -115,7 +116,7 @@ Legacy expenses without `dueDate` soft-migrate to use `date`. Want expenses (`ca
 - Recording income runs `allocateIncome()` (penny-exact 10/20/70; shares sum to gross) and optionally `applyDebtAllocation()`.
 - Financial "today" is the local calendar day (`todayIso`), not UTC. The ledger hook advances that day at the next local midnight (and when a backgrounded tab returns on a new day). The visible CommandBar clock is a local one-second timer and does not rerender the dashboard.
 - Main income rate is the latest recurring deposit per income source. Repeated paychecks from the same source do not stack into extra wages. `source` is the only way two simultaneous jobs stay separate.
-- Sidebar cloud state says "Cloud account connected" until a confirmed revision exists. It then shows "Cloud vault revision N" and that new entries stay on this device. Sign-in itself does not upload or download.
+- Sidebar cloud state says "Cloud account connected" before a vault link. After a verified match it says "Up to date · revision N". Unsent edits say they are waiting or saved offline. A conflict says both copies were preserved. Sign-in itself is not labeled synced.
 - Plaid success means the institution link was saved. Transactions are not imported.
 - Deleting an income reverses its `debtShare` via `reverseDebtAllocation` (remainingDebt clamped ≤ totalDebt).
 - The Living Budget card is **this month's** budget and spending.
@@ -127,18 +128,20 @@ Legacy expenses without `dueDate` soft-migrate to use `date`. Want expenses (`ca
 - Multi-currency / shared household vaults
 - Debt payment waterfall visualization
 - Recurring income scheduling automation
-- WE-SYNC-004 continuous sync after the confirmed revision. A later edit does not upload itself.
+- WE-SYNC-005 a deliberate choice between the two preserved copies after a conflict. This tranche only stops.
 
-## Cloud vault — WE-SYNC-003
+## Cloud vault — WE-SYNC-004
 - The financial plan lives in `wealth_engine_vaults` (`user_id`, `schema_version`, `vault_data`, `revision`, `updated_at`). Schema version 5 matches backup generation. The localStorage key suffix `v2` is not that version.
-- Sign-in stores the Supabase user id only. It does not upload or replace the vault.
-- Initialize is offered only when this device has financial data, the cloud row is absent, and `wealth-engine-cloud-owner` is unset or already this user. The user must confirm. The app reads the row back, checks revision 1 and the document, then saves the owner key. The local vault stays.
-- An empty device can confirm “Load my Wealth Engine from cloud.” A device that already has accounts, income, expenses, debts, allocations, categories, protected money, shield surplus, archives, a closed month, or recurring rules is not emptied and is not uploaded.
-- A different owner key, a newer schema, or an invalid vault stops both directions.
-- After the link, new entries stay local. `updateCloudVault` is not called from setup.
-- Sign-up can still write `profiles.username`. Sign-out clears only the session.
-- The migration `20260925_wealth_engine_vault.sql` is still not applied, and the desktop is not pointed at the new project.
-- If the vault table is missing, the sidebar says the cloud vault is unavailable and does not treat that as an empty vault.
+- The desktop bootstrap is already revision 1. This code does not modify that row. A device with no sync baseline adopts revision 1 only when its document matches the cloud.
+- Sign-in stores the Supabase user id only. The revision cycle runs after that, from startup, foreground, reconnect, or Check cloud. There is no polling and no realtime channel.
+- Local edits still save immediately. If the cloud revision is still the verified one, the whole vault is pushed with compare-and-swap. The device becomes clean at N+1 only after the read-back matches. A failed read-back stays unverified and is not retried at revision N.
+- If the cloud revision is newer and this device is clean, that document is saved locally and checked through the normal load path.
+- If both sides changed, neither is overwritten. The sidebar asks for a backup before any later choice.
+- An empty device can still confirm “Load my Wealth Engine from cloud.” A non-empty device that differs from the cloud is not replaced and is not uploaded.
+- A different owner key, a newer schema, an invalid vault, or a cloud revision older than this device stops both directions.
+- Sign-out clears only the session. The financial vault and the sync baseline stay.
+- Plaid remains outside `vault_data`.
+- Choosing which conflict copy to keep is not implemented.
 
 ## Path B polish (complete)
 - Add hotkeys: `N` / `Ctrl+N` / `Cmd+N` via `useTributeHotkeys`

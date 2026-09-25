@@ -1,5 +1,28 @@
 # Development Journal
 
+## 2026-09-25 — WE-SYNC-004 revision sync
+
+### What changed
+- After a device has a verified cloud revision, a later local edit saves immediately and then tries one compare-and-swap upload of the whole vault.
+- A clean device that finds a newer cloud revision downloads that document, checks the local round trip, and moves its baseline forward.
+- The baseline lives in `wealth-engine-cloud-sync` (`revision` and `fingerprint` only). It is not inside the financial vault or a version 5 backup.
+- A desktop already bound at revision 1, with no baseline yet, adopts that revision when the local document matches the cloud. It does not upload. If the documents differ, both copies stay put.
+- A non-empty second device is adopted only when its document matches the cloud. Otherwise it stops. An empty device still has to confirm a load.
+- If the cloud revision moved and this device also has unsent edits, neither side is overwritten.
+- Offline edits stay on the device. The verified revision does not change. The next foreground, reconnect, or Check cloud tries again.
+- An upload of an older snapshot does not mark a newer local edit clean.
+- If compare-and-swap reports the next revision but the read-back fails, the device stores that reported revision as unverified. It does not become clean, and it does not upload again at the old revision. The next check confirms the cloud document before trusting it.
+
+### Ownership
+- Revision cycle: `lib/babylon/vault-sync.ts`
+- The screen calls that cycle from `hooks/useBabylonEngine.ts` after the local vault is saved. Individual actions do not call Supabase.
+- Sidebar status: `components/babylon/app-sidebar.tsx`
+
+### Not in this tranche
+- No merge and no “use cloud” / “use this device” buttons.
+- No new migration. The real vault row was not modified from this working tree.
+- Plaid, backup version 5, and the financial formulas are unchanged.
+
 ## 2026-09-25 — WE-SYNC-003 desktop bootstrap and empty-device hydration
 
 ### What changed

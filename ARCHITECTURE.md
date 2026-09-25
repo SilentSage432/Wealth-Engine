@@ -104,7 +104,7 @@ Presentation consumes the Application layer. It displays what the engine and wor
 - User actions and recording flows
 - Ledger mutations and derived metric exposure
 - Monthly close and surplus disposition workflows
-- Auth session awareness and cloud dual-write timing
+- Auth session awareness and revision sync (`lib/babylon/vault-sync.ts`). The sync baseline is not part of the financial vault.
 - Local vault lifecycle in concert with persistence adapters
 - The financial calendar day (`todayIso`), advanced at the next local midnight rather than once per second
 
@@ -257,6 +257,7 @@ Canonical ownership reference for Wealth Engine:
 | Supabase id check | `lib/babylon/cloud-mappers.ts` | Persistence |
 | Versioned cloud vault | `lib/babylon/cloud-vault.ts` | Persistence |
 | Explicit cloud setup | `lib/babylon/cloud-setup.ts` | Application |
+| Revision sync | `lib/babylon/vault-sync.ts` | Application |
 | Cloud owner binding | `lib/babylon/cloud-owner.ts` | Persistence |
 | Typed DB contract | `lib/supabase/database.types.ts` | Persistence |
 | Supabase browser client | `lib/supabase/client.ts` | Infrastructure |

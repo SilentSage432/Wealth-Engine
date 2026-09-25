@@ -1,7 +1,6 @@
 /**
  * Versioned per-user vault primitives.
- * Ownership: the cloud document boundary only. Does not allocate, hydrate,
- * or upload from the application flow.
+ * Ownership: the cloud document boundary only. Does not decide when to sync.
  *
  * Writes go through Postgres functions. A revision check in the client
  * before a normal update would race. Do not add that pattern here.
@@ -229,6 +228,11 @@ function sortKeys(value: unknown): unknown {
     sorted[key] = sortKeys(value[key]);
   }
   return sorted;
+}
+
+/** Identity of the financial document. Not a hash, and not stored in the vault. */
+export function financialVaultFingerprint(state: PersistedState): string {
+  return canonicalJson(serializeCloudVaultData(state));
 }
 
 /** Financial PersistedState only. Extra fields on the input are not copied. */

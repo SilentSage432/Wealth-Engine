@@ -8,12 +8,18 @@ import {
 } from "@/lib/babylon/constants";
 import {
   bootstrapCurrentDesktop,
-  decideCloudSetup,
   hydrateCurrentDevice,
-  probeCloudVault,
-  type CloudProbe,
 } from "@/lib/babylon/cloud-setup";
 import { readCloudOwnerId } from "@/lib/babylon/cloud-owner";
+import { financialVaultFingerprint } from "@/lib/babylon/cloud-vault";
+import {
+  clearCloudSyncBaseline,
+  readCloudSyncBaseline,
+  runCurrentVaultCycle,
+  writeCloudSyncBaseline,
+  type CloudSyncBaseline,
+  type VaultSyncView,
+} from "@/lib/babylon/vault-sync";
 import { emitVaultToast } from "@/lib/babylon/vault-toast";
 import {
   allocateIncome,
@@ -130,9 +136,14 @@ export function useBabylonEngine() {
   const [cloudUserId, setCloudUserId] = useState<string | null>(null);
   const cloudUserIdRef = useRef<string | null>(null);
   const [authOpen, setAuthOpen] = useState(false);
-  const [cloudProbe, setCloudProbe] = useState<CloudProbe>({ status: "idle" });
+  const [vaultSync, setVaultSync] = useState<VaultSyncView>({ kind: "checking" });
+  const [syncBaseline, setSyncBaseline] = useState<CloudSyncBaseline | null>(null);
   const [cloudBusy, setCloudBusy] = useState(false);
   const cloudBusyRef = useRef(false);
+  const pauseAutoPushRef = useRef(false);
+  const syncingRef = useRef(false);
+  const rerunSyncRef = useRef(false);
+  const [checkEpoch, setCheckEpoch] = useState(0);
   const [ownerEpoch, setOwnerEpoch] = useState(0);
   const [ownerUserId, setOwnerUserId] = useState<string | null>(null);
   const [ownerReady, setOwnerReady] = useState(false);
@@ -335,34 +346,9 @@ export function useBabylonEngine() {
 
   useEffect(() => {
     setOwnerUserId(readCloudOwnerId());
+    setSyncBaseline(readCloudSyncBaseline());
     setOwnerReady(true);
   }, [ownerEpoch]);
-
-  useEffect(() => {
-    if (!hydrated || !cloudUserId || !ownerReady) {
-      if (!hydrated || !cloudUserId) setCloudProbe({ status: "idle" });
-      return;
-    }
-    let cancelled = false;
-    setCloudProbe({ status: "loading" });
-    void probeCloudVault(cloudUserId).then((result) => {
-      if (!cancelled) setCloudProbe({ status: "ready", result });
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [hydrated, cloudUserId, ownerEpoch, ownerReady]);
-
-  const cloudSetup = useMemo(
-    () =>
-      decideCloudSetup({
-        sessionUserId: cloudUserId,
-        local: vaultSnapshot,
-        ownerUserId,
-        probe: ownerReady ? cloudProbe : { status: "idle" },
-      }),
-    [cloudUserId, vaultSnapshot, cloudProbe, ownerUserId, ownerReady]
-  );
 
   const applyVault = useCallback((next: PersistedState) => {
     savePersistedState(next);
@@ -384,22 +370,114 @@ export function useBabylonEngine() {
     setUsernameState(next.displayName);
   }, []);
 
+  const requestCloudCheck = useCallback(async () => {
+    const userId = cloudUserIdRef.current;
+    if (!userId) {
+      setVaultSync({ kind: "signed_out" });
+      return;
+    }
+    if (syncingRef.current) {
+      rerunSyncRef.current = true;
+      return;
+    }
+    pauseAutoPushRef.current = false;
+    syncingRef.current = true;
+    cloudBusyRef.current = true;
+    setCloudBusy(true);
+    const baseline = readCloudSyncBaseline();
+    const fingerprint = financialVaultFingerprint(vaultRef.current);
+    setVaultSync(
+      baseline?.pendingRevision
+        ? { kind: "checking" }
+        : baseline && fingerprint !== baseline.fingerprint
+          ? { kind: "syncing", revision: baseline.revision }
+          : { kind: "checking" }
+    );
+    try {
+      const outcome = await runCurrentVaultCycle(userId, () => vaultRef.current);
+      pauseAutoPushRef.current =
+        outcome.view.kind === "offline_pending" ||
+        outcome.view.kind === "pending_verification" ||
+        outcome.view.kind === "conflict" ||
+        outcome.view.kind === "unsupported_schema" ||
+        outcome.view.kind === "invalid_vault" ||
+        outcome.view.kind === "owner_mismatch" ||
+        outcome.view.kind === "unexpected_revision" ||
+        outcome.view.kind === "cloud_unavailable";
+      setSyncBaseline(outcome.baseline);
+      if (outcome.boundOwner) setOwnerUserId(userId);
+      if (outcome.appliedLocal) applyVault(outcome.appliedLocal);
+      setVaultSync(outcome.view);
+    } finally {
+      syncingRef.current = false;
+      cloudBusyRef.current = false;
+      setCloudBusy(false);
+      if (rerunSyncRef.current) {
+        rerunSyncRef.current = false;
+        void requestCloudCheck();
+      }
+    }
+  }, [applyVault]);
+
+  useEffect(() => {
+    if (!hydrated || !ownerReady) return;
+    if (!cloudUserId) {
+      setVaultSync({ kind: "signed_out" });
+      return;
+    }
+    if (ownerUserId && ownerUserId !== cloudUserId) {
+      setVaultSync({ kind: "owner_mismatch" });
+      return;
+    }
+    void requestCloudCheck();
+  }, [hydrated, ownerReady, cloudUserId, ownerUserId, checkEpoch, requestCloudCheck]);
+
+  useEffect(() => {
+    if (!hydrated || !cloudUserId || !syncBaseline || pauseAutoPushRef.current) return;
+    if (financialVaultFingerprint(vaultSnapshot) === syncBaseline.fingerprint) return;
+    void requestCloudCheck();
+  }, [hydrated, cloudUserId, vaultSnapshot, syncBaseline, requestCloudCheck]);
+
+  useEffect(() => {
+    const onWake = () => {
+      if (document.visibilityState !== "visible") return;
+      pauseAutoPushRef.current = false;
+      setCheckEpoch((value) => value + 1);
+    };
+    const onOnline = () => {
+      pauseAutoPushRef.current = false;
+      setCheckEpoch((value) => value + 1);
+    };
+    document.addEventListener("visibilitychange", onWake);
+    window.addEventListener("online", onOnline);
+    return () => {
+      document.removeEventListener("visibilitychange", onWake);
+      window.removeEventListener("online", onOnline);
+    };
+  }, []);
+
   const confirmCloudBootstrap = useCallback(async () => {
     const userId = cloudUserIdRef.current;
     if (!userId || cloudBusyRef.current) return;
     cloudBusyRef.current = true;
     setCloudBusy(true);
     try {
-      const result = await bootstrapCurrentDesktop(vaultRef.current, userId);
+      const snapshot = vaultRef.current;
+      const result = await bootstrapCurrentDesktop(snapshot, userId);
       if (!result.ok) {
         emitVaultToast({ tone: "error", message: result.reason, durationMs: 0 });
-        setCloudProbe({ status: "loading" });
         setOwnerEpoch((value) => value + 1);
+        setCheckEpoch((value) => value + 1);
         return;
       }
+      writeCloudSyncBaseline({
+        revision: 1,
+        fingerprint: financialVaultFingerprint(snapshot),
+      });
+      setSyncBaseline(readCloudSyncBaseline());
       setOwnerUserId(userId);
-      setCloudProbe({ status: "loading" });
       setOwnerEpoch((value) => value + 1);
+      setCheckEpoch((value) => value + 1);
       emitVaultToast({
         tone: "success",
         message: "Cloud vault revision 1 is ready. This device was not replaced.",
@@ -419,14 +497,19 @@ export function useBabylonEngine() {
       const result = await hydrateCurrentDevice(vaultRef.current, userId);
       if (!result.ok) {
         emitVaultToast({ tone: "error", message: result.reason, durationMs: 0 });
-        setCloudProbe({ status: "loading" });
         setOwnerEpoch((value) => value + 1);
+        setCheckEpoch((value) => value + 1);
         return;
       }
       applyVault(result.state);
+      writeCloudSyncBaseline({
+        revision: result.revision,
+        fingerprint: financialVaultFingerprint(result.state),
+      });
+      setSyncBaseline(readCloudSyncBaseline());
       setOwnerUserId(userId);
-      setCloudProbe({ status: "loading" });
       setOwnerEpoch((value) => value + 1);
+      setCheckEpoch((value) => value + 1);
       emitVaultToast({
         tone: "success",
         message: `Cloud vault revision ${result.revision} is on this device.`,
@@ -1255,6 +1338,10 @@ export function useBabylonEngine() {
   const clearAllData = useCallback(() => {
     clearPersistedState();
     clearUsername();
+    clearCloudSyncBaseline();
+    setSyncBaseline(null);
+    pauseAutoPushRef.current = false;
+    setCheckEpoch((value) => value + 1);
     setIncomes([]);
     setExpenses([]);
     setDebts([]);
@@ -1350,6 +1437,8 @@ export function useBabylonEngine() {
     };
 
     applyVault(next);
+    pauseAutoPushRef.current = false;
+    setCheckEpoch((value) => value + 1);
     setTributeOpen(false);
     setTributeMode("income");
     setMonthlyCloseOpen(false);
@@ -1492,10 +1581,11 @@ export function useBabylonEngine() {
     /** True when a Supabase session is present. This is not vault synchronization. */
     isCloudSynced: cloudUserId !== null,
     cloudUserId,
-    cloudSetup,
+    vaultSync,
     cloudBusy,
     confirmCloudBootstrap,
     confirmCloudHydrate,
+    confirmCloudCheck: requestCloudCheck,
     authOpen,
     setAuthOpen,
     handleAuthenticated,

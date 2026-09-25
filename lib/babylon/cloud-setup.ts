@@ -146,7 +146,7 @@ export function cloudSetupCopy(action: CloudSetupAction): {
     case "linked":
       return {
         title: `Cloud vault revision ${action.revision}`,
-        detail: "New entries stay on this device for now.",
+        detail: null,
       };
     case "conflict":
       return {

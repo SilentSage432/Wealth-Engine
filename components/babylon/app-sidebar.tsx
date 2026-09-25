@@ -28,10 +28,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { NAV_ITEMS } from "@/lib/babylon/constants";
 import {
   BOOTSTRAP_CONFIRM,
-  cloudSetupCopy,
   HYDRATE_CONFIRM,
-  type CloudSetupAction,
 } from "@/lib/babylon/cloud-setup";
+import { vaultSyncCopy, type VaultSyncView } from "@/lib/babylon/vault-sync";
 import { cn } from "@/lib/utils";
 import type { NavSection } from "@/types/babylon";
 
@@ -44,13 +43,14 @@ interface AppSidebarProps {
   onImportBackup: (raw: unknown) => string | null;
   onClearAllData: () => void;
   isCloudSynced: boolean;
-  cloudSetup: CloudSetupAction;
+  vaultSync: VaultSyncView;
   cloudBusy?: boolean;
   cloudUsername: string;
   onConnectCloud: () => void;
   onSignOutCloud: () => void | Promise<boolean>;
   onBootstrapCloud: () => void | Promise<void>;
   onHydrateCloud: () => void | Promise<void>;
+  onCheckCloud: () => void | Promise<void>;
 }
 
 export function AppSidebar({
@@ -62,13 +62,14 @@ export function AppSidebar({
   onImportBackup,
   onClearAllData,
   isCloudSynced,
-  cloudSetup,
+  vaultSync,
   cloudBusy = false,
   cloudUsername,
   onConnectCloud,
   onSignOutCloud,
   onBootstrapCloud,
   onHydrateCloud,
+  onCheckCloud,
 }: AppSidebarProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importStatus, setImportStatus] = useState<string | null>(null);
@@ -172,15 +173,15 @@ export function AppSidebar({
                     className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400"
                     aria-hidden
                   />
-                  <span aria-live="polite">{cloudSetupCopy(cloudSetup).title}</span>
+                  <span aria-live="polite">{vaultSyncCopy(vaultSync).title}</span>
                 </p>
-                {cloudSetupCopy(cloudSetup).detail && (
+                {vaultSyncCopy(vaultSync).detail && (
                   <p className="mt-1 text-[11px] leading-snug text-slate-400">
-                    {cloudSetupCopy(cloudSetup).detail}
+                    {vaultSyncCopy(vaultSync).detail}
                   </p>
                 )}
               </div>
-              {cloudSetup.kind === "offer_bootstrap" && (
+              {vaultSync.kind === "offer_bootstrap" && (
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button
@@ -207,7 +208,7 @@ export function AppSidebar({
                   </AlertDialogContent>
                 </AlertDialog>
               )}
-              {cloudSetup.kind === "offer_hydrate" && (
+              {vaultSync.kind === "offer_hydrate" && (
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button
@@ -233,6 +234,25 @@ export function AppSidebar({
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
+              )}
+              {(vaultSync.kind === "offline_pending" ||
+                vaultSync.kind === "pending_verification" ||
+                vaultSync.kind === "local_dirty" ||
+                vaultSync.kind === "conflict" ||
+                vaultSync.kind === "cloud_unavailable" ||
+                vaultSync.kind === "unexpected_revision") && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={cloudBusy}
+                  className="h-8 w-full justify-center border-slate-800 bg-transparent text-xs text-slate-300 hover:bg-slate-900 hover:text-slate-100"
+                  onClick={() => {
+                    void onCheckCloud();
+                  }}
+                >
+                  Check cloud
+                </Button>
               )}
               <Button
                 type="button"
