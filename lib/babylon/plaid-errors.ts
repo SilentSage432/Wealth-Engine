@@ -19,6 +19,13 @@ export const PLAID_USER_ERRORS = {
     "Couldn't reach the bank connection service. Check your connection and try again.",
   persist_failed:
     "Bank linked, but we couldn't save the connection. Try again or contact support.",
+  item_owned_elsewhere:
+    "This bank is already connected to a different sign-in. Your ledger was not changed.",
+  missing_item: "Choose a connected bank before refreshing transactions.",
+  item_not_found: "That bank connection was not found.",
+  sync_busy: "A transaction refresh is already running for this bank.",
+  sync_failed:
+    "Couldn't refresh bank transactions. Your ledger was not changed.",
   unexpected:
     "Something went wrong connecting your bank. Your local ledger is unchanged.",
 } as const;

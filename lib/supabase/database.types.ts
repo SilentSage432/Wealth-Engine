@@ -5,6 +5,7 @@
  * - `supabase/migrations/20260807_add_debts_archives_logs.sql`
  * - `supabase/migrations/20260808_plaid_tables.sql`
  * - `supabase/migrations/20260925_wealth_engine_vault.sql`
+ * - `supabase/migrations/20260926_plaid_transaction_sync.sql`
  */
 
 export type IncomeStreamKindDb =
@@ -262,6 +263,9 @@ export interface Database {
           item_id: string;
           institution_name: string;
           created_at: string;
+          transactions_cursor: string | null;
+          sync_lock_id: string | null;
+          sync_locked_at: string | null;
         };
         Insert: {
           id?: string;
@@ -270,6 +274,9 @@ export interface Database {
           item_id: string;
           institution_name: string;
           created_at?: string;
+          transactions_cursor?: string | null;
+          sync_lock_id?: string | null;
+          sync_locked_at?: string | null;
         };
         Update: {
           id?: string;
@@ -278,6 +285,9 @@ export interface Database {
           item_id?: string;
           institution_name?: string;
           created_at?: string;
+          transactions_cursor?: string | null;
+          sync_lock_id?: string | null;
+          sync_locked_at?: string | null;
         };
         Relationships: [];
       };
@@ -293,6 +303,8 @@ export interface Database {
           date: string;
           pending: boolean;
           is_processed: boolean;
+          pending_transaction_id: string | null;
+          removed_at: string | null;
         };
         Insert: {
           id?: string;
@@ -305,6 +317,8 @@ export interface Database {
           date: string;
           pending?: boolean;
           is_processed?: boolean;
+          pending_transaction_id?: string | null;
+          removed_at?: string | null;
         };
         Update: {
           id?: string;
@@ -317,6 +331,8 @@ export interface Database {
           date?: string;
           pending?: boolean;
           is_processed?: boolean;
+          pending_transaction_id?: string | null;
+          removed_at?: string | null;
         };
         Relationships: [];
       };
@@ -359,6 +375,35 @@ export interface Database {
           expected_revision: number;
           known_schema_version: number;
           next_vault_data: Json;
+        };
+        Returns: Json;
+      };
+      claim_plaid_transaction_sync: {
+        Args: {
+          actor_user_id: string;
+          target_item_id: string;
+          lock_token: string;
+          stale_before: string;
+        };
+        Returns: Json;
+      };
+      apply_plaid_sync_page: {
+        Args: {
+          actor_user_id: string;
+          target_item_id: string;
+          lock_token: string;
+          expected_cursor: string | null;
+          next_cursor: string;
+          observations: Json;
+          removed_ids: string[];
+        };
+        Returns: Json;
+      };
+      release_plaid_transaction_sync: {
+        Args: {
+          actor_user_id: string;
+          target_item_id: string;
+          lock_token: string;
         };
         Returns: Json;
       };

@@ -56,7 +56,8 @@ A personal ledger that splits income 10% to Wealth Building, 20% to Debt Payoff,
 - [x] WE-SYNC-004 revision sync, offline edits, and conflict stop
 - [ ] WE-SYNC-005 choose cloud or this device after a conflict, with a backup first
 - [ ] Speed-Tribute 1-tap commit (presets + bar mount; full amount autofill / zero-modal path still open)
-- [ ] Plaid transaction sync / steward review workflow
+- [x] Plaid observational transaction sync (WE-ATTENTION-002). `20260926_plaid_transaction_sync.sql` is written and not applied from the app. No attention UI
+- [ ] Plaid attention confirmation / steward review
 - [ ] Multi-currency
 - [ ] Shared household vaults
 - [ ] Institutional knowledge composition (read-only Observatory views)
@@ -70,6 +71,7 @@ The planning document is one row per user. The cloud revision is the concurrency
 - If both sides changed, the screen stops. It does not pick a winner.
 - An empty device still confirms a load. A non-empty device is adopted only when its document matches the cloud.
 - Plaid stays outside the vault. The service worker does not sync it.
+- Observational transaction sync reads Plaid and writes `plaid_transactions` only. It does not allocate income, settle expenses, or change account balances.
 
 ## Architectural ownership
 
@@ -93,6 +95,7 @@ Canonical map: [`ARCHITECTURE.md`](./ARCHITECTURE.md) (layers, dependency rules,
 | Versioned cloud vault | `lib/babylon/cloud-vault.ts` |
 | Explicit cloud setup | `lib/babylon/cloud-setup.ts` |
 | Revision sync | `lib/babylon/vault-sync.ts` |
+| Plaid observational sync | `lib/babylon/plaid-transaction-sync.ts` |
 | Cloud owner binding | `lib/babylon/cloud-owner.ts` |
 | Supabase id check | `lib/babylon/cloud-mappers.ts` |
 | Server-state cache | `app/providers.tsx` (TanStack Query) |

@@ -4,8 +4,11 @@ import { plaidUserMessage } from "@/lib/babylon/plaid-errors";
 import {
   isPlaidClientConfigured,
   PLAID_ITEM_PUBLIC_COLUMNS,
+  PLAID_OBSERVATION_COLUMNS,
   toPlaidItemPublic,
+  toPlaidObservationPublic,
   type PlaidItemPublic,
+  type PlaidObservationPublic,
 } from "@/lib/babylon/plaid-schema";
 import { emitVaultToast } from "@/lib/babylon/vault-toast";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -152,6 +155,50 @@ export async function listPlaidItems(): Promise<PlaidItemPublic[]> {
     );
   } catch (err) {
     console.error("[plaid] list items crashed — local vault retained.", err);
+    return [];
+  }
+}
+
+/**
+ * Current Plaid observations for the signed-in user.
+ * Removed rows are omitted. This does not read or write the financial vault.
+ */
+export async function listPlaidObservations(): Promise<PlaidObservationPublic[]> {
+  try {
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) return [];
+
+    const { data, error } = await supabase
+      .from("plaid_transactions")
+      .select(PLAID_OBSERVATION_COLUMNS)
+      .is("removed_at", null)
+      .order("date", { ascending: false });
+
+    if (error || !data) {
+      console.error("[plaid] list observations failed.", error);
+      return [];
+    }
+
+    return data.flatMap((row) => {
+      const observation = toPlaidObservationPublic(
+        row as {
+          id: string;
+          user_id: string;
+          plaid_transaction_id: string;
+          pending_transaction_id: string | null;
+          account_id: string;
+          amount: number | string;
+          name: string;
+          category: string | null;
+          date: string;
+          pending: boolean;
+          removed_at: string | null;
+        }
+      );
+      return observation ? [observation] : [];
+    });
+  } catch (err) {
+    console.error("[plaid] list observations crashed.", err);
     return [];
   }
 }

@@ -23,20 +23,32 @@ export type PlaidItemPublic = {
  * Prefer `PlaidItemPublic` anywhere the browser can see data.
  */
 export type PlaidItemSecret = PlaidItemPublic & {
-  /** Encrypted / service-role held — never render or serialize to the client. */
+  /**
+   * Plaintext at rest. Readable by the service role only.
+   * Not application-encrypted. Never render or serialize to the client.
+   */
   accessToken: string;
 };
 
-export type PlaidTransactionRecord = {
+/**
+ * One current Plaid transaction observation.
+ * `amount` uses Plaid's sign: positive is money out, negative is money in.
+ */
+export type PlaidObservationPublic = {
   id: string;
   userId: string;
   plaidTransactionId: string;
+  pendingTransactionId: string | null;
   accountId: string;
   amount: number;
   name: string;
   category: string | null;
   date: string;
   pending: boolean;
+};
+
+export type PlaidTransactionRecord = PlaidObservationPublic & {
+  removedAt: string | null;
   isProcessed: boolean;
 };
 
@@ -49,6 +61,13 @@ export const PLAID_ENV_KEYS = PLAID_PUBLIC_ENV_KEYS;
 /** Columns allowed in client Supabase selects (excludes access_token). */
 export const PLAID_ITEM_PUBLIC_COLUMNS =
   "id, user_id, item_id, institution_name, created_at" as const;
+
+/**
+ * Owner-scoped observation columns. No access token exists on this table.
+ * `removed_at` is selected so a removed row can be dropped before display.
+ */
+export const PLAID_OBSERVATION_COLUMNS =
+  "id, user_id, plaid_transaction_id, pending_transaction_id, account_id, amount, name, category, date, pending, removed_at" as const;
 
 export function toPlaidItemPublic(row: {
   id: string;
@@ -63,6 +82,37 @@ export function toPlaidItemPublic(row: {
     itemId: row.item_id,
     institutionName: row.institution_name,
     createdAt: row.created_at,
+  };
+}
+
+export function toPlaidObservationPublic(row: {
+  id: string;
+  user_id: string;
+  plaid_transaction_id: string;
+  pending_transaction_id: string | null;
+  account_id: string;
+  amount: number | string;
+  name: string;
+  category: string | null;
+  date: string;
+  pending: boolean;
+  removed_at?: string | null;
+}): PlaidObservationPublic | null {
+  if (row.removed_at) return null;
+  const amount =
+    typeof row.amount === "number" ? row.amount : Number(row.amount);
+  if (!Number.isFinite(amount)) return null;
+  return {
+    id: row.id,
+    userId: row.user_id,
+    plaidTransactionId: row.plaid_transaction_id,
+    pendingTransactionId: row.pending_transaction_id,
+    accountId: row.account_id,
+    amount,
+    name: row.name,
+    category: row.category,
+    date: row.date,
+    pending: row.pending,
   };
 }
 

@@ -1,5 +1,25 @@
 # Development Journal
 
+## 2026-09-25 — WE-ATTENTION-002 observational transaction sync
+
+### What changed
+- A signed-in user can ask `POST /api/plaid/sync-transactions` to store what Plaid reports for one of their Items.
+- The server loads the access token, walks `/transactions/sync` until `has_more` is false, and stores added, modified, and removed rows. The cursor advances in the same database transaction as those rows.
+- A second device that asks at the same time gets a busy result. It does not move the cursor backward.
+- Re-linking an Item updates the token only when the Item already belongs to that user.
+- The access token remains plaintext, service-role only. It is not application-encrypted.
+- Observations can be read later with the existing owner select on `plaid_transactions`. Removed rows stay stored and are left out of that read. They are not part of backup version 5.
+
+### Ownership
+- Sync rules: `lib/babylon/plaid-transaction-sync.ts`
+- Durable lock and cursor: `supabase/migrations/20260926_plaid_transaction_sync.sql`
+- Route: `app/api/plaid/sync-transactions/route.ts`
+
+### Not in this tranche
+- The migration was not applied. No live Plaid call was made.
+- No webhook, polling, cron, attention UI, or automatic income, bill, or balance changes.
+- WE-SYNC-004 and `vault_data` are unchanged.
+
 ## 2026-09-25 — WE-SYNC-004 revision sync
 
 ### What changed

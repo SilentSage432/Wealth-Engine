@@ -32,6 +32,7 @@ describe("planServiceWorkerFetch", () => {
   it("does not persist API, worker, or cross-origin responses", () => {
     expect(plan("/api/plaid/link-token")).toBe("passthrough");
     expect(plan("/api/plaid/exchange-token")).toBe("passthrough");
+    expect(plan("/api/plaid/sync-transactions")).toBe("passthrough");
     expect(plan("/sw.js")).toBe("passthrough");
     expect(
       planServiceWorkerFetch({
