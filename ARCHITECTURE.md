@@ -107,6 +107,7 @@ Presentation consumes the Application layer. It displays what the engine and wor
 - Auth session awareness and revision sync (`lib/babylon/vault-sync.ts`). The sync baseline is not part of the financial vault.
 - Local vault lifecycle in concert with persistence adapters
 - The financial calendar day (`todayIso`), advanced at the next local midnight rather than once per second
+- `GET /api/intelligence` (WE-MUSE-002, not production-accepted). One read-only contract for the single steward, authorized by the server-only `INTELLIGENCE_READ_SECRET`. It is a Wealth Engine capability, not a Muse or Sindarin API. The response is assembled fresh from the vault and the stored notification timezone. It does not return the vault, Plaid observations, or notification internals. Unknown stays unknown. Muse integration is future work. The secret is not set by this change.
 
 **Never owns**
 
@@ -130,6 +131,7 @@ This is the heart of Wealth Engine.
 - Domain constants that bound system vocabulary (`lib/babylon/constants.ts`)
 - Speed-Tribute quick presets (`lib/babylon/presets.ts`) — chip vocabulary; resolvers map onto canonical kinds
 - Debt freedom / surplus disposition math (`projectDebtFreedom`, `resolveSurplusDisposition` in `lib/babylon/engine.ts`)
+- Read-only Intelligence Contract (`lib/babylon/intelligence-contract.ts`). It composes existing deterministic readings into a versioned response. It does not own allocation rules, Attention rules, or persistence.
 - Discreet mask contract (`lib/babylon/discreet.ts`)
 - Correlated Internal Movement (`lib/babylon/correlated-internal-movement.ts`) — derived reading of two Plaid observations. Not stored
 - Observed repetition (`lib/babylon/observed-repetition.ts`) — derived reading of repeated posted observations. Not stored

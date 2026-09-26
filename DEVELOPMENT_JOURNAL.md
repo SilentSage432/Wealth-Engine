@@ -1,5 +1,15 @@
 # Development Journal
 
+## 2026-09-26 — WE-MUSE-002 read-only Intelligence Contract
+
+### What changed
+- `GET /api/intelligence` returns contract version `1`. A pure assembler composes the existing 10/20/70 readings, Living Budget, protected money, manual Financial Position, Available After Planned Needs, unpaid obligations, recorded debts, and established Attention. Amounts are integer cents. The civil date comes only from the stored IANA timezone.
+- The route is read-only. It requires `INTELLIGENCE_READ_SECRET`, which is distinct from the scheduler secret and from the browser session. It reads the single steward's vault and notification timezone. It does not write, and it does not read Plaid or notification delivery rows. Recurring occurrences needed for the reading stay in memory. Unknown is an explicit code, including a withheld APR of 0 that cannot be told from the soft-migrated fallback.
+- This is a Wealth Engine capability. It is not a Muse or Sindarin client. How Muse would store the secret or call the route is still unknown.
+
+### Not in this tranche
+- No production secret, deploy, database change, persistence, or production acceptance. No LLM, agent, or Muse SDK.
+
 ## 2026-09-26 — WE-NOTIFY-004C production state closeout
 
 ### What changed

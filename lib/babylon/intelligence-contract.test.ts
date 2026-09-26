@@ -1,0 +1,577 @@
+import { readFileSync } from "node:fs";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { deriveAvailableAfterPlannedNeeds } from "@/lib/babylon/available-after-planned-needs";
+import {
+  deriveDueAttention,
+  deriveMonthCloseAttention,
+} from "@/lib/babylon/attention";
+import { serializeCloudVaultData } from "@/lib/babylon/cloud-vault";
+import { EMPTY_STATE, DEBT_RATE, EXPENDITURE_RATE, WEALTH_RATE } from "@/lib/babylon/constants";
+import { allocateIncome, totalOriginalDebt, totalRemainingDebt } from "@/lib/babylon/engine";
+import {
+  assembleIntelligenceContract,
+  intelligenceCents,
+  INTELLIGENCE_CONTRACT_VERSION,
+} from "@/lib/babylon/intelligence-contract";
+import {
+  totalEmergencyFund,
+  totalProtectedMoney,
+  totalWealthBuilding,
+} from "@/lib/babylon/protected-money";
+import type {
+  AllocationEvent,
+  BudgetTarget,
+  DebtEntry,
+  ExpenseEntry,
+  FinancialAccount,
+  IncomeEntry,
+  PersistedState,
+  RecurringObligation,
+} from "@/types/babylon";
+
+vi.mock("server-only", () => ({}));
+
+const getSupabaseServiceClient = vi.fn();
+vi.mock("@/lib/supabase/server", () => ({
+  getSupabaseServiceClient: () => getSupabaseServiceClient(),
+}));
+
+const { GET } = await import("@/app/api/intelligence/route");
+
+const SECRET = "intelligence-read-secret";
+const NOW = new Date("2026-01-15T18:00:00.000Z");
+const GENERATED = "2026-01-15T18:00:00.000Z";
+
+function state(partial: Partial<PersistedState> = {}): PersistedState {
+  return { ...EMPTY_STATE, ...partial };
+}
+
+function income(amount: number, date: string): IncomeEntry {
+  return {
+    id: "inc-1",
+    source: "Pay",
+    amount,
+    date,
+    interval: "monthly",
+    kind: "primary",
+    wealthShare: 10,
+    debtShare: 20,
+    expenditureShare: 70,
+    debtRedirected: false,
+  };
+}
+
+function allocation(partial: Partial<AllocationEvent> = {}): AllocationEvent {
+  return {
+    id: "alloc-1",
+    incomeId: "inc-1",
+    date: "2026-01-02",
+    monthKey: "2026-01",
+    gross: 100,
+    wealth: 10,
+    debt: 20,
+    expenditure: 70,
+    ...partial,
+  };
+}
+
+function expense(partial: Partial<ExpenseEntry> = {}): ExpenseEntry {
+  return {
+    id: "exp-rent",
+    name: "Rent",
+    category: "need",
+    amount: 100,
+    date: "2026-01-10",
+    dueDate: "2026-01-10",
+    isSettled: false,
+    ...partial,
+  };
+}
+
+function debt(partial: Partial<DebtEntry> = {}): DebtEntry {
+  return {
+    id: "debt-1",
+    creditor: "Card",
+    totalDebt: 100,
+    remainingDebt: 40,
+    monthlyAllocation: 25,
+    createdAt: "2026-01-01",
+    interestRate: 6.5,
+    ...partial,
+  };
+}
+
+function account(): FinancialAccount {
+  return {
+    id: "acct-1",
+    name: "Checking",
+    kind: "checking",
+    balance: 1000,
+    asOf: "2026-01-01",
+  };
+}
+
+function target(): BudgetTarget {
+  return {
+    id: "food",
+    categoryName: "Food",
+    plannedAmount: 200,
+    isEssential: true,
+  };
+}
+
+function rule(): RecurringObligation {
+  return {
+    id: "phone-rule",
+    name: "Phone",
+    amount: 85,
+    category: "need",
+    budgetCategoryId: "utilities",
+    dueDay: 10,
+    startMonth: "2026-01",
+    isActive: true,
+    createdAt: "2026-01-01",
+    skippedMonths: [],
+  };
+}
+
+function assemble(
+  partial: Partial<PersistedState> = {},
+  zone: string | null = "America/Boise",
+  now = NOW
+) {
+  return assembleIntelligenceContract({
+    state: state(partial),
+    ianaTimeZone: zone,
+    now,
+    generatedAt: GENERATED,
+  });
+}
+
+describe("intelligence contract", () => {
+  it("is version 1 and reports integer cents", () => {
+    const contract = assemble({
+      incomes: [income(10.1, "2026-01-02"), income(0.2, "2026-01-03")],
+    });
+    expect(contract.meta.contract_version).toBe(INTELLIGENCE_CONTRACT_VERSION);
+    expect(contract.meta.contract_version).toBe("1");
+    expect(contract.purpose.current_month_recorded_income_cents).toBe(1030);
+    expect(Number.isInteger(contract.purpose.current_month_recorded_income_cents)).toBe(
+      true
+    );
+    expect(intelligenceCents(10.1)).toBe(1010);
+  });
+
+  it("represents the standing split and this month's recorded allocation", () => {
+    const withDebt = assemble({
+      debts: [debt()],
+      incomes: [income(100, "2026-01-02")],
+      allocations: [allocation()],
+    });
+    expect(withDebt.purpose.wealth_rate_bps).toBe(Math.round(WEALTH_RATE * 10_000));
+    expect(withDebt.purpose.debt_rate_bps).toBe(Math.round(DEBT_RATE * 10_000));
+    expect(withDebt.purpose.expenditure_rate_bps).toBe(
+      Math.round(EXPENDITURE_RATE * 10_000)
+    );
+    expect(withDebt.purpose.debt_share_redirects_to_wealth).toBe(
+      allocateIncome(1, true).debtRedirected
+    );
+    expect(withDebt.purpose.current_month_recorded_income_cents).toBe(10_000);
+    expect(withDebt.purpose.current_month_allocated_wealth_cents).toBe(1000);
+    expect(withDebt.purpose.current_month_allocated_debt_cents).toBe(2000);
+    expect(withDebt.purpose.current_month_allocated_expenditure_cents).toBe(7000);
+
+    const debtFree = assemble();
+    expect(debtFree.purpose.debt_share_redirects_to_wealth).toBe(
+      allocateIncome(1, false).debtRedirected
+    );
+    expect(debtFree.purpose.debt_share_redirects_to_wealth).toBe(true);
+  });
+
+  it("exposes living-budget shortfall when the floored remaining is zero", () => {
+    const contract = assemble({
+      allocations: [allocation({ expenditure: 100, wealth: 0, debt: 0, gross: 100 })],
+      expenses: [expense({ amount: 150, isSettled: true, category: "desire" })],
+      budgetTargets: [target()],
+    });
+    expect(contract.budget.living_budget_pool_cents).toBe(10_000);
+    expect(contract.budget.living_budget_spent_cents).toBe(15_000);
+    expect(contract.budget.living_budget_remaining_cents).toBe(0);
+    expect(contract.budget.living_budget_shortfall_cents).toBe(5000);
+    expect(contract.budget.categories[0]).toMatchObject({
+      subject_ref: "food",
+      name: "Food",
+      planned_cents: 20_000,
+      is_essential: true,
+      settled_cents: 0,
+    });
+  });
+
+  it("matches Available After Planned Needs and protected totals", () => {
+    const fixture = state({
+      accounts: [account()],
+      openingWealthBuilding: 15,
+      openingEmergencyFund: 5,
+      emergencyShield: 4,
+      allocations: [allocation({ wealth: 10 })],
+      expenses: [expense({ amount: 100, category: "need" })],
+    });
+    const contract = assembleIntelligenceContract({
+      state: fixture,
+      ianaTimeZone: "America/Boise",
+      now: NOW,
+      generatedAt: GENERATED,
+    });
+    const available = deriveAvailableAfterPlannedNeeds({
+      moneyAvailable: 1000,
+      protectedMoney: totalProtectedMoney(15, 5),
+      upcomingNeeds: 100,
+    });
+    expect(contract.available_after_planned_needs.available_cents).toBe(
+      intelligenceCents(available.availableAfterPlannedNeeds)
+    );
+    expect(contract.available_after_planned_needs.shortfall_cents).toBe(
+      intelligenceCents(available.plannedNeedsShortfall)
+    );
+    expect(contract.available_after_planned_needs.raw_difference_cents).toBe(
+      intelligenceCents(available.rawDifference)
+    );
+    expect(contract.available_after_planned_needs.upcoming_needs_cents).toBe(10_000);
+    expect(contract.protected_money.wealth_building_total_cents).toBe(
+      intelligenceCents(totalWealthBuilding(15, 10))
+    );
+    expect(contract.protected_money.emergency_fund_total_cents).toBe(
+      intelligenceCents(totalEmergencyFund(5, 4))
+    );
+    expect(contract.protected_money.opening_protected_cents).toBe(
+      intelligenceCents(totalProtectedMoney(15, 5))
+    );
+    expect(contract.position.accounts[0]).toEqual({
+      name: "Checking",
+      kind: "checking",
+      balance_cents: 100_000,
+      as_of: "2026-01-01",
+    });
+    expect(contract.position.money_available_cents).toBe(100_000);
+  });
+
+  it("keeps an empty unpaid list empty", () => {
+    expect(assemble().obligations.unpaid).toEqual([]);
+  });
+
+  it("marks an in-memory rule occurrence without changing the input", () => {
+    const fixture = state({ recurringObligations: [rule()], expenses: [] });
+    const before = structuredClone(fixture);
+    const contract = assembleIntelligenceContract({
+      state: fixture,
+      ianaTimeZone: "America/Boise",
+      now: NOW,
+      generatedAt: GENERATED,
+    });
+    expect(fixture).toEqual(before);
+    const derived = contract.obligations.unpaid.filter(
+      (item) => item.origin === "derived_from_rule"
+    );
+    expect(derived.length).toBeGreaterThan(0);
+    expect(derived.every((item) => item.subject_ref.startsWith("memory-"))).toBe(true);
+    expect(derived.some((item) => item.name === "Phone" && item.amount_cents === 8500)).toBe(
+      true
+    );
+    expect(fixture.expenses).toEqual([]);
+  });
+
+  it("matches established Attention and adds no other kind", () => {
+    const dueState = state({ expenses: [expense()] });
+    const dueContract = assembleIntelligenceContract({
+      state: dueState,
+      ianaTimeZone: "America/Boise",
+      now: NOW,
+      generatedAt: GENERATED,
+    });
+    const due = deriveDueAttention(dueState.expenses, "2026-01-15");
+    expect(dueContract.attention.items).toEqual(
+      due.map((item) => ({
+        kind: "due_obligation",
+        civil_date: "2026-01-15",
+        subject_ref: item.id,
+      }))
+    );
+
+    const closeNow = new Date("2026-01-31T18:00:00.000Z");
+    const closeContract = assemble({ lastClosedMonthKey: null }, "America/Boise", closeNow);
+    const close = deriveMonthCloseAttention({
+      today: "2026-01-31",
+      currentMonthKey: "2026-01",
+      lastClosedMonthKey: null,
+    });
+    expect(close).not.toBeNull();
+    expect(closeContract.attention.items).toEqual([
+      {
+        kind: "month_close",
+        civil_date: "2026-01-31",
+        month_key: "2026-01",
+        statement: close?.message,
+      },
+    ]);
+    const kinds = new Set(closeContract.attention.items.map((item) => item.kind));
+    expect(kinds).toEqual(new Set(["month_close"]));
+  });
+
+  it("does not invent a civil date when the timezone is unusable", () => {
+    const utcEvening = new Date("2026-01-15T06:30:00.000Z");
+    const boise = assemble({}, "America/Boise", utcEvening);
+    expect(boise.meta.civil_date).toBe("2026-01-14");
+    expect(boise.meta.civil_date).not.toBe(utcEvening.toISOString().slice(0, 10));
+
+    for (const zone of [null, "Not/A/Zone", "UTC+6"]) {
+      const contract = assemble({ budgetTargets: [target()] }, zone, utcEvening);
+      expect(contract.meta.iana_timezone).toBe(zone);
+      expect(contract.meta.civil_date).toBeNull();
+      expect(contract.meta.current_month_key).toBeNull();
+      expect(contract.meta.month_closed).toBeNull();
+      expect(contract.purpose.current_month_recorded_income_cents).toBeNull();
+      expect(contract.budget.living_budget_remaining_cents).toBeNull();
+      expect(contract.budget.categories[0].settled_cents).toBeNull();
+      expect(contract.attention.items).toEqual([]);
+      expect(contract.boundaries.unknowns).toContain("civil_date_unknown");
+    }
+  });
+
+  it("withholds a soft-migrated zero APR and keeps a recorded rate", () => {
+    const unverified = assemble({ debts: [debt({ interestRate: 0 })] });
+    expect(unverified.debts.debts[0].interest_rate_ppm).toBeNull();
+    expect(unverified.boundaries.unknowns).toContain("apr_unverified");
+
+    const recorded = assemble({ debts: [debt({ interestRate: 6.5 })] });
+    expect(recorded.debts.debts[0].interest_rate_ppm).toBe(65_000);
+    expect(recorded.boundaries.unknowns).not.toContain("apr_unverified");
+    expect(recorded.debts.original_total_cents).toBe(
+      intelligenceCents(totalOriginalDebt([debt()]))
+    );
+    expect(recorded.debts.remaining_total_cents).toBe(
+      intelligenceCents(totalRemainingDebt([debt()]))
+    );
+    expect(recorded.debts.cleared_cents).toBe(6000);
+  });
+
+  it("keeps standing unknowns explicit and omits excluded surfaces", () => {
+    const contract = assemble({
+      accounts: [account()],
+      expenses: [expense()],
+      debts: [debt()],
+    });
+    expect(contract.boundaries.unknowns).toEqual(
+      expect.arrayContaining([
+        "no_expected_payday",
+        "balances_are_manual",
+        "no_reconciliation",
+        "plaid_is_not_vault_truth",
+        "observational_reasoners_unwired",
+      ])
+    );
+    const serialized = JSON.stringify(contract);
+    for (const forbidden of [
+      "vault_data",
+      "access_token",
+      "accessToken",
+      "p256dh",
+      "CRON_SECRET",
+      "VAPID",
+      "service_role",
+      "revision",
+      "fingerprint",
+      "activityLog",
+      "displayName",
+      "plaid_transaction",
+      "user_id",
+      "safe to spend",
+      "recommended_action",
+    ]) {
+      expect(serialized.toLowerCase()).not.toContain(forbidden.toLowerCase());
+    }
+    expect(serialized).toContain("plaid_is_not_vault_truth");
+  });
+
+  it("does not mutate the fixture", () => {
+    const fixture = state({
+      expenses: [expense()],
+      recurringObligations: [rule()],
+      debts: [debt()],
+      accounts: [account()],
+    });
+    const before = structuredClone(fixture);
+    assembleIntelligenceContract({
+      state: fixture,
+      ianaTimeZone: "America/Boise",
+      now: NOW,
+      generatedAt: GENERATED,
+    });
+    expect(fixture).toEqual(before);
+  });
+});
+
+describe("GET /api/intelligence", () => {
+  const previous: Record<string, string | undefined> = {};
+
+  beforeEach(() => {
+    getSupabaseServiceClient.mockReset();
+    for (const key of ["INTELLIGENCE_READ_SECRET", "NEXT_PUBLIC_SUPABASE_URL"]) {
+      if (!(key in previous)) previous[key] = process.env[key];
+    }
+    process.env.INTELLIGENCE_READ_SECRET = SECRET;
+    process.env.NEXT_PUBLIC_SUPABASE_URL = "https://nklmgzxxdhuvqayhcigp.supabase.co";
+  });
+
+  function request(url = "https://wealth-engine-zeta.vercel.app/api/intelligence", init?: RequestInit) {
+    return new Request(url, init);
+  }
+
+  it("rejects a missing or wrong bearer and does not read the database", async () => {
+    const missing = await GET(request());
+    expect(missing.status).toBe(401);
+    expect(missing.headers.get("cache-control")).toBe("no-store");
+    expect(await missing.json()).toEqual({ error: "Unauthorized." });
+
+    const wrong = await GET(
+      request("https://wealth-engine-zeta.vercel.app/api/intelligence", {
+        headers: { Authorization: "Bearer not-the-secret" },
+      })
+    );
+    expect(wrong.status).toBe(401);
+    expect(getSupabaseServiceClient).not.toHaveBeenCalled();
+  });
+
+  it("rejects a user selector or body without treating it as authority", async () => {
+    const selected = await GET(
+      request(
+        "https://wealth-engine-zeta.vercel.app/api/intelligence?user_id=other-steward",
+        { headers: { Authorization: `Bearer ${SECRET}` } }
+      )
+    );
+    expect(selected.status).toBe(400);
+    const body = await GET(
+      request("https://wealth-engine-zeta.vercel.app/api/intelligence", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${SECRET}` },
+        body: JSON.stringify({ user_id: "other-steward", accounts: [{ balance: 1 }] }),
+      })
+    );
+    expect(body.status).toBe(400);
+    expect(getSupabaseServiceClient).not.toHaveBeenCalled();
+    expect(JSON.stringify(await body.json())).not.toContain("balance");
+  });
+
+  it("returns no-store and no financial details when the contract cannot be assembled", async () => {
+    getSupabaseServiceClient.mockReturnValue(null);
+    const unavailable = await GET(
+      request("https://wealth-engine-zeta.vercel.app/api/intelligence", {
+        headers: { Authorization: `Bearer ${SECRET}` },
+      })
+    );
+    expect(unavailable.status).toBe(503);
+    expect(unavailable.headers.get("cache-control")).toBe("no-store");
+    expect(await unavailable.json()).toEqual({
+      error: "Intelligence contract is unavailable.",
+    });
+
+    getSupabaseServiceClient.mockReturnValue({
+      from(table: string) {
+        if (table !== "wealth_engine_vaults") {
+          throw new Error(`unexpected table ${table}`);
+        }
+        return {
+          select: () =>
+            Promise.resolve({
+              data: [
+                {
+                  user_id: "steward-1",
+                  schema_version: 5,
+                  vault_data: { displayName: "Hidden Name", balance: 999999 },
+                },
+              ],
+              error: null,
+            }),
+        };
+      },
+    });
+    const unparsed = await GET(
+      request("https://wealth-engine-zeta.vercel.app/api/intelligence", {
+        headers: { Authorization: `Bearer ${SECRET}` },
+      })
+    );
+    expect(unparsed.status).toBe(503);
+    const text = JSON.stringify(await unparsed.json());
+    expect(text).not.toContain("Hidden Name");
+    expect(text).not.toContain("999999");
+    expect(text).not.toContain("steward-1");
+  });
+
+  it("reads only the vault and timezone, then returns a fresh contract", async () => {
+    const tables: string[] = [];
+    getSupabaseServiceClient.mockReturnValue({
+      from(table: string) {
+        tables.push(table);
+        if (table === "wealth_engine_vaults") {
+          return {
+            select: () =>
+              Promise.resolve({
+                data: [
+                  {
+                    user_id: "steward-1",
+                    schema_version: 5,
+                    vault_data: serializeCloudVaultData(state()),
+                  },
+                ],
+                error: null,
+              }),
+          };
+        }
+        if (table === "notification_preferences") {
+          return {
+            select: () =>
+              Promise.resolve({
+                data: [{ user_id: "steward-1", iana_timezone: "America/Boise" }],
+                error: null,
+              }),
+          };
+        }
+        throw new Error(`unexpected table ${table}`);
+      },
+    });
+    const response = await GET(
+      request("https://wealth-engine-zeta.vercel.app/api/intelligence", {
+        headers: { Authorization: `Bearer ${SECRET}` },
+      })
+    );
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    const body = await response.json();
+    expect(body.meta.contract_version).toBe("1");
+    expect(body.meta.iana_timezone).toBe("America/Boise");
+    expect(tables).toEqual(["wealth_engine_vaults", "notification_preferences"]);
+    expect(JSON.stringify(body)).not.toContain("steward-1");
+  });
+
+  it("does not write, read Plaid, or touch notification delivery", () => {
+    const route = readFileSync("app/api/intelligence/route.ts", "utf8");
+    const assembler = readFileSync("lib/babylon/intelligence-contract.ts", "utf8");
+    expect(route).not.toContain(".insert(");
+    expect(route).not.toContain(".update(");
+    expect(route).not.toContain(".delete(");
+    expect(route).not.toContain(".upsert(");
+    expect(route).not.toContain("plaid");
+    expect(route).not.toContain("notification_deliveries");
+    expect(route).not.toContain("push_subscriptions");
+    expect(route).not.toContain("process.env.CRON_SECRET");
+    expect(route).not.toContain("export async function POST");
+    expect(route).not.toContain("console.");
+    expect(assembler).not.toContain("process.env");
+    expect(assembler).not.toContain("INTELLIGENCE_READ_SECRET");
+    expect(assembler).not.toContain("plaid_transaction");
+    expect(assembler).not.toContain("from \"@/lib/babylon/plaid");
+    expect(assembler).not.toContain("muse");
+    expect(assembler).not.toContain("notification_deliveries");
+    expect(readFileSync("package.json", "utf8").toLowerCase()).not.toContain("muse");
+    expect(readFileSync("package.json", "utf8").toLowerCase()).not.toContain("sindarin");
+  });
+});
