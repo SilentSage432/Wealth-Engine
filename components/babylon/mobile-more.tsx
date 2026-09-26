@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { CalendarCheck } from "lucide-react";
 import { ConnectedBanksCard } from "@/components/babylon/connected-banks-card";
+import { DeviceNotifications } from "@/components/babylon/device-notifications";
 import { FinancialPosition } from "@/components/babylon/financial-position";
 import {
   AllocationReference,
@@ -229,6 +230,7 @@ export function MobileMore({
           onHydrateCloud={onHydrateCloud}
           onCheckCloud={onCheckCloud}
         />
+        <DeviceNotifications />
         <VaultDataBackups
           onExportBackup={onExportBackup}
           onImportBackup={onImportBackup}

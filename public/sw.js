@@ -8,6 +8,8 @@
  *
  * Keep the branching aligned with `lib/babylon/sw-policy.ts`.
  * This file does not read or write localStorage.
+ * A push, when one arrives, shows fixed generic copy and opens `/`.
+ * It does not read the payload or financial records.
  */
 const CACHE_NAME = "babylon-engine-v2";
 
@@ -99,3 +101,46 @@ async function cacheFirstImmutable(request) {
   }
   return response;
 }
+
+self.addEventListener("push", (event) => {
+  event.waitUntil(
+    self.registration.showNotification("Wealth Engine", {
+      body: "Wealth Engine needs your attention.",
+      tag: "wealth-engine-attention",
+    })
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const target = new URL("/", self.location.origin).href;
+  event.waitUntil(
+    (async () => {
+      const windows = await self.clients.matchAll({
+        type: "window",
+        includeUncontrolled: true,
+      });
+      for (const client of windows) {
+        let origin = "";
+        try {
+          origin = new URL(client.url).origin;
+        } catch {
+          continue;
+        }
+        if (origin !== self.location.origin) continue;
+        if (typeof client.navigate === "function") {
+          try {
+            await client.navigate(target);
+          } catch {
+            // Focusing the open app still lands on SecurityGate.
+          }
+        }
+        if (typeof client.focus === "function") {
+          await client.focus();
+          return;
+        }
+      }
+      await self.clients.openWindow(target);
+    })()
+  );
+});

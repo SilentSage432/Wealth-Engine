@@ -1,5 +1,15 @@
 # Development Journal
 
+## 2026-09-26 — WE-NOTIFY-003 device opt-in
+
+### What changed
+- Phone More → Data and cloud can enable notifications on this browser. Permission is requested from that tap. An existing PushSubscription is reused. A new one is stored through the authenticated preference and subscription routes, along with the browser's IANA timezone.
+- Turning off this device deletes that endpoint and unsubscribes the browser. It does not clear the steward-wide enabled flag, because that flag covers every device.
+- `/sw.js` shows “Wealth Engine” / “Wealth Engine needs your attention.” and opens `/`. The cache policy is unchanged. Nothing in the app sends Web Push.
+
+### Not in this tranche
+- No private VAPID key, `web-push` send, cron, delivery history, Attention change, vault change, or database migration. A real phone still has to prove the prompt and the stored row. Next delivery tranche is WE-NOTIFY-004.
+
 ## 2026-09-26 — WE-NOTIFY-002D canonical database closeout
 
 ### What changed

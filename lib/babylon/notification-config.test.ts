@@ -360,15 +360,14 @@ describe("notification tranche boundaries", () => {
     expect(joined).not.toContain("from \"@/lib/babylon/attention");
 
     expect(readFileSync("package.json", "utf8")).not.toContain("web-push");
-    expect(readFileSync(".env.example", "utf8")).not.toContain("VAPID");
+    expect(readFileSync(".env.example", "utf8")).not.toContain("VAPID_PRIVATE_KEY");
     expect(existsSync("vercel.json")).toBe(false);
     expect(existsSync("supabase/functions")).toBe(false);
 
     const worker = readFileSync("public/sw.js", "utf8");
-    expect(worker).not.toContain("notificationclick");
-    expect(worker).not.toContain("showNotification");
-    expect(worker).not.toContain('addEventListener("push"');
     expect(worker).toContain('const CACHE_NAME = "babylon-engine-v2"');
+    expect(worker).not.toContain("web-push");
+    expect(worker).not.toContain("VAPID_PRIVATE_KEY");
 
     const attention = readFileSync("lib/babylon/attention.ts", "utf8");
     expect(attention).not.toContain("notification");

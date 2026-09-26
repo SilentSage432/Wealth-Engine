@@ -87,8 +87,17 @@ describe("phone More source boundaries", () => {
     expect(moreSource).not.toContain("BOOTSTRAP_CONFIRM");
     expect(moreSource).not.toContain("Clear this ledger?");
     expect(moreSource).not.toContain("serviceWorker");
-    expect(moreSource).not.toContain("Notification");
     expect(moreSource).not.toContain("PushManager");
+    expect(moreSource.indexOf('aria-label="Data and cloud"')).toBeLessThan(
+      moreSource.indexOf("<DeviceNotifications")
+    );
+    expect(moreSource.indexOf("<DeviceNotifications")).toBeLessThan(
+      moreSource.indexOf('aria-label="Danger zone"')
+    );
+    expect(homeSource).not.toContain("DeviceNotifications");
+    expect(budgetSource).not.toContain("DeviceNotifications");
+    expect(ledgerSource).not.toContain("DeviceNotifications");
+    expect(sidebarSource).not.toContain("DeviceNotifications");
     expect(panelSource).toContain("function VaultMaintenancePanel");
     expect(panelSource).toContain("<VaultCloudSession");
     expect(panelSource).toContain("<VaultDataBackups");
