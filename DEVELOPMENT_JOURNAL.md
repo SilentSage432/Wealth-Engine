@@ -1,5 +1,20 @@
 # Development Journal
 
+## 2026-09-25 — WE-ATTENTION-004C live corpus acceptance
+
+### What changed
+- Live corpus acceptance passed. A read-only production export was run locally through the exact committed `deriveCorrelatedInternalMovements`. The export had 339 observations, 4 pending, 0 removed, and 7 account descriptors.
+- The reasoner returned 47 correlated internal movements: 24 `internal_transfer`, 23 `credit_card_payment`, 94 unique participating observations, and 0 overlapping accepted observations. That matched the earlier independent SQL characterization.
+- The export had one user identity. It was replaced in memory with a synthetic identity before the reasoner ran. Production rows were not mutated. Plaid was not called. The vault was not part of the run.
+- The temporary acceptance transport was removed. The reasoner stays pure, derived, and unwired.
+
+### Ownership
+- Interpretation remains `lib/babylon/correlated-internal-movement.ts`. This tranche did not change it.
+
+### Not in this tranche
+- No UI, hook, sync, persistence, vault, backup, or candidate generator calls the reasoner.
+- No income detection and no steward confirmation.
+
 ## 2026-09-25 — WE-ATTENTION-004B correlated internal movement
 
 ### What changed

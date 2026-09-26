@@ -60,7 +60,8 @@ A personal ledger that splits income 10% to Wealth Building, 20% to Debt Payoff,
 - [x] Plaid foreground observation sync (WE-ATTENTION-003A). One signed-in request per Item after the list is ready. No webhook, polling, or attention UI. Production stored 339 observations across 5 account ids. Vault stayed revision 4 / schema 5
 - [x] Plaid account identity (WE-ATTENTION-003C). Observational name, mask, type, and subtype from the existing sync payload. `20260927_plaid_accounts.sql` is written and not applied from the app. No balances, interpretation, or attention UI. The temporary foreground probe is removed
 - [x] Plaid account identity bootstrap (WE-ATTENTION-003D). Production incremental sync returned `accountsPresent=true`, `accountsCount=0`, `parsedAccountsCount=0`, `pageAccepted=true`. `/accounts/get` runs once after a successful sync when that Item has no descriptors. `20260928_plaid_account_identity.sql` is written and not applied from the app. Balances are discarded. The cursor is independent. Live descriptors are not accepted yet. The temporary account probe is removed
-- [x] Correlated internal movement (WE-ATTENTION-004B). Pure derivation only: `internal_transfer` and `credit_card_payment`, penny-exact cents, ambiguity omitted. Not persisted and not wired. Not live-accepted. No financial mutation. Future inflow or outflow candidates may exclude accepted transaction ids. The steward still records income and expenses
+- [x] Correlated internal movement (WE-ATTENTION-004B). Pure derivation only: `internal_transfer` and `credit_card_payment`, penny-exact cents, ambiguity omitted. Not persisted and not wired. No financial mutation. Future inflow or outflow candidates may exclude accepted transaction ids. The steward still records income and expenses
+- [x] Correlated internal movement live acceptance (WE-ATTENTION-004C). Passed on a read-only production export run locally through the committed reasoner: 339 observations, 4 pending, 0 removed, 7 account descriptors, 47 movements, 24 transfers, 23 card payments, 94 participating observations, 0 overlaps. Matches the prior SQL characterization. Production was not mutated. The reasoner remains unwired
 - [ ] Plaid attention confirmation / steward review
 - [ ] Multi-currency
 - [ ] Shared household vaults
@@ -77,7 +78,7 @@ The planning document is one row per user. The cloud revision is the concurrency
 - Plaid stays outside the vault. The service worker does not sync it.
 - Observational transaction sync reads Plaid and writes `plaid_transactions` only. It does not allocate income, settle expenses, or change account balances. Account descriptors, when the identity migrations are applied, are stored beside those rows and still are not Wealth Engine accounts. An incremental sync page can carry an empty `accounts` array. `/accounts/get` then supplies identity only, and it does not move the transaction cursor.
 - The signed-in screen asks for that sync once after the Item list is ready, and once for an Item connected later in the same signed-in visit. Signing out clears the memory of those requests.
-- Correlated Internal Movement is a pure reading of those observations. It is not stored, not shown, and not a ledger transfer. Ambiguous pairs are omitted. It is not live-accepted.
+- Correlated Internal Movement is a pure reading of those observations. It is not stored, not shown, and not a ledger transfer. Ambiguous pairs are omitted. WE-ATTENTION-004C live-accepted that reading on a read-only production export. The function remains unwired.
 
 ## Architectural ownership
 
