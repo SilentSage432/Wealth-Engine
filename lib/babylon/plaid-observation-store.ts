@@ -1,6 +1,9 @@
 import "server-only";
 
-import type { PlaidObservationSyncStore } from "@/lib/babylon/plaid-transaction-sync";
+import {
+  toPlaidAccountIdentityJson,
+  type PlaidObservationSyncStore,
+} from "@/lib/babylon/plaid-transaction-sync";
 import type { Json } from "@/lib/supabase/database.types";
 import type { BabylonServerSupabase } from "@/lib/supabase/server";
 
@@ -58,13 +61,7 @@ export function createSupabasePlaidObservationStore(
           pending: draft.pending,
         })) as Json,
         removed_ids: [...input.removedIds],
-        accounts: input.accounts.map((account) => ({
-          plaid_account_id: account.plaidAccountId,
-          name: account.name,
-          mask: account.mask,
-          account_type: account.accountType,
-          subtype: account.subtype,
-        })) as Json,
+        accounts: toPlaidAccountIdentityJson(input.accounts) as Json,
       });
       if (error) return { status: "error" };
       const record = asRecord(data);

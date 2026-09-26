@@ -2,8 +2,10 @@ import "server-only";
 
 import { plaidFetch } from "@/lib/babylon/plaid-server";
 import {
+  parsePlaidAccountsGetResponse,
   parsePlaidTransactionsSyncResponse,
   plaidTransactionsSyncBody,
+  type PlaidAccountDraft,
   type PlaidSyncFetchResult,
 } from "@/lib/babylon/plaid-transaction-sync";
 
@@ -18,19 +20,19 @@ export async function fetchPlaidTransactionSyncPage(args: {
   );
   if (!result.ok) return { ok: false };
   const page = parsePlaidTransactionsSyncResponse(result.data);
-  const rawAccounts =
-    result.data &&
-    typeof result.data === "object" &&
-    !Array.isArray(result.data) &&
-    Array.isArray((result.data as { accounts?: unknown }).accounts)
-      ? (result.data as { accounts: unknown[] }).accounts
-      : null;
-  console.log("[WE-ATTENTION-ACCOUNT-PROBE]", {
-    accountsPresent: rawAccounts !== null,
-    accountsCount: rawAccounts ? rawAccounts.length : 0,
-    parsedAccountsCount: page ? page.accounts.length : 0,
-    pageAccepted: page !== null,
-  });
   if (!page) return { ok: false };
   return { ok: true, page };
+}
+
+/** Item account identity. The access token stays on the server. */
+export async function fetchPlaidAccountIdentity(args: {
+  accessToken: string;
+}): Promise<{ ok: true; accounts: PlaidAccountDraft[] } | { ok: false }> {
+  const result = await plaidFetch<unknown>("/accounts/get", {
+    access_token: args.accessToken,
+  });
+  if (!result.ok) return { ok: false };
+  const accounts = parsePlaidAccountsGetResponse(result.data);
+  if (!accounts) return { ok: false };
+  return { ok: true, accounts };
 }

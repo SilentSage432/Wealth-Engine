@@ -1,5 +1,25 @@
 # Development Journal
 
+## 2026-09-25 — WE-ATTENTION-003D account identity bootstrap
+
+### What changed
+- A fresh production incremental sync returned HTTP 200 with `[WE-ATTENTION-ACCOUNT-PROBE]` `accountsPresent=true`, `accountsCount=0`, `parsedAccountsCount=0`, `pageAccepted=true`. The parser and page persistence were already correct. That page had no descriptors to store, so `plaid_accounts` stayed empty.
+- After a synced or incomplete observation sync, an owned Item with zero descriptor rows is read once from `/accounts/get`. Identity fields are `account_id`, `name`, `mask`, `type`, and `subtype`. Balances and the rest of the Plaid account object are discarded before persistence.
+- `upsert_plaid_account_identity` writes those rows. It does not take the sync lock, move `transactions_cursor`, or change `plaid_transactions`.
+- A failed identity fetch or write leaves the successful transaction-sync result in place. Zero rows remain the retry signal for the next fresh foreground sync.
+- The temporary account probe log is removed. Link and token exchange are unchanged.
+
+### Ownership
+- Descriptor parsing and bootstrap decision: `lib/babylon/plaid-transaction-sync.ts`
+- `/accounts/get` fetch: `lib/babylon/plaid-sync-fetch.ts`
+- Service-role count, token load, and upsert: `lib/babylon/plaid-account-bootstrap.ts`
+- Durable function: `supabase/migrations/20260928_plaid_account_identity.sql`
+
+### Not in this tranche
+- Live account descriptors have not been accepted. `20260928` is written and not applied from the app.
+- No balances, no Wealth Engine account mapping, and no interpretation of the 339 observations.
+- No webhook, polling, or cursor reset.
+
 ## 2026-09-25 — WE-ATTENTION-003C temporary account identity probe
 
 ### What changed

@@ -174,7 +174,7 @@ Nothing else reimplements these rules. If a surface needs a financial fact, it c
 - Cloud relational schema (`supabase/migrations/*`)
 - Supabase user-id check (`lib/babylon/cloud-mappers.ts`)
 - Versioned per-user vault (`lib/babylon/cloud-vault.ts`, `supabase/migrations/20260925_wealth_engine_vault.sql`)
-- Plaid connection, transaction observations, and account descriptors (`supabase/migrations/20260808_plaid_tables.sql`, `supabase/migrations/20260926_plaid_transaction_sync.sql`, `supabase/migrations/20260927_plaid_accounts.sql`). The access token is plaintext and service-role only. It is not application-encrypted. Observation rows and account descriptors are not `vault_data` and do not store balances. A signed-in visit requests that sync once per Item from `hooks/usePlaidConnections.ts`. `fetchPlaidTransactionSyncPage` temporarily logs whether the sync body contained an `accounts` array and how many descriptors the parser kept. `20260927` is written and not applied from the app.
+- Plaid connection, transaction observations, and account descriptors (`supabase/migrations/20260808_plaid_tables.sql`, `supabase/migrations/20260926_plaid_transaction_sync.sql`, `supabase/migrations/20260927_plaid_accounts.sql`, `supabase/migrations/20260928_plaid_account_identity.sql`). The access token is plaintext and service-role only. It is not application-encrypted. Observation rows and account descriptors are not `vault_data` and do not store balances. A signed-in visit requests that sync once per Item from `hooks/usePlaidConnections.ts`. When that sync succeeds and the Item still has no descriptors, the server calls `/accounts/get` once and discards balances before writing identity. The transaction cursor is not part of that write. `20260928` is written and not applied from the app. Live descriptors are not accepted yet.
 - Explicit bootstrap and empty-device hydration (`lib/babylon/cloud-setup.ts`)
 - Typed database contracts (`lib/supabase/database.types.ts`)
 
@@ -250,8 +250,8 @@ Canonical ownership reference for Wealth Engine:
 | Plaid foreground observation sync | `lib/babylon/plaid-foreground-sync.ts`, `lib/babylon/plaid-client.ts` (`requestPlaidObservationSync`), `hooks/usePlaidConnections.ts` | Application |
 | Plaid Link UI | `components/babylon/plaid-link-button.tsx`, `components/babylon/connected-banks-card.tsx` | Presentation |
 | Plaid secrets + REST | `lib/babylon/plaid-server.ts`, `app/api/plaid/*` | Infrastructure |
-| Plaid schema + RLS | `supabase/migrations/20260808_plaid_tables.sql`, `supabase/migrations/20260926_plaid_transaction_sync.sql`, `supabase/migrations/20260927_plaid_accounts.sql` | Persistence |
-| Plaid observational sync | `lib/babylon/plaid-transaction-sync.ts`, `lib/babylon/plaid-observation-store.ts`, `app/api/plaid/sync-transactions/route.ts` | Infrastructure |
+| Plaid schema + RLS | `supabase/migrations/20260808_plaid_tables.sql`, `supabase/migrations/20260926_plaid_transaction_sync.sql`, `supabase/migrations/20260927_plaid_accounts.sql`, `supabase/migrations/20260928_plaid_account_identity.sql` | Persistence |
+| Plaid observational sync | `lib/babylon/plaid-transaction-sync.ts`, `lib/babylon/plaid-observation-store.ts`, `lib/babylon/plaid-account-bootstrap.ts`, `lib/babylon/plaid-sync-fetch.ts`, `app/api/plaid/sync-transactions/route.ts` | Infrastructure |
 | Period close / surplus workflow | `hooks/useBabylonEngine.ts` (`closeMonth`; composes domain surplus helpers) | Application |
 | Ledger state coordination | `hooks/useBabylonEngine.ts` | Application |
 | Interaction composition (e.g. hotkeys) | `hooks/useTributeHotkeys.ts` (composed by dashboard) | Application |

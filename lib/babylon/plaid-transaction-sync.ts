@@ -9,6 +9,8 @@
  * rules. 20260926_plaid_transaction_sync.sql stores observations.
  * 20260927_plaid_accounts.sql replaces the page function so account
  * descriptors from the same payload are stored with that page.
+ * 20260928_plaid_account_identity.sql upserts Item identity without
+ * moving the transaction cursor.
  */
 
 import { isUuid } from "@/lib/babylon/cloud-mappers";
@@ -192,7 +194,7 @@ export function parsePlaidTransactionsSyncResponse(
     return null;
   }
   const accounts = Array.isArray(record.accounts)
-    ? readAccounts(record.accounts)
+    ? parsePlaidAccountDescriptors(record.accounts) ?? []
     : [];
 
   return {
@@ -275,6 +277,76 @@ function readAccounts(value: unknown[]): PlaidAccountDraft[] {
   return accounts;
 }
 
+/** Identity fields only. A non-array is a parse failure. */
+export function parsePlaidAccountDescriptors(
+  accounts: unknown
+): PlaidAccountDraft[] | null {
+  if (!Array.isArray(accounts)) return null;
+  return readAccounts(accounts);
+}
+
+/**
+ * /accounts/get body. Keeps account_id, name, mask, type, and subtype.
+ * Balances, official names, and the Item object are not copied.
+ */
+export function parsePlaidAccountsGetResponse(
+  payload: unknown
+): PlaidAccountDraft[] | null {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return null;
+  }
+  return parsePlaidAccountDescriptors(
+    (payload as { accounts?: unknown }).accounts
+  );
+}
+
+export function toPlaidAccountIdentityJson(accounts: readonly PlaidAccountDraft[]): {
+  plaid_account_id: string;
+  name: string | null;
+  mask: string | null;
+  account_type: string | null;
+  subtype: string | null;
+}[] {
+  return accounts.map((account) => ({
+    plaid_account_id: account.plaidAccountId,
+    name: account.name,
+    mask: account.mask,
+    account_type: account.accountType,
+    subtype: account.subtype,
+  }));
+}
+
+export type PlaidAccountBootstrapStatus = "skipped" | "bootstrapped" | "failed";
+
+/**
+ * One Item-level identity fetch when no descriptors are stored yet.
+ * Does not read or write the transaction cursor. A failure stays in this
+ * result so the caller can keep a successful observation sync.
+ */
+export async function bootstrapPlaidAccountIdentity(input: {
+  descriptorCount: number;
+  loadAccessToken: () => Promise<string | null>;
+  fetchAccounts: (
+    accessToken: string
+  ) => Promise<
+    { ok: true; accounts: readonly PlaidAccountDraft[] } | { ok: false }
+  >;
+  persist: (accounts: readonly PlaidAccountDraft[]) => Promise<boolean>;
+}): Promise<PlaidAccountBootstrapStatus> {
+  if (input.descriptorCount !== 0) return "skipped";
+  try {
+    const accessToken = await input.loadAccessToken();
+    if (!accessToken) return "failed";
+    const fetched = await input.fetchAccounts(accessToken);
+    if (!fetched.ok) return "failed";
+    if (fetched.accounts.length === 0) return "bootstrapped";
+    const stored = await input.persist(fetched.accounts);
+    return stored ? "bootstrapped" : "failed";
+  } catch {
+    return "failed";
+  }
+}
+
 export function applyAccountIdentity(
   accounts: readonly PlaidAccountRecord[],
   input: {
@@ -303,6 +375,49 @@ export function applyAccountIdentity(
     next[existingIndex] = row;
   }
   return { status: "applied", accounts: next };
+}
+
+/**
+ * Reference upsert for /accounts/get identity. The Item cursor and
+ * observation rows are copied through unchanged.
+ */
+export function applyPlaidAccountIdentityBootstrap(
+  state: {
+    items: readonly PlaidItemSyncRecord[];
+    accounts: readonly PlaidAccountRecord[];
+    observations: readonly PlaidObservationRecord[];
+  },
+  input: {
+    userId: string;
+    itemRowId: string;
+    accounts: readonly PlaidAccountDraft[];
+  }
+): {
+  status: "applied" | "not_found" | "rejected";
+  items: PlaidItemSyncRecord[];
+  accounts: PlaidAccountRecord[];
+  observations: PlaidObservationRecord[];
+} {
+  const items = state.items.map(cloneItem);
+  const observations = state.observations.map(cloneObservation);
+  const unchanged = {
+    items,
+    accounts: state.accounts.map((account) => ({ ...account })),
+    observations,
+  };
+  const item = items.find((row) => row.id === input.itemRowId);
+  if (!item || item.userId !== input.userId) {
+    return { status: "not_found", ...unchanged };
+  }
+  const identified = applyAccountIdentity(state.accounts, {
+    userId: input.userId,
+    itemRowId: input.itemRowId,
+    accounts: input.accounts,
+  });
+  if (identified.status !== "applied") {
+    return { status: "rejected", ...unchanged };
+  }
+  return { status: "applied", ...unchanged, accounts: identified.accounts };
 }
 
 function readCategory(record: Record<string, unknown>): string | null {

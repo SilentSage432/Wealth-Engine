@@ -7,6 +7,7 @@
  * - `supabase/migrations/20260925_wealth_engine_vault.sql`
  * - `supabase/migrations/20260926_plaid_transaction_sync.sql`
  * - `supabase/migrations/20260927_plaid_accounts.sql`
+ * - `supabase/migrations/20260928_plaid_account_identity.sql`
  */
 
 export type IncomeStreamKindDb =
@@ -445,6 +446,14 @@ export interface Database {
           actor_user_id: string;
           target_item_id: string;
           lock_token: string;
+        };
+        Returns: Json;
+      };
+      upsert_plaid_account_identity: {
+        Args: {
+          actor_user_id: string;
+          target_item_id: string;
+          accounts: Json;
         };
         Returns: Json;
       };
