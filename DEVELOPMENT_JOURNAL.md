@@ -1,5 +1,23 @@
 # Development Journal
 
+## 2026-09-25 — WE-ATTENTION-004B correlated internal movement
+
+### What changed
+- `deriveCorrelatedInternalMovements` reads posted Plaid observations and known account descriptors. It returns pairs that look like opposite sides of one movement. Kinds are `internal_transfer` and `credit_card_payment`.
+- Comparison uses integer cents from `roundMoney`. Source is the positive Plaid amount. Destination is the negative amount.
+- A pair is kept only when each observation has exactly one qualifying partner. Duplicate ids, missing identity, pending rows, and removed rows are omitted.
+- The function is not called from a hook, route, or screen. Nothing is written to `plaid_transactions`, `plaid_accounts`, or the vault.
+
+### Ownership
+- Interpretation: `lib/babylon/correlated-internal-movement.ts`
+- Tests: `lib/babylon/correlated-internal-movement.test.ts`
+
+### Not in this tranche
+- The reasoner is not live-accepted. Production data was not read or written.
+- No persisted pair, migration, UI, confirmation, or steward override.
+- No income, expense, transfer, balance change, or 10/20/70 invocation.
+- Future inflow and outflow candidate reasoning may treat accepted transaction ids as exclusions. That reasoning is not built here. The steward still decides what is recorded.
+
 ## 2026-09-25 — WE-ATTENTION-003D account identity bootstrap
 
 ### What changed

@@ -131,6 +131,7 @@ This is the heart of Wealth Engine.
 - Speed-Tribute quick presets (`lib/babylon/presets.ts`) — chip vocabulary; resolvers map onto canonical kinds
 - Debt freedom / surplus disposition math (`projectDebtFreedom`, `resolveSurplusDisposition` in `lib/babylon/engine.ts`)
 - Discreet mask contract (`lib/babylon/discreet.ts`)
+- Correlated Internal Movement (`lib/babylon/correlated-internal-movement.ts`) — derived reading of two Plaid observations. Not stored
 
 **Responsible for**
 
@@ -152,6 +153,8 @@ A monthly recurring obligation (`lib/babylon/recurring-obligations.ts`) describe
 Actual spending is settled expenses only (`actualSpendTotals`, `buildBudgetVariances`). An unsettled expense is an upcoming obligation. Upcoming Needs sums every unpaid Need. Living Budget remaining is the 70% pool minus settled spending. Those figures are not subtracted from Money Available, and protected designations do not change them.
 
 Available After Planned Needs (`lib/babylon/available-after-planned-needs.ts`) is Money Available minus Protected Money minus Upcoming Needs, floored at zero. The shortfall is the positive gap when that difference is negative. It is recomputed and not stored. It does not subtract Living Budget remaining, tracked allocation wealth, tracked month-close Emergency Fund contributions, Upcoming Wants, or paid expenses. A recurring rule is not subtracted again; an unpaid Need occurrence already inside Upcoming Needs is. Paying a bill does not change account balances, so the user updates Financial Position when money leaves an account. A future payday is not included. A future Sindarin forecast may describe what reality appears to show. It does not replace the Wealth Engine plan, and this tranche does not call Sindarin.
+
+Correlated Internal Movement (`deriveCorrelatedInternalMovements` in `lib/babylon/correlated-internal-movement.ts`) is a derived reading of two posted Plaid observations on different known accounts of the same Plaid Item. Kinds are `internal_transfer` and `credit_card_payment`. Amounts compare as penny-exact cents through `roundMoney`. A pair is emitted only when each observation has exactly one qualifying partner. Anything ambiguous is omitted. The result is not stored and is not wired to a screen, a route, or a ledger write. It does not create income, expenses, or transfers, and it does not call `allocateIncome`. Future inflow or outflow candidate reasoning may treat accepted Plaid transaction ids as exclusions. The steward still decides what is recorded. This primitive is not live-accepted.
 
 **Never owns**
 
@@ -236,6 +239,7 @@ Canonical ownership reference for Wealth Engine:
 | Existing protected money | `lib/babylon/protected-money.ts`; local `openingWealthBuilding` and `openingEmergencyFund` via `lib/babylon/persistence.ts` | Domain / Persistence |
 | Monthly recurring obligations | `lib/babylon/recurring-obligations.ts`; local `recurringObligations[]` via `lib/babylon/persistence.ts` | Domain / Persistence |
 | Available After Planned Needs | `lib/babylon/available-after-planned-needs.ts` | Domain |
+| Correlated Internal Movement | `lib/babylon/correlated-internal-movement.ts` (`deriveCorrelatedInternalMovements`) | Domain |
 | Budget variance math | `lib/babylon/engine.ts` (`buildBudgetVariances`, `scaleBudgetCapsToPool`) | Domain |
 | Affordability and income-type totals | `lib/babylon/engine.ts` | Domain |
 | Type contracts | `types/babylon.ts` | Domain |
