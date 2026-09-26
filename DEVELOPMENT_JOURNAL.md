@@ -1,5 +1,15 @@
 # Development Journal
 
+## 2026-09-26 — WE-NOTIFY-002D canonical database closeout
+
+### What changed
+- The canonical Supabase production target is recorded in `ARCHITECTURE.md`. Database operations must fail closed when that identity cannot be proven. Historical or shared projects are not Wealth Engine targets.
+- WE-NOTIFY-002 is committed at `e8ff5430d2aab416609dcd1da1d504cc4eaeba90`. Production `notification_preferences` and `push_subscriptions` were verified present and empty. `notification_deliveries` is intentionally absent. This verification did not apply `20260929_notification_foundation.sql`.
+- Production has no `supabase_migrations.schema_migrations` table. Do not `supabase db push` or replay repository migrations until that history is deliberately reconciled. Local development credentials must all belong to the canonical project before database or API development is trusted.
+
+### Not in this tranche
+- No database mutation, migration-history repair, credential change, permission prompt, browser subscription, Web Push send, or scheduler. Next implementation tranche is WE-NOTIFY-003.
+
 ## 2026-09-26 — WE-NOTIFY-002 notification persistence foundation
 
 ### What changed
@@ -11,7 +21,7 @@
 - These rows are operational configuration. They are not `vault_data`, they do not change the vault revision, and they are not part of WE-SYNC. Attention rules are unchanged. Nothing in this tranche can mark a bill paid, close a month, or send a push.
 
 ### Not in this tranche
-- No permission prompt, browser `PushManager` subscription, service-worker push handler, Web Push send, VAPID keys, cron, delivery history, Plaid change, or mobile information-architecture change. Notifications are not live. `20260929_notification_foundation.sql` is written and not applied from the app.
+- No permission prompt, browser `PushManager` subscription, service-worker push handler, Web Push send, VAPID keys, cron, delivery history, Plaid change, or mobile information-architecture change. Notifications are not live. This tranche wrote `20260929_notification_foundation.sql` and did not apply it. Later production verification is recorded above.
 
 ## 2026-09-26 — WE-MOBILE-007 phone More
 
