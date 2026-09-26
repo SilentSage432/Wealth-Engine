@@ -1,5 +1,18 @@
 # Development Journal
 
+## 2026-09-26 — WE-MOBILE-003 phone shell and single navigation
+
+### What changed
+- Below the `lg` breakpoint, Wealth Engine uses one phone destination: Home, Budget, Ledger, or More. That state lives in the dashboard and is not synced with desktop `activeNav`. The Command / Analytics / Ledgers strip and the phone drawer are gone.
+- The phone header keeps the greeting, Discreet Mode, Add, and the last-day month-close Attention line. Profile editing, Plaid, Close Month, and the drawer maintenance actions are on More. Quick Add stays on the desktop branch only.
+- The fixed bottom bar is hidden at `lg` and above. The viewport uses `viewport-fit: cover`, and the bar plus the page padding account for the bottom safe area. Desktop sidebar, Overview, Ledger, and Financial Guidance are unchanged in composition.
+
+### Authority
+- No allocation, vault, Plaid sync, Attention derivation, or month-close mutation changed. Review close and Close Month still open the existing ritual. They do not call `closeMonth` by themselves.
+
+### Not in this tranche
+- Home content hierarchy, Quick Add preset prefill, keyboard/`visualViewport` handling, service worker, and push notifications.
+
 ## 2026-09-25 — WE-ATTENTION-007B minimum in-app attention loop
 
 ### What changed

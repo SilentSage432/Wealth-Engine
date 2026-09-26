@@ -5,7 +5,14 @@ import type {
   NavSection,
   PersistedState,
 } from "@/types/babylon";
-import { BookOpen, LayoutDashboard, ScrollText } from "lucide-react";
+import {
+  BookOpen,
+  Home,
+  LayoutDashboard,
+  MoreHorizontal,
+  PiggyBank,
+  ScrollText,
+} from "lucide-react";
 import type { ComponentType } from "react";
 
 export const STORAGE_KEY = "wealth-engine-babylon-v2";
@@ -78,6 +85,22 @@ export const NAV_ITEMS: ReadonlyArray<{
   { id: "overview", label: "Overview", icon: LayoutDashboard },
   { id: "ledgers", label: "Ledger", icon: ScrollText },
   { id: "wisdom", label: "Financial Guidance", icon: BookOpen },
+];
+
+/** Phone destinations. Independent of desktop `NavSection`. */
+export const MOBILE_DESTINATIONS = ["home", "budget", "ledger", "more"] as const;
+
+export type MobileDestination = (typeof MOBILE_DESTINATIONS)[number];
+
+export const MOBILE_NAV_ITEMS: ReadonlyArray<{
+  id: MobileDestination;
+  label: string;
+  icon: ComponentType<{ className?: string; strokeWidth?: number }>;
+}> = [
+  { id: "home", label: "Home", icon: Home },
+  { id: "budget", label: "Budget", icon: PiggyBank },
+  { id: "ledger", label: "Ledger", icon: ScrollText },
+  { id: "more", label: "More", icon: MoreHorizontal },
 ];
 
 export const DONUT_COLORS = {

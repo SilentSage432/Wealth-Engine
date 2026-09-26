@@ -39,8 +39,9 @@ A personal ledger that splits income 10% to Wealth Building, 20% to Debt Payoff,
 - [x] Path A cloud schema foundation (`supabase/migrations/20260719_init_babylon_schema.sql`)
 - [x] Path A client connectivity (Supabase SDK + TanStack Query + dual-write mutations)
 - [x] Path A auth UI (AuthModal, sidebar vault anchor). The first-login financial migrator was removed in WE-SYNC-002.
-- [x] Mobile layout (focus cards, compact 10/20/70 cards, Overview / Analytics / Ledger tabs)
-- [x] Mobile runtime paint and mount (opaque scrolling surfaces, CommandBar-local clock, one layout tree per breakpoint)
+- [x] Mobile layout (focus cards, compact 10/20/70 cards). The earlier Command / Analytics / Ledgers strip is no longer the phone navigation
+- [x] Mobile runtime paint and mount (opaque scrolling surfaces, CommandBar-local clock on desktop, one layout tree per breakpoint)
+- [x] WE-MOBILE-003 phone shell below `lg`: one bottom navigation (Home, Budget, Ledger, More), compact header, and maintenance on More. Desktop sidebar, Overview, Ledger, and Financial Guidance stay on the desktop branch
 - [x] Path A entity parity schema (`debt_entries`, `period_archives` — `20260807_add_debts_archives_logs.sql`)
 - [x] Grand Suite: SecurityGate + Discreet Mode, Paycheck Splitter, Debt Freedom Engine, Monthly Close sweeps, Plaid schema prep
 - [x] Plaid security harden (JWT API routes, access_token isolation, idle lock, privacy blur, fail-soft toasts)

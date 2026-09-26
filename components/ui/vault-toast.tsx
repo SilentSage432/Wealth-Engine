@@ -38,7 +38,8 @@ export function VaultToastHost() {
       role="status"
       aria-live="polite"
       className={cn(
-        "fixed inset-x-0 bottom-6 z-[80] flex justify-center px-4",
+        "fixed inset-x-0 z-[80] flex justify-center px-4",
+        "bottom-[calc(4.5rem+env(safe-area-inset-bottom,0px))] lg:bottom-6",
         "animate-fade-up"
       )}
     >

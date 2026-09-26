@@ -64,12 +64,12 @@ Infrastructure Layer
 - UI primitives (including shadcn-based controls)
 - Layout, brand shell, and visual hierarchy
 - Charts, forms, dialogs, and interaction feedback
-- Visual and ephemeral UI state (open panels, active tabs, focus, the CommandBar wall clock)
-- Which dashboard tree is mounted: mobile tabs below Tailwind `lg`, desktop layout at `lg` and above (`hooks/useDesktopLayout.ts`)
+- Visual and ephemeral UI state (open panels, the phone destination, desktop nav, focus, the desktop CommandBar wall clock)
+- Which dashboard tree is mounted: the phone shell below Tailwind `lg`, and the desktop layout at `lg` and above (`hooks/useDesktopLayout.ts`). Phone destination (`home | budget | ledger | more`) lives on the phone branch only and is not synced with desktop `activeNav`
 
 **Owns**
 
-- `components/babylon/*` (including the quick-add bar, spending focus, and mobile Overview / Ledger / Financial Guidance)
+- `components/babylon/*` (including the desktop quick-add bar, the phone header and bottom navigation, spending focus, and desktop Overview / Ledger / Financial Guidance)
 - `components/dashboard/*`
 - `components/modals/*`
 - `components/ui/*`

@@ -12,8 +12,8 @@
 - Speed-Tribute presets: `lib/babylon/presets.ts` (`QuickPreset`, `DEFAULT_PRESETS`, kind resolvers → domain)
 - Quick Add bar: `components/babylon/speed-tribute-bar.tsx` (chips open Add; full 1-tap commit pending)
 - Mobile focus: `components/babylon/spending-power-focus.tsx` (70% remaining + labor-hour readout)
-- Mobile deck: below `lg` (1024px), only the Command / Analytics / Ledgers tree mounts; at `lg` and above only the desktop tree mounts (`hooks/useDesktopLayout.ts`). Sticky `CommandBar` + `SpeedTributeBar` are opaque slate (no backdrop blur on those surfaces or on `Card`)
-- Security: `components/babylon/security-gate.client.tsx` (`next/dynamic` `ssr: false`) → `security-gate.tsx` + `vault-error-boundary.tsx` + `lib/babylon/security.ts` (fail-soft PIN setup, 1.5s WebAuthn timeout + PIN bypass, 3-min idle lock, multitasking privacy blur); Discreet Mode via CommandBar eye toggle
+- Phone shell: below `lg` (1024px), only the phone tree mounts. One local destination owns Home, Budget, Ledger, and More (`mobileDestination` in `wealth-engine-dashboard.tsx`). It is not synced with desktop `activeNav`. The bottom bar is `components/babylon/mobile-bottom-nav.tsx`. The compact header is `components/babylon/mobile-header.tsx`. More composes profile editing, Close Month, bank connection, Financial Guidance, and `VaultMaintenancePanel`. At `lg` and above only the desktop tree mounts (`hooks/useDesktopLayout.ts`): sidebar, `CommandBar`, and `SpeedTributeBar`. Those sticky surfaces stay opaque slate
+- Security: `components/babylon/security-gate.client.tsx` (`next/dynamic` `ssr: false`) → `security-gate.tsx` + `vault-error-boundary.tsx` + `lib/babylon/security.ts` (fail-soft PIN setup, 1.5s WebAuthn timeout + PIN bypass, 3-min idle lock, multitasking privacy blur); Discreet Mode via the desktop CommandBar eye toggle and the phone header eye toggle
 - Paycheck splitter: `components/modals/PaycheckSplitterModal.tsx` — `proposeIncomeSplit` → execute 10/20/70
 - Debt freedom: `components/babylon/debt-freedom-engine.tsx` — Snowball/Avalanche + Freedom Date + velocity chart
 - Monthly close sweeps: `split_50_50` | `wealth_boost` | `rollover` | `emergency_shield` (+ legacy `debt_wealth`)
@@ -113,12 +113,12 @@ Legacy expenses without `dueDate` soft-migrate to use `date`. Want expenses (`ca
 - **Budget Blueprint** — scale caps; edit / delete a category and reassign expenses
 - **Recent Activity Strip** — last five saved changes
 - **Add** — income, expense, debt, and category
-- **Close Month** — command-bar "Close Month" → 3-step modal. On the last local day of an open month, "Review close" opens that same modal
+- **Close Month** — desktop command-bar "Close Month", and the phone More "Close Month" button, open the 3-step modal. On the last local day of an open month, "Review close" in the desktop command bar and in the compact phone header opens that same modal
 - **Ledger** — income, expenses, and debts; paid marks on expenses
 
 ## Known behaviors
 - Recording income runs `allocateIncome()` (penny-exact 10/20/70; shares sum to gross) and optionally `applyDebtAllocation()`.
-- Financial "today" is the local calendar day (`todayIso`), not UTC. The ledger hook advances that day at the next local midnight (and when a backgrounded tab returns on a new day). The visible CommandBar clock is a local one-second timer and does not rerender the dashboard.
+- Financial "today" is the local calendar day (`todayIso`), not UTC. The ledger hook advances that day at the next local midnight (and when a backgrounded tab returns on a new day). The visible CommandBar clock is a local one-second timer on the desktop branch and does not rerender the dashboard. The phone header does not run a clock.
 - Main income rate is the latest recurring deposit per income source. Repeated paychecks from the same source do not stack into extra wages. `source` is the only way two simultaneous jobs stay separate.
 - Sidebar cloud state says "Cloud account connected" before a vault link. After a verified match it says "Up to date · revision N". Unsent edits say they are waiting or saved offline. A conflict says both copies were preserved. Sign-in itself is not labeled synced.
 - Plaid Link success means the institution link was saved. The signed-in app then requests one observation sync for each connected Item, including an Item that was just linked. Production has stored 339 observations across 5 Plaid account ids without changing vault revision 4 / schema 5. Those rows stay out of the vault. A negative Plaid amount is money in. It is not income until a future confirmation tranche says so. Account name, mask, type, and subtype are observational metadata once `20260927_plaid_accounts.sql` is applied. Live descriptors are not accepted until that verification.

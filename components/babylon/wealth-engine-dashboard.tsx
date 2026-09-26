@@ -1,7 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { BarChart3, ScrollText, Zap } from "lucide-react";
+import { useCallback, useMemo, useState } from "react";
 import { AffordabilityAnchor } from "@/components/babylon/affordability-anchor";
 import { AnalyticsHub } from "@/components/babylon/analytics-hub";
 import { AppSidebar } from "@/components/babylon/app-sidebar";
@@ -12,6 +11,9 @@ import { FinancialPosition } from "@/components/babylon/financial-position";
 import { UpcomingNeeds } from "@/components/babylon/upcoming-needs";
 import { GoldenTriad } from "@/components/babylon/golden-triad";
 import { LedgerMatrices } from "@/components/babylon/ledger-matrices";
+import { MobileBottomNav, MOBILE_NAV_CLEARANCE } from "@/components/babylon/mobile-bottom-nav";
+import { MobileHeader } from "@/components/babylon/mobile-header";
+import { MobileMore } from "@/components/babylon/mobile-more";
 import { QuickStats } from "@/components/babylon/quick-stats";
 import { SecurityGate } from "@/components/babylon/security-gate.client";
 import { SpeedTributeBar } from "@/components/babylon/speed-tribute-bar";
@@ -25,23 +27,14 @@ import { MonthlyCloseModal } from "@/components/modals/MonthlyCloseModal";
 import { AuthModal } from "@/components/modals/AuthModal";
 import { PaycheckSplitterModal } from "@/components/modals/PaycheckSplitterModal";
 import { RecordTransactionModal } from "@/components/modals/RecordTransactionModal";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useBabylonEngine } from "@/hooks/useBabylonEngine";
 import { useDesktopLayout } from "@/hooks/useDesktopLayout";
 import { usePlaidConnections } from "@/hooks/usePlaidConnections";
 import { useTributeHotkeys } from "@/hooks/useTributeHotkeys";
+import type { MobileDestination } from "@/lib/babylon/constants";
 import { roundMoney } from "@/lib/babylon/engine";
 import type { QuickPreset } from "@/lib/babylon/presets";
 import { cn } from "@/lib/utils";
-import type { NavSection } from "@/types/babylon";
-
-type MobileDeckTab = "command" | "analytics" | "ledgers";
-
-function navToMobileTab(nav: NavSection): MobileDeckTab | null {
-  if (nav === "overview") return "command";
-  if (nav === "ledgers") return "ledgers";
-  return null;
-}
 
 export function WealthEngineDashboard() {
   const engine = useBabylonEngine();
@@ -54,7 +47,6 @@ export function WealthEngineDashboard() {
     paycheckOpen,
     isCloudSynced,
     setAuthOpen,
-    selectNav,
   } = engine;
 
   const plaid = usePlaidConnections({ enabled: hydrated && isCloudSynced });
@@ -68,7 +60,9 @@ export function WealthEngineDashboard() {
     void launchLink();
   }, [isCloudSynced, launchLink, setAuthOpen]);
 
-  const [mobileTab, setMobileTab] = useState<MobileDeckTab>("command");
+  // Phone destinations only. Desktop keeps activeNav and does not mirror this.
+  const [mobileDestination, setMobileDestination] =
+    useState<MobileDestination>("home");
   const [accountEditorOpen, setAccountEditorOpen] = useState(false);
   const desktopLayout = useDesktopLayout();
 
@@ -85,22 +79,6 @@ export function WealthEngineDashboard() {
       !paycheckOpen &&
       !accountEditorOpen,
   });
-
-  useEffect(() => {
-    const mapped = navToMobileTab(engine.activeNav);
-    if (mapped) setMobileTab(mapped);
-  }, [engine.activeNav]);
-
-  const handleMobileTabChange = useCallback(
-    (value: string) => {
-      const tab = value as MobileDeckTab;
-      setMobileTab(tab);
-      if (tab === "command") selectNav("overview");
-      if (tab === "ledgers") selectNav("ledgers");
-      if (tab === "analytics") selectNav("overview");
-    },
-    [selectNav]
-  );
 
   const handlePresetSelect = useCallback(
     (preset: QuickPreset) => {
@@ -238,144 +216,147 @@ export function WealthEngineDashboard() {
     />
   );
 
+  const banksCard = (
+    <ConnectedBanksCard
+      connectedCount={connectedCount}
+      isLoading={isLoading}
+      launching={launching}
+      initializing={!hydrated}
+      isCloudSynced={isCloudSynced}
+      onConnect={handleLinkBank}
+      onRequireAuth={() => setAuthOpen(true)}
+    />
+  );
+
   return (
     <SecurityGate>
       <div className="relative min-h-dvh overflow-x-clip bg-slate-950 text-slate-100 luxury-grid">
-        {engine.sidebarOpen && (
-          <button
-            type="button"
-            aria-label="Close navigation"
-            className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm lg:hidden"
-            onClick={() => engine.setSidebarOpen(false)}
+        {desktopLayout && (
+          <AppSidebar
+            open={engine.sidebarOpen}
+            activeNav={engine.activeNav}
+            onClose={() => engine.setSidebarOpen(false)}
+            onSelectNav={engine.selectNav}
+            onExportBackup={engine.exportBackup}
+            onImportBackup={engine.importBackup}
+            onClearAllData={engine.clearAllData}
+            isCloudSynced={engine.isCloudSynced}
+            vaultSync={engine.vaultSync}
+            cloudBusy={engine.cloudBusy}
+            cloudUsername={engine.greetingName}
+            onConnectCloud={() => engine.setAuthOpen(true)}
+            onSignOutCloud={engine.signOutCloud}
+            onBootstrapCloud={engine.confirmCloudBootstrap}
+            onHydrateCloud={engine.confirmCloudHydrate}
+            onCheckCloud={engine.confirmCloudCheck}
           />
         )}
 
-        <AppSidebar
-          open={engine.sidebarOpen}
-          activeNav={engine.activeNav}
-          onClose={() => engine.setSidebarOpen(false)}
-          onSelectNav={engine.selectNav}
-          onExportBackup={engine.exportBackup}
-          onImportBackup={engine.importBackup}
-          onClearAllData={engine.clearAllData}
-          isCloudSynced={engine.isCloudSynced}
-          vaultSync={engine.vaultSync}
-          cloudBusy={engine.cloudBusy}
-          cloudUsername={engine.greetingName}
-          onConnectCloud={() => engine.setAuthOpen(true)}
-          onSignOutCloud={engine.signOutCloud}
-          onBootstrapCloud={engine.confirmCloudBootstrap}
-          onHydrateCloud={engine.confirmCloudHydrate}
-          onCheckCloud={engine.confirmCloudCheck}
-        />
-
-        <div className="min-w-0 lg:pl-72">
+        <div className={cn("min-w-0", desktopLayout && "pl-72")}>
           <div className="sticky top-0 z-30 bg-slate-950">
-            <CommandBar
-              username={engine.username}
-              monthAlreadyClosed={engine.monthlyCloseSummary.alreadyClosed}
-              isDiscreetMode={discreet}
-              plaidLaunching={launching}
-              plaidInitializing={!hydrated}
-              onUsernameChange={engine.setUsername}
-              onOpenSidebar={() => engine.setSidebarOpen(true)}
-              onRecordTribute={() => engine.openTribute("income")}
-              onOpenMonthlyClose={() => engine.setMonthlyCloseOpen(true)}
-              openMonthMessage={engine.monthCloseAttention?.message ?? null}
-              onToggleDiscreetMode={engine.toggleDiscreetMode}
-              onLinkBank={handleLinkBank}
-            />
-            <SpeedTributeBar onSelectPreset={handlePresetSelect} />
+            {desktopLayout ? (
+              <>
+                <CommandBar
+                  username={engine.username}
+                  monthAlreadyClosed={engine.monthlyCloseSummary.alreadyClosed}
+                  isDiscreetMode={discreet}
+                  plaidLaunching={launching}
+                  plaidInitializing={!hydrated}
+                  onUsernameChange={engine.setUsername}
+                  onOpenSidebar={() => engine.setSidebarOpen(true)}
+                  onRecordTribute={() => engine.openTribute("income")}
+                  onOpenMonthlyClose={() => engine.setMonthlyCloseOpen(true)}
+                  openMonthMessage={engine.monthCloseAttention?.message ?? null}
+                  onToggleDiscreetMode={engine.toggleDiscreetMode}
+                  onLinkBank={handleLinkBank}
+                />
+                <SpeedTributeBar onSelectPreset={handlePresetSelect} />
+              </>
+            ) : (
+              <MobileHeader
+                username={engine.username}
+                isDiscreetMode={discreet}
+                openMonthMessage={engine.monthCloseAttention?.message ?? null}
+                onToggleDiscreetMode={engine.toggleDiscreetMode}
+                onRecordTribute={() => engine.openTribute("income")}
+                onOpenMonthlyClose={() => engine.setMonthlyCloseOpen(true)}
+              />
+            )}
           </div>
 
-          <main className="mx-auto w-full max-w-screen-2xl space-y-4 px-3 py-4 sm:space-y-6 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
-            {!desktopLayout && !showWisdom && (
-              <Tabs
-                value={mobileTab}
-                onValueChange={handleMobileTabChange}
-                className="w-full"
-              >
-                <TabsList className="grid h-auto w-full grid-cols-3 gap-1 bg-slate-900/80 p-1">
-                  <TabsTrigger
-                    value="command"
-                    className="gap-1.5 px-2 py-2.5 text-xs sm:text-sm"
-                  >
-                    <Zap className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                    Command
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="analytics"
-                    className="gap-1.5 px-2 py-2.5 text-xs sm:text-sm"
-                  >
-                    <BarChart3
-                      className="h-3.5 w-3.5 shrink-0"
-                      aria-hidden="true"
-                    />
-                    Analytics
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="ledgers"
-                    className="gap-1.5 px-2 py-2.5 text-xs sm:text-sm"
-                  >
-                    <ScrollText
-                      className="h-3.5 w-3.5 shrink-0"
-                      aria-hidden="true"
-                    />
-                    Ledgers
-                  </TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="command" className="mt-4 space-y-4">
-                  {financialPosition}
-                  {upcomingNeedsCard}
-                  {focusCards}
-                  {triad}
-                  <ConnectedBanksCard
-                    connectedCount={connectedCount}
-                    isLoading={isLoading}
-                    launching={launching}
-                    initializing={!hydrated}
-                    isCloudSynced={isCloudSynced}
-                    onConnect={handleLinkBank}
-                    onRequireAuth={() => setAuthOpen(true)}
-                  />
-                  {debtFreedom}
-                  <RecentActivityStrip events={engine.recentActivity} />
-                  <WisdomBox
-                    wisdomIndex={engine.wisdomIndex}
-                    expanded={false}
-                    onSelectIndex={engine.setWisdomIndex}
-                  />
-                </TabsContent>
-
-                <TabsContent value="analytics" className="mt-4 space-y-4">
-                  <TributeEnginesPanel snapshot={engine.tributeEngines} />
-                  {budgetBlueprint}
-                  <AnalyticsHub
-                    chartData={engine.chartData}
-                    donutData={engine.donutData}
-                    currentMonthNeed={engine.currentMonthNeed}
-                    currentMonthDesire={engine.currentMonthDesire}
-                    currentMonthRemaining={engine.currentMonthRemaining}
-                  />
-                  <AffordabilityAnchor
-                    desiresPoolRemaining={engine.desiresPoolRemaining}
-                    hourlyLaborRate={engine.hourlyLaborRate}
-                  />
-                </TabsContent>
-
-                <TabsContent value="ledgers" className="mt-4 space-y-4">
-                  {budgetBlueprint}
-                  {ledgers}
-                </TabsContent>
-              </Tabs>
+          <main
+            className={cn(
+              "mx-auto w-full max-w-screen-2xl space-y-4 px-3 sm:space-y-6 sm:px-6 lg:px-8",
+              desktopLayout
+                ? "py-4 sm:py-6 lg:py-8"
+                : cn("pt-4 sm:pt-6", MOBILE_NAV_CLEARANCE)
+            )}
+          >
+            {!desktopLayout && mobileDestination === "home" && (
+              <div className="space-y-4">
+                {financialPosition}
+                {upcomingNeedsCard}
+                {focusCards}
+                {triad}
+                {banksCard}
+                {debtFreedom}
+                <RecentActivityStrip events={engine.recentActivity} />
+                <WisdomBox
+                  wisdomIndex={engine.wisdomIndex}
+                  expanded={false}
+                  onSelectIndex={engine.setWisdomIndex}
+                />
+              </div>
             )}
 
-            {!desktopLayout && showWisdom && (
-              <WisdomBox
+            {!desktopLayout && mobileDestination === "budget" && (
+              <div className="space-y-4">
+                <TributeEnginesPanel snapshot={engine.tributeEngines} />
+                {budgetBlueprint}
+                <AnalyticsHub
+                  chartData={engine.chartData}
+                  donutData={engine.donutData}
+                  currentMonthNeed={engine.currentMonthNeed}
+                  currentMonthDesire={engine.currentMonthDesire}
+                  currentMonthRemaining={engine.currentMonthRemaining}
+                />
+                <AffordabilityAnchor
+                  desiresPoolRemaining={engine.desiresPoolRemaining}
+                  hourlyLaborRate={engine.hourlyLaborRate}
+                />
+              </div>
+            )}
+
+            {!desktopLayout && mobileDestination === "ledger" && (
+              <div className="space-y-4">{ledgers}</div>
+            )}
+
+            {!desktopLayout && mobileDestination === "more" && (
+              <MobileMore
+                username={engine.username}
+                onUsernameChange={engine.setUsername}
+                monthAlreadyClosed={engine.monthlyCloseSummary.alreadyClosed}
+                onOpenMonthlyClose={() => engine.setMonthlyCloseOpen(true)}
                 wisdomIndex={engine.wisdomIndex}
-                expanded
-                onSelectIndex={engine.setWisdomIndex}
+                onSelectWisdomIndex={engine.setWisdomIndex}
+                connectedCount={connectedCount}
+                banksLoading={isLoading}
+                plaidLaunching={launching}
+                plaidInitializing={!hydrated}
+                isCloudSynced={isCloudSynced}
+                onConnectBank={handleLinkBank}
+                onRequireAuth={() => setAuthOpen(true)}
+                onExportBackup={engine.exportBackup}
+                onImportBackup={engine.importBackup}
+                onClearAllData={engine.clearAllData}
+                vaultSync={engine.vaultSync}
+                cloudBusy={engine.cloudBusy}
+                cloudUsername={engine.greetingName}
+                onConnectCloud={() => engine.setAuthOpen(true)}
+                onSignOutCloud={engine.signOutCloud}
+                onBootstrapCloud={engine.confirmCloudBootstrap}
+                onHydrateCloud={engine.confirmCloudHydrate}
+                onCheckCloud={engine.confirmCloudCheck}
               />
             )}
 
@@ -389,15 +370,7 @@ export function WealthEngineDashboard() {
                       {upcomingNeedsCard}
                       {focusCards}
                       {triad}
-                      <ConnectedBanksCard
-                        connectedCount={connectedCount}
-                        isLoading={isLoading}
-                        launching={launching}
-                        initializing={!hydrated}
-                        isCloudSynced={isCloudSynced}
-                        onConnect={handleLinkBank}
-                        onRequireAuth={() => setAuthOpen(true)}
-                      />
+                      {banksCard}
                       {debtFreedom}
                       <AffordabilityAnchor
                         desiresPoolRemaining={engine.desiresPoolRemaining}
@@ -451,6 +424,13 @@ export function WealthEngineDashboard() {
             </footer>
           </main>
         </div>
+
+        {!desktopLayout && (
+          <MobileBottomNav
+            destination={mobileDestination}
+            onDestinationChange={setMobileDestination}
+          />
+        )}
 
         <RecordTransactionModal
           open={engine.tributeOpen}
