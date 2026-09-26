@@ -1,5 +1,18 @@
 # Development Journal
 
+## 2026-09-26 — WE-NOTIFY-002 notification persistence foundation
+
+### What changed
+- A steward can have one notification preference row: an explicit enabled flag and an IANA timezone. Push subscription rows store one endpoint and its keys for that authenticated user.
+- Authenticated routes read the preference, save it, register or update an endpoint, and remove the caller's own endpoint. The session user id is the owner. Request bodies cannot choose another user.
+- Invalid timezones and malformed subscription input are rejected. Status responses do not return subscription keys.
+
+### Authority
+- These rows are operational configuration. They are not `vault_data`, they do not change the vault revision, and they are not part of WE-SYNC. Attention rules are unchanged. Nothing in this tranche can mark a bill paid, close a month, or send a push.
+
+### Not in this tranche
+- No permission prompt, browser `PushManager` subscription, service-worker push handler, Web Push send, VAPID keys, cron, delivery history, Plaid change, or mobile information-architecture change. Notifications are not live. `20260929_notification_foundation.sql` is written and not applied from the app.
+
 ## 2026-09-26 — WE-MOBILE-007 phone More
 
 ### What changed

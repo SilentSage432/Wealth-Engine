@@ -60,6 +60,29 @@ export async function requireAuthenticatedUser(
 }
 
 /**
+ * Anon key plus the caller's JWT, so Row Level Security still applies.
+ * This is not the service-role client.
+ */
+export function createUserSupabaseClient(
+  accessToken: string
+): BabylonServerSupabase | null {
+  const env = readPublicEnv();
+  const token = accessToken.trim();
+  if (!env || !token) return null;
+
+  return createClient<Database>(env.url, env.anonKey, {
+    global: {
+      headers: { Authorization: `Bearer ${token}` },
+    },
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
+  });
+}
+
+/**
  * Service-role client for writing Plaid secrets. Never import into client bundles.
  */
 export function getSupabaseServiceClient(): BabylonServerSupabase | null {

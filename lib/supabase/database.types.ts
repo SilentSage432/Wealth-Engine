@@ -8,6 +8,7 @@
  * - `supabase/migrations/20260926_plaid_transaction_sync.sql`
  * - `supabase/migrations/20260927_plaid_accounts.sql`
  * - `supabase/migrations/20260928_plaid_account_identity.sql`
+ * - `supabase/migrations/20260929_notification_foundation.sql`
  */
 
 export type IncomeStreamKindDb =
@@ -377,6 +378,60 @@ export interface Database {
         };
         Relationships: [];
       };
+      notification_preferences: {
+        Row: {
+          user_id: string;
+          enabled: boolean;
+          iana_timezone: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          user_id: string;
+          enabled: boolean;
+          iana_timezone: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          user_id?: string;
+          enabled?: boolean;
+          iana_timezone?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      push_subscriptions: {
+        Row: {
+          id: string;
+          user_id: string;
+          endpoint: string;
+          p256dh: string;
+          auth: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          endpoint: string;
+          p256dh: string;
+          auth: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          endpoint?: string;
+          p256dh?: string;
+          auth?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       wealth_engine_vaults: {
         Row: {
           user_id: string;
@@ -494,3 +549,7 @@ export type PeriodArchiveInsert =
   Database["public"]["Tables"]["period_archives"]["Insert"];
 export type WealthEngineVaultRow =
   Database["public"]["Tables"]["wealth_engine_vaults"]["Row"];
+export type NotificationPreferenceRow =
+  Database["public"]["Tables"]["notification_preferences"]["Row"];
+export type PushSubscriptionRow =
+  Database["public"]["Tables"]["push_subscriptions"]["Row"];
