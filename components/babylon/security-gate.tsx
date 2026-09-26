@@ -432,28 +432,30 @@ function SecurityGateInner({ children }: SecurityGateProps) {
                     added after unlock on supported devices.
                   </p>
                   <Input
-                    type="password"
+                    type="text"
                     inputMode="numeric"
                     autoComplete="one-time-code"
                     name="app-lock-code-new"
+                    pattern="[0-9]*"
                     maxLength={4}
                     placeholder="Create PIN"
                     value={pin}
                     onChange={(e) => handlePinChange(e.target.value)}
                     aria-label="Create 4-digit PIN"
-                    className="border-slate-800 bg-slate-900/60 text-center text-lg tracking-[0.4em]"
+                    className="border-slate-800 bg-slate-900/60 text-center text-lg tracking-[0.4em] [-webkit-text-security:disc]"
                   />
                   <Input
-                    type="password"
+                    type="text"
                     inputMode="numeric"
                     autoComplete="one-time-code"
                     name="app-lock-code-confirm"
+                    pattern="[0-9]*"
                     maxLength={4}
                     placeholder="Confirm PIN"
                     value={confirmPin}
                     onChange={(e) => handleConfirmPinChange(e.target.value)}
                     aria-label="Confirm 4-digit PIN"
-                    className="border-slate-800 bg-slate-900/60 text-center text-lg tracking-[0.4em]"
+                    className="border-slate-800 bg-slate-900/60 text-center text-lg tracking-[0.4em] [-webkit-text-security:disc]"
                   />
                   <Button
                     className="w-full"
@@ -491,16 +493,17 @@ function SecurityGateInner({ children }: SecurityGateProps) {
               {phase === "pin_entry" && (
                 <div className="space-y-4">
                   <Input
-                    type="password"
+                    type="text"
                     inputMode="numeric"
                     autoComplete="one-time-code"
                     name="app-lock-code"
+                    pattern="[0-9]*"
                     maxLength={4}
                     placeholder="••••"
                     value={pin}
                     onChange={(e) => handlePinChange(e.target.value)}
                     aria-label="Enter 4-digit PIN"
-                    className="border-slate-800 bg-slate-900/60 text-center text-lg tracking-[0.4em]"
+                    className="border-slate-800 bg-slate-900/60 text-center text-lg tracking-[0.4em] [-webkit-text-security:disc]"
                     onKeyDown={(e) => {
                       if (
                         e.key === "Enter" &&
