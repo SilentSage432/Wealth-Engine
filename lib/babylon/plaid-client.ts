@@ -3,10 +3,13 @@
 import { plaidUserMessage } from "@/lib/babylon/plaid-errors";
 import {
   isPlaidClientConfigured,
+  PLAID_ACCOUNT_PUBLIC_COLUMNS,
   PLAID_ITEM_PUBLIC_COLUMNS,
   PLAID_OBSERVATION_COLUMNS,
+  toPlaidAccountPublic,
   toPlaidItemPublic,
   toPlaidObservationPublic,
+  type PlaidAccountPublic,
   type PlaidItemPublic,
   type PlaidObservationPublic,
 } from "@/lib/babylon/plaid-schema";
@@ -18,8 +21,6 @@ type ApiErrorBody = { error?: string; code?: string };
 type PlaidApiFetchOptions = {
   /** Link and exchange announce failures. Foreground observation sync stays quiet. */
   announceError?: boolean;
-  /** Temporary production probe. Logs booleans only. Sync opts in. */
-  probe?: boolean;
 };
 
 async function authBearer(): Promise<string | null> {
@@ -37,11 +38,6 @@ async function plaidApiFetch<T>(
   const announceError = options?.announceError !== false;
   try {
     const token = await authBearer();
-    if (options?.probe) {
-      console.info(
-        `[WE-ATTENTION-PROBE] op=auth-result bearerPresent=${Boolean(token)}`
-      );
-    }
     if (!token) {
       if (announceError) {
         emitVaultToast({
@@ -52,9 +48,6 @@ async function plaidApiFetch<T>(
       return { ok: false };
     }
 
-    if (options?.probe) {
-      console.info("[WE-ATTENTION-PROBE] op=fetch-start");
-    }
     const res = await fetch(path, {
       ...init,
       headers: {
@@ -143,9 +136,6 @@ export async function createPlaidLinkTokenOrToast(): Promise<string | null> {
 export async function requestPlaidObservationSync(
   itemRowId: string
 ): Promise<boolean> {
-  console.info(
-    `[WE-ATTENTION-PROBE] op=request-enter idPresent=${typeof itemRowId === "string" && itemRowId.trim().length > 0}`
-  );
   const id = itemRowId.trim();
   if (!id) return false;
   const result = await plaidApiFetch<{ status?: string }>(
@@ -154,7 +144,7 @@ export async function requestPlaidObservationSync(
       method: "POST",
       body: JSON.stringify({ id }),
     },
-    { announceError: false, probe: true }
+    { announceError: false }
   );
   if (!result.ok) {
     console.error("[plaid] observation sync failed — ledger unchanged.");
@@ -206,6 +196,42 @@ export async function listPlaidItems(): Promise<PlaidItemPublic[]> {
     );
   } catch (err) {
     console.error("[plaid] list items crashed — local vault retained.", err);
+    return [];
+  }
+}
+
+/** Owner-scoped Plaid account descriptors. No balances and no access token. */
+export async function listPlaidAccounts(): Promise<PlaidAccountPublic[]> {
+  try {
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) return [];
+
+    const { data, error } = await supabase
+      .from("plaid_accounts")
+      .select(PLAID_ACCOUNT_PUBLIC_COLUMNS)
+      .order("name", { ascending: true });
+
+    if (error || !data) {
+      console.error("[plaid] list accounts failed.", error);
+      return [];
+    }
+
+    return data.map((row) =>
+      toPlaidAccountPublic(
+        row as {
+          id: string;
+          user_id: string;
+          plaid_item_id: string;
+          plaid_account_id: string;
+          name: string | null;
+          mask: string | null;
+          account_type: string | null;
+          subtype: string | null;
+        }
+      )
+    );
+  } catch (err) {
+    console.error("[plaid] list accounts crashed.", err);
     return [];
   }
 }

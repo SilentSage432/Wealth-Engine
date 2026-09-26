@@ -65,6 +65,7 @@ function syncPage(overrides: Partial<PlaidSyncPage> = {}): PlaidSyncPage {
     added: [],
     modified: [],
     removedIds: [],
+    accounts: [],
     nextCursor: "cursor-1",
     hasMore: false,
     ...overrides,

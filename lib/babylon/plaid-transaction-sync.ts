@@ -6,8 +6,9 @@
  * wealth_engine_vaults.
  *
  * The in-memory store is the reference for cursor, lock, and idempotency
- * rules. The SQL functions in 20260926_plaid_transaction_sync.sql are the
- * durable copy of those rules.
+ * rules. 20260926_plaid_transaction_sync.sql stores observations.
+ * 20260927_plaid_accounts.sql replaces the page function so account
+ * descriptors from the same payload are stored with that page.
  */
 
 import { isUuid } from "@/lib/babylon/cloud-mappers";
@@ -30,10 +31,25 @@ export type PlaidObservationDraft = {
   pending: boolean;
 };
 
+/** Observational account descriptor. Not a Wealth Engine FinancialAccount. */
+export type PlaidAccountDraft = {
+  plaidAccountId: string;
+  name: string | null;
+  mask: string | null;
+  accountType: string | null;
+  subtype: string | null;
+};
+
+export type PlaidAccountRecord = PlaidAccountDraft & {
+  userId: string;
+  plaidItemId: string;
+};
+
 export type PlaidSyncPage = {
   added: PlaidObservationDraft[];
   modified: PlaidObservationDraft[];
   removedIds: string[];
+  accounts: PlaidAccountDraft[];
   nextCursor: string;
   hasMore: boolean;
 };
@@ -89,6 +105,7 @@ export type PlaidObservationSyncStore = {
     nextCursor: string;
     drafts: readonly PlaidObservationDraft[];
     removedIds: readonly string[];
+    accounts: readonly PlaidAccountDraft[];
     nowMs: number;
     removedAt: string;
   }): Promise<{ status: PlaidSyncApplyStatus }>;
@@ -171,11 +188,18 @@ export function parsePlaidTransactionsSyncResponse(
   const modified = readDrafts(record.modified);
   const removedIds = readRemovedIds(record.removed);
   if (!added || !modified || !removedIds) return null;
+  if (record.accounts !== undefined && !Array.isArray(record.accounts)) {
+    return null;
+  }
+  const accounts = Array.isArray(record.accounts)
+    ? readAccounts(record.accounts)
+    : [];
 
   return {
     added,
     modified,
     removedIds,
+    accounts,
     nextCursor: record.next_cursor,
     hasMore: record.has_more,
   };
@@ -225,6 +249,60 @@ function readOptionalId(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   return trimmed ? trimmed : null;
+}
+
+function readOptionalText(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed ? trimmed : null;
+}
+
+function readAccounts(value: unknown[]): PlaidAccountDraft[] {
+  const accounts: PlaidAccountDraft[] = [];
+  for (const entry of value) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) continue;
+    const record = entry as Record<string, unknown>;
+    const plaidAccountId = readOptionalId(record.account_id);
+    if (!plaidAccountId) continue;
+    accounts.push({
+      plaidAccountId,
+      name: readOptionalText(record.name),
+      mask: readOptionalText(record.mask),
+      accountType: readOptionalText(record.type),
+      subtype: readOptionalText(record.subtype),
+    });
+  }
+  return accounts;
+}
+
+export function applyAccountIdentity(
+  accounts: readonly PlaidAccountRecord[],
+  input: {
+    userId: string;
+    itemRowId: string;
+    accounts: readonly PlaidAccountDraft[];
+  }
+): { status: "applied" | "rejected"; accounts: PlaidAccountRecord[] } {
+  const next = accounts.map((account) => ({ ...account }));
+  for (const draft of input.accounts) {
+    const existingIndex = next.findIndex(
+      (account) => account.plaidAccountId === draft.plaidAccountId
+    );
+    if (existingIndex >= 0 && next[existingIndex].userId !== input.userId) {
+      return { status: "rejected", accounts: accounts.map((account) => ({ ...account })) };
+    }
+    const row: PlaidAccountRecord = {
+      ...draft,
+      userId: input.userId,
+      plaidItemId: input.itemRowId,
+    };
+    if (existingIndex < 0) {
+      next.push(row);
+      continue;
+    }
+    next[existingIndex] = row;
+  }
+  return { status: "applied", accounts: next };
 }
 
 function readCategory(record: Record<string, unknown>): string | null {
@@ -431,18 +509,22 @@ export function releaseSyncLock(
 export function createMemoryPlaidObservationStore(seed: {
   items: readonly PlaidItemSyncRecord[];
   observations?: readonly PlaidObservationRecord[];
+  accounts?: readonly PlaidAccountRecord[];
 }): PlaidObservationSyncStore & {
   snapshot(): {
     items: PlaidItemSyncRecord[];
     observations: PlaidObservationRecord[];
+    accounts: PlaidAccountRecord[];
   };
 } {
   let items = seed.items.map(cloneItem);
   let observations = (seed.observations ?? []).map(cloneObservation);
+  let accounts = (seed.accounts ?? []).map((account) => ({ ...account }));
   return {
     snapshot: () => ({
       items: items.map(cloneItem),
       observations: observations.map(cloneObservation),
+      accounts: accounts.map((account) => ({ ...account })),
     }),
     async claim(input) {
       const result = claimSyncLock(items, input);
@@ -458,8 +540,15 @@ export function createMemoryPlaidObservationStore(seed: {
     async applyPage(input) {
       const result = applySyncPage(items, observations, input);
       if (result.status !== "applied") return { status: result.status };
+      const identified = applyAccountIdentity(accounts, {
+        userId: input.userId,
+        itemRowId: input.itemRowId,
+        accounts: input.accounts,
+      });
+      if (identified.status !== "applied") return { status: "rejected" };
       items = result.items;
       observations = result.observations;
+      accounts = identified.accounts;
       return { status: "applied" };
     },
     async release(input) {
@@ -557,6 +646,7 @@ export async function syncPlaidItemObservations(input: {
         nextCursor: page.nextCursor,
         drafts: [...page.added, ...page.modified],
         removedIds: page.removedIds,
+        accounts: page.accounts,
         nowMs: stampedAt,
         removedAt: new Date(stampedAt).toISOString(),
       });

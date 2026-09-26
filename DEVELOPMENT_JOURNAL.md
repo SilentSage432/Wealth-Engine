@@ -1,15 +1,24 @@
 # Development Journal
 
-## 2026-09-25 — WE-ATTENTION-003A temporary foreground sync probe
+## 2026-09-25 — WE-ATTENTION-003C observational account identity
 
 ### What changed
-- Temporary console lines prefixed `[WE-ATTENTION-PROBE]` record whether the foreground effect ran, how many Item requests the planner returned, whether `requestPlaidObservationSync` was entered, whether a bearer exists, and whether `fetch` is about to start.
-- The lines are booleans, counts, and operation labels. They do not change sync, auth, or the requested-id set.
-- Remove this probe after the production stop is identified.
+- The first production observation sync stored 339 Plaid rows (335 posted, 4 pending, 0 removed) across 5 Plaid account ids, dated 2026-06-28 through 2026-09-25. The vault stayed revision 4 / schema version 5. Backup version stayed 5.
+- `/transactions/sync` already returns account descriptors. The page parser now keeps `account_id`, `name`, `mask`, `type`, and `subtype` as text. Balances stay out.
+- `public.plaid_accounts` stores those descriptors for the signed-in owner of a `plaid_items` row. The same page function upserts them with the observations and cursor. A repeated descriptor updates the row. It does not rewrite existing transaction rows.
+- Authenticated users may select their own descriptors. They cannot insert, update, or delete them, and they still cannot read the access token, cursor, or lock.
+- `listPlaidAccounts()` is the browser read. There is no new UI.
+- The temporary `[WE-ATTENTION-PROBE]` logs are removed. Foreground sync still asks once per ready Item.
 
 ### Ownership
-- Effect and plan logs: `hooks/usePlaidConnections.ts`, `lib/babylon/plaid-foreground-sync.ts`
-- Request, auth, and fetch logs: `lib/babylon/plaid-client.ts`
+- Descriptor parsing and in-memory upsert: `lib/babylon/plaid-transaction-sync.ts`
+- Durable table and page function: `supabase/migrations/20260927_plaid_accounts.sql`
+- Browser read: `lib/babylon/plaid-schema.ts`, `lib/babylon/plaid-client.ts`
+
+### Not in this tranche
+- Live account descriptors have not been accepted in production. This migration is written and not applied from the app.
+- No balances, no transaction interpretation, no Financial Attention candidates, and no Wealth Engine account mapping.
+- Observations are still not income, expenses, or `vault_data`.
 
 ## 2026-09-25 — WE-ATTENTION-003A foreground observation sync
 

@@ -57,7 +57,8 @@ A personal ledger that splits income 10% to Wealth Building, 20% to Debt Payoff,
 - [ ] WE-SYNC-005 choose cloud or this device after a conflict, with a backup first
 - [ ] Speed-Tribute 1-tap commit (presets + bar mount; full amount autofill / zero-modal path still open)
 - [x] Plaid observational transaction sync (WE-ATTENTION-002). `20260926_plaid_transaction_sync.sql` is written and not applied from the app. No attention UI
-- [x] Plaid foreground observation sync (WE-ATTENTION-003A). One signed-in request per Item after the list is ready. No webhook, polling, or attention UI
+- [x] Plaid foreground observation sync (WE-ATTENTION-003A). One signed-in request per Item after the list is ready. No webhook, polling, or attention UI. Production stored 339 observations across 5 account ids. Vault stayed revision 4 / schema 5
+- [x] Plaid account identity (WE-ATTENTION-003C). Observational name, mask, type, and subtype from the existing sync payload. `20260927_plaid_accounts.sql` is written and not applied from the app. No balances, interpretation, or attention UI. The temporary probe is removed
 - [ ] Plaid attention confirmation / steward review
 - [ ] Multi-currency
 - [ ] Shared household vaults
@@ -72,7 +73,7 @@ The planning document is one row per user. The cloud revision is the concurrency
 - If both sides changed, the screen stops. It does not pick a winner.
 - An empty device still confirms a load. A non-empty device is adopted only when its document matches the cloud.
 - Plaid stays outside the vault. The service worker does not sync it.
-- Observational transaction sync reads Plaid and writes `plaid_transactions` only. It does not allocate income, settle expenses, or change account balances.
+- Observational transaction sync reads Plaid and writes `plaid_transactions` only. It does not allocate income, settle expenses, or change account balances. Account descriptors, when the identity migration is applied, are stored beside those rows and still are not Wealth Engine accounts.
 - The signed-in screen asks for that sync once after the Item list is ready, and once for an Item connected later in the same signed-in visit. Signing out clears the memory of those requests.
 
 ## Architectural ownership

@@ -58,6 +58,13 @@ export function createSupabasePlaidObservationStore(
           pending: draft.pending,
         })) as Json,
         removed_ids: [...input.removedIds],
+        accounts: input.accounts.map((account) => ({
+          plaid_account_id: account.plaidAccountId,
+          name: account.name,
+          mask: account.mask,
+          account_type: account.accountType,
+          subtype: account.subtype,
+        })) as Json,
       });
       if (error) return { status: "error" };
       const record = asRecord(data);

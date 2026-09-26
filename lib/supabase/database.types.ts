@@ -6,6 +6,7 @@
  * - `supabase/migrations/20260808_plaid_tables.sql`
  * - `supabase/migrations/20260925_wealth_engine_vault.sql`
  * - `supabase/migrations/20260926_plaid_transaction_sync.sql`
+ * - `supabase/migrations/20260927_plaid_accounts.sql`
  */
 
 export type IncomeStreamKindDb =
@@ -291,6 +292,45 @@ export interface Database {
         };
         Relationships: [];
       };
+      plaid_accounts: {
+        Row: {
+          id: string;
+          user_id: string;
+          plaid_item_id: string;
+          plaid_account_id: string;
+          name: string | null;
+          mask: string | null;
+          account_type: string | null;
+          subtype: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          plaid_item_id: string;
+          plaid_account_id: string;
+          name?: string | null;
+          mask?: string | null;
+          account_type?: string | null;
+          subtype?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          plaid_item_id?: string;
+          plaid_account_id?: string;
+          name?: string | null;
+          mask?: string | null;
+          account_type?: string | null;
+          subtype?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       plaid_transactions: {
         Row: {
           id: string;
@@ -396,6 +436,7 @@ export interface Database {
           next_cursor: string;
           observations: Json;
           removed_ids: string[];
+          accounts: Json;
         };
         Returns: Json;
       };

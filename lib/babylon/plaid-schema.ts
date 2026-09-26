@@ -69,6 +69,43 @@ export const PLAID_ITEM_PUBLIC_COLUMNS =
 export const PLAID_OBSERVATION_COLUMNS =
   "id, user_id, plaid_transaction_id, pending_transaction_id, account_id, amount, name, category, date, pending, removed_at" as const;
 
+/** Owner-scoped account descriptors. No balances and no access token. */
+export const PLAID_ACCOUNT_PUBLIC_COLUMNS =
+  "id, user_id, plaid_item_id, plaid_account_id, name, mask, account_type, subtype" as const;
+
+export type PlaidAccountPublic = {
+  id: string;
+  userId: string;
+  plaidItemId: string;
+  plaidAccountId: string;
+  name: string | null;
+  mask: string | null;
+  accountType: string | null;
+  subtype: string | null;
+};
+
+export function toPlaidAccountPublic(row: {
+  id: string;
+  user_id: string;
+  plaid_item_id: string;
+  plaid_account_id: string;
+  name: string | null;
+  mask: string | null;
+  account_type: string | null;
+  subtype: string | null;
+}): PlaidAccountPublic {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    plaidItemId: row.plaid_item_id,
+    plaidAccountId: row.plaid_account_id,
+    name: row.name,
+    mask: row.mask,
+    accountType: row.account_type,
+    subtype: row.subtype,
+  };
+}
+
 export function toPlaidItemPublic(row: {
   id: string;
   user_id: string;
