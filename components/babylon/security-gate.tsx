@@ -434,6 +434,8 @@ function SecurityGateInner({ children }: SecurityGateProps) {
                   <Input
                     type="password"
                     inputMode="numeric"
+                    autoComplete="one-time-code"
+                    name="app-lock-code-new"
                     maxLength={4}
                     placeholder="Create PIN"
                     value={pin}
@@ -444,6 +446,8 @@ function SecurityGateInner({ children }: SecurityGateProps) {
                   <Input
                     type="password"
                     inputMode="numeric"
+                    autoComplete="one-time-code"
+                    name="app-lock-code-confirm"
                     maxLength={4}
                     placeholder="Confirm PIN"
                     value={confirmPin}
@@ -489,6 +493,8 @@ function SecurityGateInner({ children }: SecurityGateProps) {
                   <Input
                     type="password"
                     inputMode="numeric"
+                    autoComplete="one-time-code"
+                    name="app-lock-code"
                     maxLength={4}
                     placeholder="••••"
                     value={pin}
