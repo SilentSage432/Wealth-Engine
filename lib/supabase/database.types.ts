@@ -432,6 +432,39 @@ export interface Database {
         };
         Relationships: [];
       };
+      notification_deliveries: {
+        Row: {
+          id: string;
+          user_id: string;
+          attention_key: string;
+          civil_date: string;
+          status: string;
+          failure_code: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          attention_key: string;
+          civil_date: string;
+          status: string;
+          failure_code?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          attention_key?: string;
+          civil_date?: string;
+          status?: string;
+          failure_code?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       wealth_engine_vaults: {
         Row: {
           user_id: string;

@@ -290,6 +290,7 @@ describe("notification migration contract", () => {
     expect(vault).not.toContain("notification_preferences");
     expect(vault).not.toContain("push_subscriptions");
     for (const file of readdirSync("supabase/migrations")) {
+      if (file === "20260930_notification_deliveries.sql") continue;
       const text = readFileSync(resolve("supabase/migrations", file), "utf8");
       expect(text).not.toContain("CREATE TABLE public.notification_deliveries");
     }
@@ -359,9 +360,6 @@ describe("notification tranche boundaries", () => {
     expect(joined).not.toContain("plaid");
     expect(joined).not.toContain("from \"@/lib/babylon/attention");
 
-    expect(readFileSync("package.json", "utf8")).not.toContain("web-push");
-    expect(readFileSync(".env.example", "utf8")).not.toContain("VAPID_PRIVATE_KEY");
-    expect(existsSync("vercel.json")).toBe(false);
     expect(existsSync("supabase/functions")).toBe(false);
 
     const worker = readFileSync("public/sw.js", "utf8");

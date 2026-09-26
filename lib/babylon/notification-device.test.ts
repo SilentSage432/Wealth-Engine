@@ -295,12 +295,12 @@ describe("WE-NOTIFY-003 boundaries", () => {
     expect(control).not.toContain("user_id");
     expect(control).toContain('"/api/notifications/subscriptions"');
     expect(control).toContain('"/api/notifications/preferences"');
+    expect(control).toContain('"/api/notifications/test"');
+    expect(control).toContain("Send test notification");
     expect(control).not.toContain("serviceWorker.register");
-    expect(readFileSync("package.json", "utf8")).not.toContain("web-push");
     expect(readFileSync(".env.example", "utf8")).toContain(
       "NEXT_PUBLIC_VAPID_PUBLIC_KEY"
     );
-    expect(readFileSync(".env.example", "utf8")).not.toContain("VAPID_PRIVATE_KEY");
     expect(CLOUD_VAULT_SCHEMA_VERSION).toBe(5);
     const attention = readFileSync("lib/babylon/attention.ts", "utf8");
     expect(attention).toContain("export function deriveDueAttention");

@@ -220,6 +220,35 @@ export function DeviceNotifications() {
     setBusy(false);
   }
 
+  async function onTest() {
+    setBusy(true);
+    setNote(null);
+    const supabase = getSupabaseBrowserClient();
+    const session = supabase ? await supabase.auth.getSession() : null;
+    const token = session?.data.session?.access_token;
+    if (!token) {
+      setNote("Sign in to send a test notification.");
+      setBusy(false);
+      return;
+    }
+    const response = await fetch("/api/notifications/test", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) {
+      setNote("The test notification could not be sent.");
+      setBusy(false);
+      return;
+    }
+    const body = (await response.json()) as { delivered?: number };
+    setNote(
+      body.delivered
+        ? "Test notification sent. This checks delivery only. It is not a bill or a month close."
+        : "No registered device accepted the test notification."
+    );
+    setBusy(false);
+  }
+
   async function onDisable() {
     setBusy(true);
     setNote(null);
@@ -238,7 +267,9 @@ export function DeviceNotifications() {
       <p className="text-sm text-slate-200">{deviceNotificationLabel(state)}</p>
       {state === "enabled-on-device" ? (
         <p className="text-xs leading-relaxed text-slate-400">
-          Wealth Engine is not sending notifications yet.
+          A daily check can notify this device when Wealth Engine already needs
+          attention. The message stays generic. A test notification only checks
+          delivery. It is not a bill or a month close.
         </p>
       ) : null}
       {note ? (
@@ -256,15 +287,26 @@ export function DeviceNotifications() {
         </Button>
       ) : null}
       {state === "enabled-on-device" ? (
-        <Button
-          type="button"
-          variant="outline"
-          className="w-full"
-          onClick={() => void onDisable()}
-          disabled={busy}
-        >
-          Turn off this device
-        </Button>
+        <div className="space-y-2">
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            onClick={() => void onTest()}
+            disabled={busy}
+          >
+            Send test notification
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            onClick={() => void onDisable()}
+            disabled={busy}
+          >
+            Turn off this device
+          </Button>
+        </div>
       ) : null}
     </div>
   );

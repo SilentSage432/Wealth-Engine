@@ -1,5 +1,36 @@
 # Development Journal
 
+## 2026-09-26 — WE-NOTIFY-004C production state closeout
+
+### What changed
+- Production `notification_deliveries` has been independently verified present and structurally equivalent to the repository's `20260930_notification_deliveries.sql`. The verification operation did not apply or replay the migration. The table had zero rows. `notification_preferences` and `push_subscriptions` each remained one unchanged row. Vault and Plaid state were not modified.
+- Supabase CLI migration history still does not record repository migrations. `supabase_migrations.schema_migrations` remains absent. Do not replay `20260930`. Do not run `supabase db push`. Do not infer migration application history merely from object existence. The repository file stays the canonical schema definition.
+- The steward has configured `NEXT_PUBLIC_VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`, and `CRON_SECRET` in the Wealth Engine Vercel project. The application was redeployed after `VAPID_SUBJECT` and `CRON_SECRET` were added. No secret values are recorded here. WE-NOTIFY-004 is not production accepted.
+
+### Not in this tranche
+- No production write, migration replay, migration-history repair, commit, or push. No transport test was run.
+
+## 2026-09-26 — WE-NOTIFY-004A delivery atomicity edge
+
+### What changed
+- No send, dedupe, retention, or schema behavior changed. Web Push delivery stays operationally at-least-once across the send to success-record boundary.
+- A `succeeded` row is inserted only after at least one endpoint accepts the push. If that insert does not commit, a later run on the same civil day can send the same generic notification again. A stored success remains final. A rare duplicate generic notification is preferable to suppressing legitimate Attention the steward never received.
+- The current `notification_deliveries` model cannot close that window. Suppression is the partial unique index on `status = 'succeeded'`. Committing `succeeded` before the push would hide Attention when the push then fails. A `failed` row does not suppress a retry. No reservation, outbox, or extra status was added.
+
+### Not in this tranche
+- No migration apply, Vercel change, environment change, commit, or push.
+
+## 2026-09-26 — WE-NOTIFY-004 deterministic Attention delivery
+
+### What changed
+- A protected daily evaluator can read the current vault, derive the steward's civil date from the stored IANA timezone, and reuse Due Attention and Month-Close Attention. Recurring occurrences needed for that reading are materialized in memory and discarded.
+- One generic Web Push covers every still-eligible subject for that steward and run. Successful dedupe is one `notification_deliveries` row per subject, user, and civil date. Failed attempts can retry. Rows older than 14 civil days are deleted by that same run. Endpoints that return 404 or 410 are removed. The push body is empty, and `/sw.js` keeps the fixed copy.
+- More → Data and cloud can send that same generic notification as a transport test when this device is enabled. The test does not record an Attention delivery.
+- Vercel cron is `0 15 * * *` UTC, about 8:00 or 9:00 in America/Boise depending on daylight saving. The schedule is not financial logic.
+
+### Not in this tranche
+- This code change did not apply the migration or write Vercel secrets. Production acceptance is not complete. No financial record, vault revision, or Plaid row is written by the evaluator. Later production evidence is in the WE-NOTIFY-004C entry.
+
 ## 2026-09-26 — WE-NOTIFY-003 device opt-in
 
 ### What changed
@@ -14,7 +45,7 @@
 
 ### What changed
 - The canonical Supabase production target is recorded in `ARCHITECTURE.md`. Database operations must fail closed when that identity cannot be proven. Historical or shared projects are not Wealth Engine targets.
-- WE-NOTIFY-002 is committed at `e8ff5430d2aab416609dcd1da1d504cc4eaeba90`. Production `notification_preferences` and `push_subscriptions` were verified present and empty. `notification_deliveries` is intentionally absent. This verification did not apply `20260929_notification_foundation.sql`.
+- WE-NOTIFY-002 is committed at `e8ff5430d2aab416609dcd1da1d504cc4eaeba90`. That verification found production `notification_preferences` and `push_subscriptions` present and empty, and `notification_deliveries` absent. It did not apply `20260929_notification_foundation.sql`. Later evidence is in the WE-NOTIFY-004C entry.
 - Production has no `supabase_migrations.schema_migrations` table. Do not `supabase db push` or replay repository migrations until that history is deliberately reconciled. Local development credentials must all belong to the canonical project before database or API development is trusted.
 
 ### Not in this tranche
