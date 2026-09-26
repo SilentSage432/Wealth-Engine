@@ -1,5 +1,23 @@
 # Development Journal
 
+## 2026-09-25 — WE-ATTENTION-005A residual observation corpus characterization
+
+### What changed
+- Residual observation corpus characterization is complete. A fresh read-only production export was run locally through the exact committed `deriveCorrelatedInternalMovements` before any residual work. The corpus was 339 observations, 4 pending, 0 removed, and 7 account descriptors.
+- The reasoner reproduced 47 movements, 24 internal transfers, 23 credit-card payments, 94 participating observations, and 0 overlapping accepted observations. Participating ids came only from that function. Residual membership is the export minus those exact ids: 245 observations, 241 posted/current, 4 pending, and 0 removed. No second SQL matcher was created.
+- The export had one user identity. It was replaced in memory with a synthetic identity before the reasoner ran. Production was not mutated. Plaid was not called. Raw transaction ids, account ids, and individual amounts were not emitted. The temporary runner was removed. The reasoner stays pure and unwired.
+- Residual sign, relative to each Plaid account: 232 positive, 13 negative, and 0 zero-amount. Positive means money out of that account. Negative means money into that account. That direction is not whole-system economic meaning.
+- Fifteen residual groups have at least three observations on the same anonymous account, the same sign, and the same normalized absolute cent amount. All 15 are positive. Predeclared cadence: 7 monthly, 7 mixed, 1 none, 0 weekly, and 0 biweekly. Four posted/current groups on one anonymous checking account (Account C in that run) each share that account, a positive sign, one cent amount, one literal Plaid category, three occurrences, and date gaps of 31 and 31 days. Those category strings are observational evidence, not authority.
+- Residual negatives contain no qualifying same-account repeated amount group of three or more. Residual same-cent cross-account structures are 0 for opposite sign on the same day, opposite sign on an adjacent day, same sign on the same day, and ambiguous multiple counterparts. That is not evidence for loosening the committed movement predicate.
+- An observation is not semantic truth. Recurrence is not semantic truth. Plaid category text is evidence, not authority. Unknown and uninterpreted remain valid. This tranche did not establish income, a paycheck, an expense, a bill, a subscription, an employer, a merchant, or an account purpose.
+
+### Ownership
+- Interpretation remains `lib/babylon/correlated-internal-movement.ts`. This tranche did not change it. Residual membership is subtraction of that function's returned ids. No new owner was created.
+
+### Not in this tranche
+- WE-ATTENTION-005B is not implemented. Its question is: when repeated observations share stable structural characteristics, what evidence is sufficient to recognize that recurrence as an environmental pattern without assigning financial semantics. It does not ask which bills or subscriptions exist.
+- No UI, persistence, migration, vault, backup, or WE-SYNC change.
+
 ## 2026-09-25 — WE-ATTENTION-004C live corpus acceptance
 
 ### What changed
