@@ -15,6 +15,7 @@ import { MobileBottomNav, MOBILE_NAV_CLEARANCE } from "@/components/babylon/mobi
 import { MobileBudget } from "@/components/babylon/mobile-budget";
 import { MobileHeader } from "@/components/babylon/mobile-header";
 import { MobileHome } from "@/components/babylon/mobile-home";
+import { MobileLedger } from "@/components/babylon/mobile-ledger";
 import { MobileMore } from "@/components/babylon/mobile-more";
 import { QuickStats } from "@/components/babylon/quick-stats";
 import { SecurityGate } from "@/components/babylon/security-gate.client";
@@ -343,7 +344,23 @@ export function WealthEngineDashboard() {
             )}
 
             {!desktopLayout && mobileDestination === "ledger" && (
-              <div className="space-y-4">{ledgers}</div>
+              <MobileLedger
+                incomes={engine.incomes}
+                expenses={engine.expenses}
+                debts={engine.debts}
+                needSpend={engine.needSpend}
+                desireSpend={engine.desireSpend}
+                totalSpent={engine.lifetimeSpent}
+                budgetTargets={engine.budgetTargets}
+                onDeleteIncome={engine.deleteIncome}
+                onDeleteExpense={engine.deleteExpense}
+                onDeleteDebt={engine.deleteDebt}
+                onToggleExpenseSettled={engine.toggleExpenseSettled}
+                recurringObligations={engine.recurringObligations}
+                onUpdateExpense={engine.updateExpenseOccurrence}
+                onUpdateRecurringObligation={engine.updateRecurringObligation}
+                discreet={discreet}
+              />
             )}
 
             {!desktopLayout && mobileDestination === "more" && (

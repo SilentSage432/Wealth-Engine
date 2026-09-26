@@ -1,5 +1,18 @@
 # Development Journal
 
+## 2026-09-26 — WE-MOBILE-006 phone Ledger
+
+### What changed
+- Phone Ledger now lists Income, Expenses, and Debts as stacked records. A local three-way selector fits the phone width. Ordinary review does not depend on a sideways table.
+- Paid, Upcoming, Overdue, and Due soon stay the words the desktop row already used. A generated expense still offers Edit rule, and that dialog still edits the monthly rule rather than the occurrence.
+- Desktop Ledger still uses `LedgerMatrices`: the wide tables, the Income Streams / Expenses Archive / Debt Ledger tabs, the add buttons, and Budget Blueprint on that nav. Home and Budget are unchanged.
+
+### Authority
+- No income, expense, debt, or recurring-obligation model changed. Settlement still calls `toggleExpenseSettled`. Occurrence and rule edits still call the existing update handlers.
+
+### Not in this tranche
+- No Home or Budget redesign, search, filters, new payment status, or change to allocation, Attention, vault, or Plaid.
+
 ## 2026-09-26 — WE-MOBILE-005 phone Budget
 
 ### What changed

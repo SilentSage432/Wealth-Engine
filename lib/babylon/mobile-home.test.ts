@@ -162,7 +162,8 @@ describe("phone Home source boundaries", () => {
     expect(budgetBlock).not.toContain("AnalyticsHub");
     expect(budgetBlock).not.toContain("GoldenTriad");
     expect(budgetBlock).not.toContain("DebtFreedomEngine");
-    expect(ledgerBlock).toContain("ledgers");
+    expect(ledgerBlock).toContain("<MobileLedger");
+    expect(ledgerBlock).not.toContain("LedgerMatrices");
     expect(moreBlock).toContain("financialPosition");
     expect(moreBlock).toContain("<MobileMore");
     expect(moreSource).toContain("WisdomBox");
