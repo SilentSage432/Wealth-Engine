@@ -364,35 +364,46 @@ export function WealthEngineDashboard() {
             )}
 
             {!desktopLayout && mobileDestination === "more" && (
-              <div className="space-y-4">
-                {financialPosition}
-                <MobileMore
-                  username={engine.username}
-                  onUsernameChange={engine.setUsername}
-                  monthAlreadyClosed={engine.monthlyCloseSummary.alreadyClosed}
-                  onOpenMonthlyClose={() => engine.setMonthlyCloseOpen(true)}
-                  wisdomIndex={engine.wisdomIndex}
-                  onSelectWisdomIndex={engine.setWisdomIndex}
-                  connectedCount={connectedCount}
-                  banksLoading={isLoading}
-                  plaidLaunching={launching}
-                  plaidInitializing={!hydrated}
-                  isCloudSynced={isCloudSynced}
-                  onConnectBank={handleLinkBank}
-                  onRequireAuth={() => setAuthOpen(true)}
-                  onExportBackup={engine.exportBackup}
-                  onImportBackup={engine.importBackup}
-                  onClearAllData={engine.clearAllData}
-                  vaultSync={engine.vaultSync}
-                  cloudBusy={engine.cloudBusy}
-                  cloudUsername={engine.greetingName}
-                  onConnectCloud={() => engine.setAuthOpen(true)}
-                  onSignOutCloud={engine.signOutCloud}
-                  onBootstrapCloud={engine.confirmCloudBootstrap}
-                  onHydrateCloud={engine.confirmCloudHydrate}
-                  onCheckCloud={engine.confirmCloudCheck}
-                />
-              </div>
+              <MobileMore
+                username={engine.username}
+                onUsernameChange={engine.setUsername}
+                monthAlreadyClosed={engine.monthlyCloseSummary.alreadyClosed}
+                onOpenMonthlyClose={() => engine.setMonthlyCloseOpen(true)}
+                wisdomIndex={engine.wisdomIndex}
+                onSelectWisdomIndex={engine.setWisdomIndex}
+                connectedCount={connectedCount}
+                banksLoading={isLoading}
+                plaidLaunching={launching}
+                plaidInitializing={!hydrated}
+                isCloudSynced={isCloudSynced}
+                onConnectBank={handleLinkBank}
+                onRequireAuth={() => setAuthOpen(true)}
+                onExportBackup={engine.exportBackup}
+                onImportBackup={engine.importBackup}
+                onClearAllData={engine.clearAllData}
+                vaultSync={engine.vaultSync}
+                cloudBusy={engine.cloudBusy}
+                cloudUsername={engine.greetingName}
+                onConnectCloud={() => engine.setAuthOpen(true)}
+                onSignOutCloud={engine.signOutCloud}
+                onBootstrapCloud={engine.confirmCloudBootstrap}
+                onHydrateCloud={engine.confirmCloudHydrate}
+                onCheckCloud={engine.confirmCloudCheck}
+                accounts={engine.accounts}
+                moneyAvailable={engine.moneyAvailable}
+                openingWealthBuilding={engine.openingWealthBuilding}
+                openingEmergencyFund={engine.openingEmergencyFund}
+                protectedMoney={engine.protectedMoney}
+                protectedOverAvailable={engine.protectedOverAvailable}
+                upcomingNeeds={engine.upcomingNeeds}
+                availableAfterPlannedNeeds={engine.availableAfterPlannedNeeds}
+                discreet={discreet}
+                onAddAccount={engine.addAccount}
+                onUpdateAccount={engine.updateAccount}
+                onRemoveAccount={engine.removeAccount}
+                onUpdateProtected={engine.updateProtectedDesignations}
+                onEditorOpenChange={setAccountEditorOpen}
+              />
             )}
 
             {desktopLayout && (

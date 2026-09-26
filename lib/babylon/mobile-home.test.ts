@@ -164,8 +164,8 @@ describe("phone Home source boundaries", () => {
     expect(budgetBlock).not.toContain("DebtFreedomEngine");
     expect(ledgerBlock).toContain("<MobileLedger");
     expect(ledgerBlock).not.toContain("LedgerMatrices");
-    expect(moreBlock).toContain("financialPosition");
     expect(moreBlock).toContain("<MobileMore");
+    expect(moreBlock).not.toContain("{financialPosition}");
     expect(moreSource).toContain("WisdomBox");
     expect(moreSource).toContain("ConnectedBanksCard");
     expect(moreSource).toContain("Close Month");

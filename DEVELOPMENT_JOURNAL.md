@@ -1,5 +1,18 @@
 # Development Journal
 
+## 2026-09-26 — WE-MOBILE-007 phone More
+
+### What changed
+- Phone More is now a utility surface in five groups: Financial setup, Connections, Guidance, Data and cloud, and Danger zone.
+- Financial setup keeps the profile name, account and protected-money editing, and Close Month. The phone account card omits the Home orientation readings. Guidance and the 10/20/70 reference stay closed until opened. Reset ledger sits apart from export and import, and still asks before deleting.
+- Desktop sidebar still composes `VaultMaintenancePanel`, including cloud, backup, reset, and the 10/20/70 card. Desktop Financial Position still shows Money Available and Available After Planned Needs.
+
+### Authority
+- No allocation, account, protected-money, month-close, cloud, or backup behavior changed. More still opens the existing Close Month ritual and the existing maintenance handlers.
+
+### Not in this tranche
+- No Home, Budget, or Ledger redesign, notification work, or new financial capability. This closes the mobile information-architecture composition.
+
 ## 2026-09-26 — WE-MOBILE-006 phone Ledger
 
 ### What changed

@@ -45,6 +45,7 @@ A personal ledger that splits income 10% to Wealth Building, 20% to Debt Payoff,
 - [x] WE-MOBILE-004 phone Home: due attention, Money Available, Available After Planned Needs, a short upcoming preview, and recent context. Heavier cards stay on Budget, Ledger, More, or the desktop overview
 - [x] WE-MOBILE-005 phone Budget: Living Budget, vertical 10/20/70, categories, and debt payoff. Charts, income breakdown, and affordability open on request. Desktop overview stays the full composition
 - [x] WE-MOBILE-006 phone Ledger: stacked Income, Expenses, and Debts records. Desktop Ledger keeps the wide tables and Budget Blueprint
+- [x] WE-MOBILE-007 phone More: Financial setup, Connections, Guidance, Data and cloud, and Danger zone. This closes the mobile information-architecture composition. Home asks what needs attention and where you stand. Budget asks what the plan is and how it is holding up. Ledger asks what has been recorded. More asks how to manage Wealth Engine itself
 - [x] Path A entity parity schema (`debt_entries`, `period_archives` — `20260807_add_debts_archives_logs.sql`)
 - [x] Grand Suite: SecurityGate + Discreet Mode, Paycheck Splitter, Debt Freedom Engine, Monthly Close sweeps, Plaid schema prep
 - [x] Plaid security harden (JWT API routes, access_token isolation, idle lock, privacy blur, fail-soft toasts)

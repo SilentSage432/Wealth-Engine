@@ -56,6 +56,8 @@ interface FinancialPositionProps {
   upcomingNeeds: number;
   availableAfterPlannedNeeds: AvailableAfterPlannedNeeds;
   discreet?: boolean;
+  /** Full keeps the orientation readings. Manage keeps account and designation editing. */
+  presentation?: "full" | "manage";
   onAddAccount: (input: FinancialAccountInput) => boolean;
   onUpdateAccount: (id: string, input: FinancialAccountInput) => boolean;
   onRemoveAccount: (id: string) => void;
@@ -80,6 +82,7 @@ export function FinancialPosition({
   upcomingNeeds,
   availableAfterPlannedNeeds,
   discreet = false,
+  presentation = "full",
   onAddAccount,
   onUpdateAccount,
   onRemoveAccount,
@@ -170,10 +173,60 @@ export function FinancialPosition({
     setProtectedError(null);
   };
 
+  const accountList =
+    accounts.length === 0 ? (
+      <p className="text-sm text-slate-500">No accounts yet.</p>
+    ) : (
+      <ul className="divide-y divide-slate-800/80 rounded-lg border border-slate-800/80">
+        {accounts.map((account) => (
+          <li
+            key={account.id}
+            className="flex flex-wrap items-center gap-3 px-3 py-3 sm:px-4"
+          >
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium text-slate-100">
+                {account.name}
+              </p>
+              <p className="text-[11px] text-slate-500">
+                {ACCOUNT_KIND_LABELS[account.kind]}
+                {" · "}
+                Updated {formatAsOfLabel(account.asOf)}
+              </p>
+            </div>
+            <p className="font-[family-name:var(--font-display)] text-lg font-semibold tabular-nums text-slate-100">
+              {money(account.balance)}
+            </p>
+            <div className="flex items-center gap-1">
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={() => openEdit(account)}
+                aria-label={`Edit Account ${account.name}`}
+              >
+                <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="text-slate-500 hover:text-rose-400"
+                onClick={() => setPendingRemove(account)}
+                aria-label={`Remove Account ${account.name}`}
+              >
+                <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+              </Button>
+            </div>
+          </li>
+        ))}
+      </ul>
+    );
+
   return (
     <section aria-label="Financial Position" className="animate-fade-up">
       <Card className="border-slate-800/80">
         <CardContent className="space-y-4 p-4 sm:p-5">
+          {presentation === "full" ? (
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
@@ -196,6 +249,17 @@ export function FinancialPosition({
               Add Account
             </Button>
           </div>
+          ) : (
+          <div className="flex items-center justify-between gap-3">
+            <h3 className="text-sm font-medium text-slate-100">Accounts</h3>
+            <Button type="button" size="sm" onClick={openAdd}>
+              <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+              Add Account
+            </Button>
+          </div>
+          )}
+
+          {presentation === "manage" ? accountList : null}
 
           <div className="rounded-lg border border-slate-800/80 px-3 py-3 sm:px-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
@@ -227,6 +291,7 @@ export function FinancialPosition({
             ) : null}
           </div>
 
+          {presentation === "full" ? (
           <div className="rounded-lg border border-slate-800/80 px-3 py-3 sm:px-4">
             <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
               Available After Planned Needs
@@ -274,54 +339,9 @@ export function FinancialPosition({
               update your account balances to keep this figure current.
             </p>
           </div>
+          ) : null}
 
-          {accounts.length === 0 ? (
-            <p className="text-sm text-slate-500">No accounts yet.</p>
-          ) : (
-            <ul className="divide-y divide-slate-800/80 rounded-lg border border-slate-800/80">
-              {accounts.map((account) => (
-                <li
-                  key={account.id}
-                  className="flex flex-wrap items-center gap-3 px-3 py-3 sm:px-4"
-                >
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-slate-100">
-                      {account.name}
-                    </p>
-                    <p className="text-[11px] text-slate-500">
-                      {ACCOUNT_KIND_LABELS[account.kind]}
-                      {" · "}
-                      Updated {formatAsOfLabel(account.asOf)}
-                    </p>
-                  </div>
-                  <p className="font-[family-name:var(--font-display)] text-lg font-semibold tabular-nums text-slate-100">
-                    {money(account.balance)}
-                  </p>
-                  <div className="flex items-center gap-1">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => openEdit(account)}
-                      aria-label={`Edit Account ${account.name}`}
-                    >
-                      <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="text-slate-500 hover:text-rose-400"
-                      onClick={() => setPendingRemove(account)}
-                      aria-label={`Remove Account ${account.name}`}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-                    </Button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
+          {presentation === "full" ? accountList : null}
         </CardContent>
       </Card>
 

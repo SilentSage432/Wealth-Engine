@@ -14,6 +14,8 @@ interface ConnectedBanksCardProps {
   initializing?: boolean;
   isCloudSynced: boolean;
   className?: string;
+  /** Full is the desktop card. Compact tightens the phone Connections row. */
+  density?: "full" | "compact";
   onConnect?: () => void;
   onRequireAuth?: () => void;
 }
@@ -36,6 +38,7 @@ export function ConnectedBanksCard({
   initializing = false,
   isCloudSynced,
   className,
+  density = "full",
   onConnect,
   onRequireAuth,
 }: ConnectedBanksCardProps) {
@@ -63,15 +66,30 @@ export function ConnectedBanksCard({
           className
         )}
       >
-        <CardContent className="flex flex-wrap items-center gap-4 p-5">
-          <div className="rounded-xl bg-emerald-500/10 p-3 text-emerald-300">
+        <CardContent
+          className={cn(
+            "flex flex-wrap items-center gap-3",
+            density === "compact" ? "p-3" : "gap-4 p-5"
+          )}
+        >
+          <div
+            className={cn(
+              "rounded-xl bg-emerald-500/10 text-emerald-300",
+              density === "compact" ? "p-2" : "p-3"
+            )}
+          >
             <Landmark className="h-5 w-5" aria-hidden="true" />
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-xs uppercase tracking-wider text-slate-500">
               Connected Bank Accounts
             </p>
-            <p className="font-[family-name:var(--font-display)] text-lg font-semibold text-slate-50 sm:text-xl">
+            <p
+              className={cn(
+                "font-[family-name:var(--font-display)] font-semibold text-slate-50",
+                density === "compact" ? "text-base" : "text-lg sm:text-xl"
+              )}
+            >
               {isLoading
                 ? "Checking links…"
                 : statusCopy(connectedCount, isCloudSynced)}
