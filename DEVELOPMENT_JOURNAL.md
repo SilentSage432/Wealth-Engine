@@ -1,5 +1,18 @@
 # Development Journal
 
+## 2026-09-26 — WE-MOBILE-004 phone Home
+
+### What changed
+- Phone Home is now a short orientation surface: due obligations when any exist, Money Available with Protected Money, Available After Planned Needs, the next three unpaid bills after those due rows, and up to three recent ledger changes.
+- Paid still uses `toggleExpenseSettled` through `applyDueAttentionDecision`. Still upcoming still writes nothing. Last-day month-close Attention stays in the phone header and still opens the existing ritual.
+- Living-budget cards, the 10/20/70 summary, debt freedom, analytics, and affordability stay on Budget. Account management is on More with the existing Financial Position card. Desktop Overview is unchanged.
+
+### Authority
+- No new financial figure. Home reads `moneyAvailable`, `protectedMoney`, `availableAfterPlannedNeeds`, `upcomingNeeds`, `dueAttention`, and the existing activity feed. Upcoming preview order is `comingUpObligations`.
+
+### Not in this tranche
+- No shell redesign, notification work, Plaid attention, or change to Attention derivation or month close.
+
 ## 2026-09-26 — WE-MOBILE-003 phone shell and single navigation
 
 ### What changed

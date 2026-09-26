@@ -42,6 +42,7 @@ A personal ledger that splits income 10% to Wealth Building, 20% to Debt Payoff,
 - [x] Mobile layout (focus cards, compact 10/20/70 cards). The earlier Command / Analytics / Ledgers strip is no longer the phone navigation
 - [x] Mobile runtime paint and mount (opaque scrolling surfaces, CommandBar-local clock on desktop, one layout tree per breakpoint)
 - [x] WE-MOBILE-003 phone shell below `lg`: one bottom navigation (Home, Budget, Ledger, More), compact header, and maintenance on More. Desktop sidebar, Overview, Ledger, and Financial Guidance stay on the desktop branch
+- [x] WE-MOBILE-004 phone Home: due attention, Money Available, Available After Planned Needs, a short upcoming preview, and recent context. Heavier cards stay on Budget, Ledger, More, or the desktop overview
 - [x] Path A entity parity schema (`debt_entries`, `period_archives` — `20260807_add_debts_archives_logs.sql`)
 - [x] Grand Suite: SecurityGate + Discreet Mode, Paycheck Splitter, Debt Freedom Engine, Monthly Close sweeps, Plaid schema prep
 - [x] Plaid security harden (JWT API routes, access_token isolation, idle lock, privacy blur, fail-soft toasts)

@@ -13,6 +13,7 @@ import { GoldenTriad } from "@/components/babylon/golden-triad";
 import { LedgerMatrices } from "@/components/babylon/ledger-matrices";
 import { MobileBottomNav, MOBILE_NAV_CLEARANCE } from "@/components/babylon/mobile-bottom-nav";
 import { MobileHeader } from "@/components/babylon/mobile-header";
+import { MobileHome } from "@/components/babylon/mobile-home";
 import { MobileMore } from "@/components/babylon/mobile-more";
 import { QuickStats } from "@/components/babylon/quick-stats";
 import { SecurityGate } from "@/components/babylon/security-gate.client";
@@ -293,26 +294,28 @@ export function WealthEngineDashboard() {
             )}
           >
             {!desktopLayout && mobileDestination === "home" && (
-              <div className="space-y-4">
-                {financialPosition}
-                {upcomingNeedsCard}
-                {focusCards}
-                {triad}
-                {banksCard}
-                {debtFreedom}
-                <RecentActivityStrip events={engine.recentActivity} />
-                <WisdomBox
-                  wisdomIndex={engine.wisdomIndex}
-                  expanded={false}
-                  onSelectIndex={engine.setWisdomIndex}
-                />
-              </div>
+              <MobileHome
+                moneyAvailable={engine.moneyAvailable}
+                protectedMoney={engine.protectedMoney}
+                protectedOverAvailable={engine.protectedOverAvailable}
+                availableAfterPlannedNeeds={engine.availableAfterPlannedNeeds}
+                upcomingNeeds={engine.upcomingNeeds}
+                expenses={engine.expenses}
+                dueAttention={engine.dueAttention}
+                onMarkPaid={engine.toggleExpenseSettled}
+                recentActivity={engine.recentActivity}
+                discreet={discreet}
+                onNavigate={setMobileDestination}
+              />
             )}
 
             {!desktopLayout && mobileDestination === "budget" && (
               <div className="space-y-4">
+                {focusCards}
+                {triad}
                 <TributeEnginesPanel snapshot={engine.tributeEngines} />
                 {budgetBlueprint}
+                {debtFreedom}
                 <AnalyticsHub
                   chartData={engine.chartData}
                   donutData={engine.donutData}
@@ -332,32 +335,35 @@ export function WealthEngineDashboard() {
             )}
 
             {!desktopLayout && mobileDestination === "more" && (
-              <MobileMore
-                username={engine.username}
-                onUsernameChange={engine.setUsername}
-                monthAlreadyClosed={engine.monthlyCloseSummary.alreadyClosed}
-                onOpenMonthlyClose={() => engine.setMonthlyCloseOpen(true)}
-                wisdomIndex={engine.wisdomIndex}
-                onSelectWisdomIndex={engine.setWisdomIndex}
-                connectedCount={connectedCount}
-                banksLoading={isLoading}
-                plaidLaunching={launching}
-                plaidInitializing={!hydrated}
-                isCloudSynced={isCloudSynced}
-                onConnectBank={handleLinkBank}
-                onRequireAuth={() => setAuthOpen(true)}
-                onExportBackup={engine.exportBackup}
-                onImportBackup={engine.importBackup}
-                onClearAllData={engine.clearAllData}
-                vaultSync={engine.vaultSync}
-                cloudBusy={engine.cloudBusy}
-                cloudUsername={engine.greetingName}
-                onConnectCloud={() => engine.setAuthOpen(true)}
-                onSignOutCloud={engine.signOutCloud}
-                onBootstrapCloud={engine.confirmCloudBootstrap}
-                onHydrateCloud={engine.confirmCloudHydrate}
-                onCheckCloud={engine.confirmCloudCheck}
-              />
+              <div className="space-y-4">
+                {financialPosition}
+                <MobileMore
+                  username={engine.username}
+                  onUsernameChange={engine.setUsername}
+                  monthAlreadyClosed={engine.monthlyCloseSummary.alreadyClosed}
+                  onOpenMonthlyClose={() => engine.setMonthlyCloseOpen(true)}
+                  wisdomIndex={engine.wisdomIndex}
+                  onSelectWisdomIndex={engine.setWisdomIndex}
+                  connectedCount={connectedCount}
+                  banksLoading={isLoading}
+                  plaidLaunching={launching}
+                  plaidInitializing={!hydrated}
+                  isCloudSynced={isCloudSynced}
+                  onConnectBank={handleLinkBank}
+                  onRequireAuth={() => setAuthOpen(true)}
+                  onExportBackup={engine.exportBackup}
+                  onImportBackup={engine.importBackup}
+                  onClearAllData={engine.clearAllData}
+                  vaultSync={engine.vaultSync}
+                  cloudBusy={engine.cloudBusy}
+                  cloudUsername={engine.greetingName}
+                  onConnectCloud={() => engine.setAuthOpen(true)}
+                  onSignOutCloud={engine.signOutCloud}
+                  onBootstrapCloud={engine.confirmCloudBootstrap}
+                  onHydrateCloud={engine.confirmCloudHydrate}
+                  onCheckCloud={engine.confirmCloudCheck}
+                />
+              </div>
             )}
 
             {desktopLayout && (
