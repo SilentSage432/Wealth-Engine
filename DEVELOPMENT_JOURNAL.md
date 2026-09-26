@@ -1,5 +1,21 @@
 # Development Journal
 
+## 2026-09-25 — WE-ATTENTION-007B minimum in-app attention loop
+
+### What changed
+- Wealth Engine now asks about two decisions the steward already established. An unpaid declared obligation whose due date is today or earlier is listed under Due on the Upcoming Needs card, separate from Coming Up. Paid uses the existing `toggleExpenseSettled` mutation. Still upcoming writes nothing, and that row stays eligible.
+- On the last local calendar day of a month that is still open, the command bar says that month is still open and ends today. Review close opens the existing three-step Close Month ritual. It does not call `closeMonth`, and it does not invent a way to close a previous month after the calendar rolls.
+- Eligibility lives in `lib/babylon/attention.ts` and is recomputed from the vault and the local financial day. Nothing new is stored.
+
+### Authority
+- The only statement the due row makes is that the steward declared the obligation, its due date has arrived or passed, and it is not recorded as paid.
+- The month row says the current month is open and today is its last local day. Surplus disposition stays inside the existing ritual.
+- No Plaid observation, movement, or repetition reading is consulted. No bill is marked paid, deleted, or matched to a transaction by this loop.
+
+### Not in this tranche
+- No acknowledgement persistence, snooze, notification, service-worker notification behavior, schema or vault change, migration, or observational wiring.
+- Wealth Engine is not core-complete. 007B still needs acceptance in the running production UI.
+
 ## 2026-09-25 — WE-ATTENTION-006 observational stopping boundary
 
 ### What changed

@@ -157,6 +157,8 @@ export function WealthEngineDashboard() {
     <UpcomingNeeds
       upcomingNeeds={engine.upcomingNeeds}
       comingUp={engine.comingUp}
+      dueAttention={engine.dueAttention}
+      onMarkPaid={engine.toggleExpenseSettled}
       discreet={discreet}
     />
   );
@@ -279,6 +281,7 @@ export function WealthEngineDashboard() {
               onOpenSidebar={() => engine.setSidebarOpen(true)}
               onRecordTribute={() => engine.openTribute("income")}
               onOpenMonthlyClose={() => engine.setMonthlyCloseOpen(true)}
+              openMonthMessage={engine.monthCloseAttention?.message ?? null}
               onToggleDiscreetMode={engine.toggleDiscreetMode}
               onLinkBank={handleLinkBank}
             />

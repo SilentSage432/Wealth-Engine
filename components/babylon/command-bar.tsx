@@ -17,6 +17,7 @@ function greetingForHour(hour: number): string {
 interface CommandBarProps {
   username: string;
   monthAlreadyClosed?: boolean;
+  openMonthMessage?: string | null;
   isDiscreetMode?: boolean;
   plaidLaunching?: boolean;
   plaidInitializing?: boolean;
@@ -31,6 +32,7 @@ interface CommandBarProps {
 export function CommandBar({
   username,
   monthAlreadyClosed = false,
+  openMonthMessage = null,
   isDiscreetMode = false,
   plaidLaunching = false,
   plaidInitializing = false,
@@ -166,6 +168,18 @@ export function CommandBar({
             Add
           </Button>
         </div>
+        {openMonthMessage && onOpenMonthlyClose ? (
+          <p className="text-sm leading-relaxed text-slate-300">
+            {openMonthMessage}{" "}
+            <button
+              type="button"
+              className="font-medium text-emerald-300 underline-offset-2 hover:underline"
+              onClick={onOpenMonthlyClose}
+            >
+              Review close
+            </button>
+          </p>
+        ) : null}
       </div>
     </header>
   );

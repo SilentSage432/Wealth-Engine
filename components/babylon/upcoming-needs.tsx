@@ -1,7 +1,12 @@
 "use client";
 
 import { CalendarClock } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  applyDueAttentionDecision,
+  type DueAttentionItem,
+} from "@/lib/babylon/attention";
 import { formatDiscreetCurrency } from "@/lib/babylon/discreet";
 import { formatCurrency } from "@/lib/utils";
 
@@ -15,6 +20,8 @@ interface ComingUpItem {
 interface UpcomingNeedsProps {
   upcomingNeeds: number;
   comingUp: ComingUpItem[];
+  dueAttention?: readonly DueAttentionItem[];
+  onMarkPaid?: (id: string) => void;
   discreet?: boolean;
 }
 
@@ -33,10 +40,13 @@ function formatDueDay(isoDate: string): string {
 export function UpcomingNeeds({
   upcomingNeeds,
   comingUp,
+  dueAttention = [],
+  onMarkPaid,
   discreet = false,
 }: UpcomingNeedsProps) {
   const money = (value: number) =>
     formatDiscreetCurrency(value, discreet, formatCurrency);
+  const markPaid = onMarkPaid ?? (() => undefined);
 
   return (
     <section aria-label="Upcoming Needs" className="animate-fade-up">
@@ -53,6 +63,65 @@ export function UpcomingNeeds({
             Known Needs that are not paid yet. This is not subtracted from
             Money Available. Mark them paid in the Ledger.
           </p>
+          {dueAttention.length > 0 ? (
+            <div className="mt-4 border-t border-slate-800/80 pt-3">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                Due
+              </p>
+              <p className="mt-1 text-xs leading-relaxed text-slate-400">
+                Declared bills that are due and not recorded as paid. Has this
+                one been paid?
+              </p>
+              <ul className="mt-3 space-y-2">
+                {dueAttention.map((item) => (
+                  <li
+                    key={item.id}
+                    className="rounded-lg border border-slate-800 bg-slate-950/40 px-3 py-3"
+                  >
+                    <div className="flex items-baseline justify-between gap-3 text-sm">
+                      <span className="min-w-0 text-slate-200">
+                        <span className="text-slate-500">
+                          {formatDueDay(item.dueDate)}
+                        </span>{" "}
+                        <span className="font-medium">{item.name}</span>
+                        {item.recurringObligationId ? (
+                          <span className="ml-2 text-[11px] font-medium text-slate-500">
+                            Monthly
+                          </span>
+                        ) : null}
+                      </span>
+                      <span className="shrink-0 tabular-nums text-slate-100">
+                        {money(item.amount)}
+                      </span>
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() =>
+                          applyDueAttentionDecision("paid", item.id, markPaid)
+                        }
+                        aria-label={`Mark ${item.name} paid`}
+                      >
+                        Paid
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          applyDueAttentionDecision("still-upcoming", item.id, markPaid)
+                        }
+                        aria-label={`${item.name} is still upcoming`}
+                      >
+                        Still upcoming
+                      </Button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
           {comingUp.length > 0 ? (
             <div className="mt-4 border-t border-slate-800/80 pt-3">
               <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">

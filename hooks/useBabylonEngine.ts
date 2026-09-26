@@ -62,6 +62,10 @@ import {
 } from "@/lib/babylon/protected-money";
 import { deriveAvailableAfterPlannedNeeds } from "@/lib/babylon/available-after-planned-needs";
 import {
+  deriveDueAttention,
+  deriveMonthCloseAttention,
+} from "@/lib/babylon/attention";
+import {
   buildRecurringObligation,
   comingUpObligations,
   deleteExpenseOccurrence,
@@ -684,6 +688,21 @@ export function useBabylonEngine() {
   );
 
   const comingUp = useMemo(() => comingUpObligations(expenses), [expenses]);
+
+  const dueAttention = useMemo(
+    () => deriveDueAttention(expenses, financialToday),
+    [expenses, financialToday]
+  );
+
+  const monthCloseAttention = useMemo(
+    () =>
+      deriveMonthCloseAttention({
+        today: financialToday,
+        currentMonthKey,
+        lastClosedMonthKey,
+      }),
+    [financialToday, currentMonthKey, lastClosedMonthKey]
+  );
 
   const currentMonthExpenditurePool = useMemo(
     () =>
@@ -1653,6 +1672,8 @@ export function useBabylonEngine() {
     upcomingNeeds,
     availableAfterPlannedNeeds,
     comingUp,
+    dueAttention,
+    monthCloseAttention,
     recurringObligations,
     desiresPoolRemaining,
     tributeEngines,
