@@ -1,5 +1,48 @@
 # Development Journal
 
+## 2026-09-25 — WE-ATTENTION-005C production corpus acceptance of observed repetition
+
+### What changed
+- WE-ATTENTION-005B, the pure observed repetition reasoner, is complete. WE-ATTENTION-005C accepted it on a fresh read-only production export. The reasoner was not changed. The temporary runner was removed. Production was not mutated. Plaid was not called. The vault was outside the run.
+- The function stays pure, derived, unwired, and semantic-free. It is not persisted. It does not classify cadence, predict a later date, assign a score, or write the UI, vault, or WE-SYNC. One observation does not establish repetition. Two eligible matches establish a repeated structure and one observed civil-day gap. Three or more establish only whether those gaps agree or differ. Interval agreement is not cadence. Recurrence is not financial meaning. Later evidence can withdraw interval agreement. Human financial meaning stays with the steward. A recurring obligation remains a steward-declared plan rule.
+
+### Acceptance corpus
+- 339 observations, 4 pending, 0 removed, 7 account descriptors. The established movement reasoner reproduced 47 movements, 24 internal transfers, 23 credit-card payments, 94 participating observations, and 0 overlaps. Those 94 ids were the exclusion set.
+- After that exclusion, `deriveObservedRepetitions` emitted 31 structures with at least two members and 86 unique participating observations. The structures are disjoint. Member counts: 17 with two, 9 with three, 2 with four, 1 with five, and 2 with six or more. The longest structure has 6 members. Direction, on that Plaid account: 30 positive, 1 negative. Interval evidence: 17 `single_interval`, 5 `intervals_agree`, 9 `intervals_differ`. Category evidence: 23 equal, 8 differing, 0 absent.
+- The subset with at least three members is 14 structures, 52 unique observations, 14 positive, 0 negative, 5 with agreeing gaps, and 9 with differing gaps.
+
+### 005A reconciliation
+- WE-ATTENTION-005A reported 15 same-account, same-sign, same-cent groups with at least three observations. That historical discovery count stays 15. It is not rewritten as 14.
+- The accepted posted reading is 14 structures with at least three eligible members. One of the 15 exploratory groups contained two posted observations and one pending observation. The 005A residual count admitted pending rows. `deriveObservedRepetitions` excludes pending rows from membership, so that group currently has only two eligible posted members. This is an evidence-quality refinement, not a reasoner defect. No reasoner change is indicated.
+- The strongest 005A finding reproduced. Exactly four structures on one anonymous checking account each have three eligible posted members, gaps of 31 and 31 days, `intervals_agree`, and `category_text_equal`.
+- A fifth structure has gaps of 31 and 31 days and `intervals_agree`, with differing category text. Category text remains supporting evidence and does not decide membership.
+- Seventeen pair-only structures establish repetition plus one observed gap. They do not establish interval agreement or cadence. One of them is negative. No negative structure in this corpus reaches three members. None of these readings is a financial classification.
+
+### Ownership
+- Interpretation remains `lib/babylon/observed-repetition.ts`. This acceptance did not change it.
+
+### Not in this tranche
+- No UI, persistence, migration, vault, backup, WE-SYNC, recurring-obligation, or income-interval change.
+- No steward confirmation of financial meaning.
+
+## 2026-09-25 — WE-ATTENTION-005B pure observed repetition reasoner
+
+### What changed
+- `deriveObservedRepetitions` reads current posted observations that share a user, a Plaid account, a sign, and exact normalized cents. Two or more members form one repeated structure. The result lists ordered transaction ids, civil dates, consecutive civil-day gaps, category text including null, and a closed evidence list.
+- Repetition is not cadence. Two observations establish a repeated structure and one observed gap (`single_interval`). Three or more establish only whether those observed gaps agree (`intervals_agree`) or differ (`intervals_differ`). A later observation can change interval agreement. The function does not predict a next date, assign a score, or name weekly, biweekly, or monthly.
+- Cadence is not financial meaning. Category text is supporting evidence and does not decide membership. Positive cents mean money out of that Plaid account. Negative cents mean money in. The output does not say income, expense, bill, subscription, or paycheck.
+- The result is derived on each call and is not persisted. An optional excluded-id set defaults to empty. The module does not import the movement reasoner. It is not called from a hook, route, screen, sync path, or vault write.
+- Human financial meaning stays with the steward. `RecurringObligation` remains a steward-declared planning rule. This tranche does not modify recurring obligations or income intervals.
+
+### Ownership
+- Interpretation: `lib/babylon/observed-repetition.ts`
+- Tests: `lib/babylon/observed-repetition.test.ts`
+
+### Not in this tranche
+- Production corpus acceptance is not done. No production export was read. Plaid was not called.
+- No UI, persistence, migration, vault, backup, WE-SYNC, recurring-obligation, or income-interval change.
+- No learned pattern, cadence classifier, amount tolerance, or merchant match.
+
 ## 2026-09-25 — WE-ATTENTION-005A residual observation corpus characterization
 
 ### What changed
