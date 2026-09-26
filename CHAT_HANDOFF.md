@@ -18,7 +18,7 @@
 - Debt freedom: `components/babylon/debt-freedom-engine.tsx` — Snowball/Avalanche + Freedom Date + velocity chart
 - Monthly close sweeps: `split_50_50` | `wealth_boost` | `rollover` | `emergency_shield` (+ legacy `debt_wealth`)
 - Plaid Link UI: `components/babylon/plaid-link-button.tsx` (always mounted; init toast fallback), `connected-banks-card.tsx`, `hooks/usePlaidConnections.ts` (command bar + Overview); API routes remain JWT + server-secret only
-- Plaid (hardened prep): `app/api/plaid/*` (JWT + server secrets), `lib/babylon/plaid-server.ts`, `plaid-client.ts`, `plaid-schema.ts`, migrations `20260808_plaid_tables.sql` and `20260926_plaid_transaction_sync.sql` (access_token plaintext, service-role only, never client-readable). `POST /api/plaid/sync-transactions` stores observations. The dashboard does not call it yet. The sync migration is not applied from the app.
+- Plaid (hardened prep): `app/api/plaid/*` (JWT + server secrets), `lib/babylon/plaid-server.ts`, `plaid-client.ts`, `plaid-schema.ts`, `plaid-foreground-sync.ts`, migrations `20260808_plaid_tables.sql` and `20260926_plaid_transaction_sync.sql` (access_token plaintext, service-role only, never client-readable). After the signed-in Item list is ready, `hooks/usePlaidConnections.ts` calls `POST /api/plaid/sync-transactions` once per Item. The service worker does not.
 - Fail-soft toasts: `lib/babylon/vault-toast.ts` + `components/ui/vault-toast.tsx` (dismissible; `durationMs: 0` sticky)
 - Add: `components/modals/RecordTransactionModal.tsx` (preventDefault + try/catch; buttons default non-submit)
 - Types: `types/babylon.ts`
@@ -117,7 +117,7 @@ Legacy expenses without `dueDate` soft-migrate to use `date`. Want expenses (`ca
 - Financial "today" is the local calendar day (`todayIso`), not UTC. The ledger hook advances that day at the next local midnight (and when a backgrounded tab returns on a new day). The visible CommandBar clock is a local one-second timer and does not rerender the dashboard.
 - Main income rate is the latest recurring deposit per income source. Repeated paychecks from the same source do not stack into extra wages. `source` is the only way two simultaneous jobs stay separate.
 - Sidebar cloud state says "Cloud account connected" before a vault link. After a verified match it says "Up to date · revision N". Unsent edits say they are waiting or saved offline. A conflict says both copies were preserved. Sign-in itself is not labeled synced.
-- Plaid Link success means the institution link was saved. Link itself does not import transactions. `POST /api/plaid/sync-transactions` can later store Plaid observations for that signed-in user. Those rows stay out of the vault. A negative Plaid amount is money in. It is not income until a future confirmation tranche says so.
+- Plaid Link success means the institution link was saved. The signed-in app then requests one observation sync for each connected Item, including an Item that was just linked. Those rows stay out of the vault. A negative Plaid amount is money in. It is not income until a future confirmation tranche says so.
 - Deleting an income reverses its `debtShare` via `reverseDebtAllocation` (remainingDebt clamped ≤ totalDebt).
 - The Living Budget card is **this month's** budget and spending.
 - Unpaid expenses show Upcoming, Due soon (today through 7 days), or Overdue. Paid rows show Paid. Legacy vaults without the upcoming marker migrate unsettled rows to paid once.

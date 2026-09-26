@@ -1,5 +1,22 @@
 # Development Journal
 
+## 2026-09-25 — WE-ATTENTION-003A foreground observation sync
+
+### What changed
+- After a signed-in operator's Plaid Items finish loading, Wealth Engine asks `POST /api/plaid/sync-transactions` once for each Item.
+- The request body is the `plaid_items` UUID. The bearer token is the existing Supabase session. The browser does not see the Plaid access token.
+- A re-render, a list refetch, or a second effect pass does not ask again. Signing out clears that memory. A newly connected Item is included when the list next becomes ready.
+- A failed or successful observation sync does not change the vault, backup version 5, or WE-SYNC-004.
+
+### Ownership
+- When to ask: `lib/babylon/plaid-foreground-sync.ts`
+- Authenticated request: `lib/babylon/plaid-client.ts`
+- Trigger: `hooks/usePlaidConnections.ts`
+
+### Not in this tranche
+- No live Plaid call was made. No webhook, polling, cron, or attention UI.
+- Observations are still not income, expenses, or `vault_data`.
+
 ## 2026-09-25 — WE-ATTENTION-002 observational transaction sync
 
 ### What changed

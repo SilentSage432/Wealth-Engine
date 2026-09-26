@@ -5,8 +5,10 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createPlaidLinkTokenOrToast,
   listPlaidItems,
+  requestPlaidObservationSync,
   startPlaidLinkExchange,
 } from "@/lib/babylon/plaid-client";
+import { startForegroundObservationSync } from "@/lib/babylon/plaid-foreground-sync";
 import type { PlaidItemPublic } from "@/lib/babylon/plaid-schema";
 import { usePlaidLink } from "react-plaid-link";
 
@@ -17,7 +19,8 @@ type UsePlaidConnectionsArgs = {
 };
 
 /**
- * Application hook — owns Plaid Link launch + public item listing.
+ * Application hook — owns Plaid Link launch, public item listing, and one
+ * foreground observation sync after that list is ready.
  * Presentation only renders; secrets stay on the server.
  */
 export function usePlaidConnections({ enabled }: UsePlaidConnectionsArgs) {
@@ -89,6 +92,17 @@ export function usePlaidConnections({ enabled }: UsePlaidConnectionsArgs) {
   }, [launching]);
 
   const items: PlaidItemPublic[] = itemsQuery.data ?? [];
+
+  useEffect(() => {
+    startForegroundObservationSync({
+      authenticated: enabled,
+      itemsReady: itemsQuery.isSuccess && !itemsQuery.isFetching,
+      itemIds: (itemsQuery.data ?? []).map((item) => item.id),
+      request: (itemRowId) => {
+        void requestPlaidObservationSync(itemRowId);
+      },
+    });
+  }, [enabled, itemsQuery.data, itemsQuery.isFetching, itemsQuery.isSuccess]);
 
   return {
     items,

@@ -174,7 +174,7 @@ Nothing else reimplements these rules. If a surface needs a financial fact, it c
 - Cloud relational schema (`supabase/migrations/*`)
 - Supabase user-id check (`lib/babylon/cloud-mappers.ts`)
 - Versioned per-user vault (`lib/babylon/cloud-vault.ts`, `supabase/migrations/20260925_wealth_engine_vault.sql`)
-- Plaid connection and transaction observations (`supabase/migrations/20260808_plaid_tables.sql`, `supabase/migrations/20260926_plaid_transaction_sync.sql`). The access token is plaintext and service-role only. It is not application-encrypted. Observation rows are not `vault_data`.
+- Plaid connection and transaction observations (`supabase/migrations/20260808_plaid_tables.sql`, `supabase/migrations/20260926_plaid_transaction_sync.sql`). The access token is plaintext and service-role only. It is not application-encrypted. Observation rows are not `vault_data`. A signed-in visit requests that sync once per Item from `hooks/usePlaidConnections.ts`.
 - Explicit bootstrap and empty-device hydration (`lib/babylon/cloud-setup.ts`)
 - Typed database contracts (`lib/supabase/database.types.ts`)
 
@@ -247,6 +247,7 @@ Canonical ownership reference for Wealth Engine:
 | Vault toast bus | `lib/babylon/vault-toast.ts`, `components/ui/vault-toast.tsx` | Infrastructure / Presentation |
 | Plaid public contracts | `lib/babylon/plaid-schema.ts`, `lib/babylon/plaid-errors.ts`, `lib/babylon/plaid-client.ts` | Persistence / Application |
 | Plaid Link workflow | `hooks/usePlaidConnections.ts` | Application |
+| Plaid foreground observation sync | `lib/babylon/plaid-foreground-sync.ts`, `lib/babylon/plaid-client.ts` (`requestPlaidObservationSync`), `hooks/usePlaidConnections.ts` | Application |
 | Plaid Link UI | `components/babylon/plaid-link-button.tsx`, `components/babylon/connected-banks-card.tsx` | Presentation |
 | Plaid secrets + REST | `lib/babylon/plaid-server.ts`, `app/api/plaid/*` | Infrastructure |
 | Plaid schema + RLS | `supabase/migrations/20260808_plaid_tables.sql`, `supabase/migrations/20260926_plaid_transaction_sync.sql` | Persistence |

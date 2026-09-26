@@ -15,6 +15,11 @@ import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
 type ApiErrorBody = { error?: string; code?: string };
 
+type PlaidApiFetchOptions = {
+  /** Link and exchange announce failures. Foreground observation sync stays quiet. */
+  announceError?: boolean;
+};
+
 async function authBearer(): Promise<string | null> {
   const supabase = getSupabaseBrowserClient();
   if (!supabase) return null;
@@ -24,15 +29,19 @@ async function authBearer(): Promise<string | null> {
 
 async function plaidApiFetch<T>(
   path: string,
-  init?: RequestInit
+  init?: RequestInit,
+  options?: PlaidApiFetchOptions
 ): Promise<{ ok: true; data: T } | { ok: false }> {
+  const announceError = options?.announceError !== false;
   try {
     const token = await authBearer();
     if (!token) {
-      emitVaultToast({
-        tone: "error",
-        message: plaidUserMessage("unauthorized"),
-      });
+      if (announceError) {
+        emitVaultToast({
+          tone: "error",
+          message: plaidUserMessage("unauthorized"),
+        });
+      }
       return { ok: false };
     }
 
@@ -48,23 +57,27 @@ async function plaidApiFetch<T>(
     const body = (await res.json().catch(() => ({}))) as T & ApiErrorBody;
 
     if (!res.ok) {
-      emitVaultToast({
-        tone: "error",
-        message:
-          typeof body.error === "string" && body.error.trim()
-            ? body.error
-            : plaidUserMessage(body.code ?? "unexpected"),
-      });
+      if (announceError) {
+        emitVaultToast({
+          tone: "error",
+          message:
+            typeof body.error === "string" && body.error.trim()
+              ? body.error
+              : plaidUserMessage(body.code ?? "unexpected"),
+        });
+      }
       return { ok: false };
     }
 
     return { ok: true, data: body };
   } catch {
     // Fail soft — never throw into the vault hook / crash the SPA.
-    emitVaultToast({
-      tone: "error",
-      message: plaidUserMessage("network"),
-    });
+    if (announceError) {
+      emitVaultToast({
+        tone: "error",
+        message: plaidUserMessage("network"),
+      });
+    }
     return { ok: false };
   }
 }
@@ -110,6 +123,31 @@ export async function createPlaidLinkTokenOrToast(): Promise<string | null> {
     return null;
   }
   return requestPlaidLinkToken();
+}
+
+/**
+ * Ask the signed-in route to store Plaid observations for one Item.
+ * The body is the plaid_items UUID. The bearer token is the current
+ * Supabase session. This does not read or write the financial vault.
+ */
+export async function requestPlaidObservationSync(
+  itemRowId: string
+): Promise<boolean> {
+  const id = itemRowId.trim();
+  if (!id) return false;
+  const result = await plaidApiFetch<{ status?: string }>(
+    "/api/plaid/sync-transactions",
+    {
+      method: "POST",
+      body: JSON.stringify({ id }),
+    },
+    { announceError: false }
+  );
+  if (!result.ok) {
+    console.error("[plaid] observation sync failed — ledger unchanged.");
+    return false;
+  }
+  return result.data.status === "synced" || result.data.status === "incomplete";
 }
 
 export async function startPlaidLinkExchange(
