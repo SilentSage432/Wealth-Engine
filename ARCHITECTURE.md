@@ -107,7 +107,7 @@ Presentation consumes the Application layer. It displays what the engine and wor
 - Auth session awareness and revision sync (`lib/babylon/vault-sync.ts`). The sync baseline is not part of the financial vault.
 - Local vault lifecycle in concert with persistence adapters
 - The financial calendar day (`todayIso`), advanced at the next local midnight rather than once per second
-- `GET /api/intelligence` (WE-MUSE-002, not production-accepted). One read-only contract for the single steward, authorized by the server-only `INTELLIGENCE_READ_SECRET`. It is a Wealth Engine capability, not a Muse or Sindarin API. The response is assembled fresh from the vault and the stored notification timezone. It does not return the vault, Plaid observations, or notification internals. Unknown stays unknown. Muse integration is future work. The secret is not set by this change.
+- `GET /api/intelligence` (WE-MUSE-002). One read-only contract for the single steward, authorized by the server-only `INTELLIGENCE_READ_SECRET`. WE-MUSE-003 production acceptance succeeded: Sindarin authenticated through its Secure Vault connector and understood the contract without a sample payload. WE-MUSE-004 corrected one boundary code and recorded the v1 semantics below. The response is assembled fresh from the vault and the stored notification timezone. It does not return the vault, Plaid observations, or notification internals. It does not write. Unknown stays unknown. The secret is not set by this change.
 
 **Never owns**
 
@@ -131,7 +131,7 @@ This is the heart of Wealth Engine.
 - Domain constants that bound system vocabulary (`lib/babylon/constants.ts`)
 - Speed-Tribute quick presets (`lib/babylon/presets.ts`) — chip vocabulary; resolvers map onto canonical kinds
 - Debt freedom / surplus disposition math (`projectDebtFreedom`, `resolveSurplusDisposition` in `lib/babylon/engine.ts`)
-- Read-only Intelligence Contract (`lib/babylon/intelligence-contract.ts`). It composes existing deterministic readings into a versioned response. It does not own allocation rules, Attention rules, or persistence.
+- Read-only Intelligence Contract (`lib/babylon/intelligence-contract.ts`). It composes existing deterministic readings into contract version `1`. It does not own allocation rules, Attention rules, or persistence. The v1 semantic reference is below.
 - Discreet mask contract (`lib/babylon/discreet.ts`)
 - Correlated Internal Movement (`lib/babylon/correlated-internal-movement.ts`) — derived reading of two Plaid observations. Not stored
 - Observed repetition (`lib/babylon/observed-repetition.ts`) — derived reading of repeated posted observations. Not stored
@@ -180,6 +180,46 @@ Further tests on that isolated corpus earned no primitive. Current posted rows w
 The system should never know more than its evidence entitles it to know. WE-ATTENTION-006 is the practical stopping consequence of that principle. Further interpretation of the current isolated corpus would require evidence the system does not possess, such as semantic authority, an arbitrary amount or date tolerance, merchant interpretation, or probabilistic inference. Those mechanisms are not justified for the Wealth Engine core observational reasoning layer. Both reasoners remain unwired. This closeout did not change them.
 
 WE-ATTENTION-007B implements the first in-app loop for decisions already in the vault: due unpaid obligations, and an open month on its last local day. Observational reasoners stay unwired. Wealth Engine is not core-complete until that running UI is accepted. Later attention over observations still has to preserve steward confirmation. The interaction remains Detect, Interpret, Surface, Confirm, Record.
+
+### Intelligence Contract v1
+
+Contract version `1` is a read-only reading. WE-MUSE-003 accepted it in production. Sindarin authenticated through its Secure Vault connector, understood the authority model without a sample payload, and reported that no further contract data is required for its accountability job. WE-MUSE-004 renamed one boundary code. The previous code is not kept as an alias. No field was added.
+
+Plaid, and any other external context Sindarin holds, is external financial reality. Wealth Engine contributes financial purpose, recorded and declared internal truth, deterministic derivations, established Attention, and explicit uncertainty. Sindarin compares, synthesizes, explains, and surfaces discrepancies. The human steward holds authority over meaning, confirmation, and action. A Plaid disagreement does not become a Wealth Engine correction. This route has no write authority.
+
+`internal_observational_reasoners_excluded` means Wealth Engine's own observational reasoners exist and their outputs are left out of this contract. It does not mean the consumer is disconnected.
+
+Money figures already on the contract are integer cents of the existing rounded dollar readings. A missing civil month leaves the Living Budget figures null. Available After Planned Needs, the protected totals, the debt totals, and `protected_exceeds_money_available` stay numeric or boolean without a civil date. Unknown is null or an explicit boundary code, not a guessed amount.
+
+Obligation `origin` is only `recorded` or `derived_from_rule`. `recorded` means the unpaid obligation is already in persisted Wealth Engine state, including a recurring occurrence that was stored earlier. `derived_from_rule` means this read materialized that occurrence in memory from a declared recurring rule and did not persist it. The rule is not a contract section.
+
+`attention.items` is recomputed on each read. An empty array means this read found no established Attention. Sindarin may explain or surface those items. It does not create Attention kinds. The only kinds are:
+
+- `due_obligation` has `kind`, `civil_date`, and `subject_ref`. All three are present, and none are null. `civil_date` is this read's civil date, not the bill's due date. The due date and amount remain on the obligation.
+- `month_close` has `kind`, `civil_date`, `month_key`, and `statement`. All four are present, and none are null. `statement` is the established sentence that this open month ends on this civil date. It does not close the month and it is not a recommendation.
+
+When the civil date cannot be derived, Attention is empty.
+
+Living Budget uses the civil month:
+
+- Pool is the sum of recorded allocation expenditure for that month. A known month with no expenditure allocation is zero. The read does not run the 10/20/70 split again.
+- Settled spend is persisted settled expenses, needs and wants, whose transaction date falls in that month. Unsettled rows are excluded. The transaction date is the payment date, not the due date. Occurrences materialized only for this read are not in this sum.
+- Remaining is floored at zero: pool minus settled spend, after treating a negative settled spend as zero.
+- Shortfall is floored at zero: settled spend minus pool. It is the excess over the pool, not a second copy of remaining. A negative settled spend is not treated as zero before this subtraction.
+
+Available After Planned Needs:
+
+- Raw difference is manual Money Available, minus opening Protected Money, minus Upcoming Needs. It keeps its sign.
+- Available is that difference floored at zero.
+- Shortfall is the positive gap when the raw difference is negative, and zero otherwise.
+- Upcoming Needs is every unpaid Need on the reading list, at any due date. That list is persisted expenses plus occurrences materialized for this read. Wants are excluded. A recurring rule is not added by itself.
+- Opening Protected Money is the Existing Wealth Building designation plus the Existing Emergency Fund designation. Those are designations inside manual balances. They are not additional cash. This subtraction does not use the tracked totals below.
+
+Wealth Building total is the opening Wealth Building designation plus tracked allocation wealth from recorded allocations. Emergency Fund total is the opening Emergency Fund designation plus tracked month-close surplus. Those totals are representations. They are not extra cash, and Available After Planned Needs does not subtract them.
+
+`protected_exceeds_money_available` is true only when opening Protected Money, compared in integer cents, is strictly greater than manual Money Available. Tracked totals and Upcoming Needs are not part of the comparison. Manual balances are not live bank balances. Each account keeps its as-of date.
+
+Debt original total is the sum of recorded original balances. Debt remaining total is the sum of recorded remaining balances. Debt cleared is original total minus remaining total, floored at zero.
 
 **Never owns**
 

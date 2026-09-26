@@ -34,7 +34,8 @@ const STANDING_UNKNOWNS = [
   "balances_are_manual",
   "no_reconciliation",
   "plaid_is_not_vault_truth",
-  "observational_reasoners_unwired",
+  // The reasoners exist. This contract does not include their outputs.
+  "internal_observational_reasoners_excluded",
 ] as const;
 
 export type IntelligenceUnknown =

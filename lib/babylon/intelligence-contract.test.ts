@@ -354,6 +354,44 @@ describe("intelligence contract", () => {
     expect(recorded.debts.cleared_cents).toBe(6000);
   });
 
+  it("keeps the v1 boundary, origin, and attention vocabularies", () => {
+    const contract = assemble(
+      {
+        expenses: [expense()],
+        recurringObligations: [rule()],
+        lastClosedMonthKey: null,
+      },
+      "America/Boise",
+      new Date("2026-01-31T18:00:00.000Z")
+    );
+    expect(contract.boundaries.unknowns).toContain(
+      "internal_observational_reasoners_excluded"
+    );
+    expect(contract.boundaries.unknowns).not.toContain(
+      "observational_reasoners_unwired"
+    );
+    expect(JSON.stringify(contract)).not.toContain("observational_reasoners_unwired");
+
+    const origins = [...new Set(contract.obligations.unpaid.map((item) => item.origin))].sort();
+    expect(origins).toEqual(["derived_from_rule", "recorded"]);
+
+    const kinds = [...new Set(contract.attention.items.map((item) => item.kind))].sort();
+    expect(kinds).toEqual(["due_obligation", "month_close"]);
+    for (const item of contract.attention.items) {
+      if (item.kind === "due_obligation") {
+        expect(Object.keys(item).sort()).toEqual(["civil_date", "kind", "subject_ref"]);
+      } else {
+        expect(item.kind).toBe("month_close");
+        expect(Object.keys(item).sort()).toEqual([
+          "civil_date",
+          "kind",
+          "month_key",
+          "statement",
+        ]);
+      }
+    }
+  });
+
   it("keeps standing unknowns explicit and omits excluded surfaces", () => {
     const contract = assemble({
       accounts: [account()],
@@ -366,8 +404,11 @@ describe("intelligence contract", () => {
         "balances_are_manual",
         "no_reconciliation",
         "plaid_is_not_vault_truth",
-        "observational_reasoners_unwired",
+        "internal_observational_reasoners_excluded",
       ])
+    );
+    expect(contract.boundaries.unknowns).not.toContain(
+      "observational_reasoners_unwired"
     );
     const serialized = JSON.stringify(contract);
     for (const forbidden of [

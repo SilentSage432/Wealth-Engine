@@ -1,5 +1,16 @@
 # Development Journal
 
+## 2026-09-26 — WE-MUSE-004 Intelligence Contract v1 semantic finalization
+
+### What changed
+- WE-MUSE-003 production acceptance succeeded. Sindarin authenticated through its Secure Vault connector, understood contract version `1` without a sample payload, and reported that no further contract data is required for the accountability job.
+- One boundary code was misleading. `observational_reasoners_unwired` now reads `internal_observational_reasoners_excluded`. The reasoners exist. Their outputs stay out of the authoritative contract. The old code is not an alias.
+- `ARCHITECTURE.md` now records the existing v1 derivation semantics, the two Attention item shapes, and the obligation origins `recorded` and `derived_from_rule`. No payload field was added. Attention behavior is unchanged.
+- The route still does not write. Plaid remains external reality. The steward remains the authority over meaning, confirmation, and action.
+
+### Not in this tranche
+- No new capability, persistence, database change, dependency, Muse or Meta code, production change, commit, or deploy.
+
 ## 2026-09-26 — WE-MUSE-002 read-only Intelligence Contract
 
 ### What changed
