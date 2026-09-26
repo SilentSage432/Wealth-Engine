@@ -58,7 +58,7 @@ A personal ledger that splits income 10% to Wealth Building, 20% to Debt Payoff,
 - [ ] Speed-Tribute 1-tap commit (presets + bar mount; full amount autofill / zero-modal path still open)
 - [x] Plaid observational transaction sync (WE-ATTENTION-002). `20260926_plaid_transaction_sync.sql` is written and not applied from the app. No attention UI
 - [x] Plaid foreground observation sync (WE-ATTENTION-003A). One signed-in request per Item after the list is ready. No webhook, polling, or attention UI. Production stored 339 observations across 5 account ids. Vault stayed revision 4 / schema 5
-- [x] Plaid account identity (WE-ATTENTION-003C). Observational name, mask, type, and subtype from the existing sync payload. `20260927_plaid_accounts.sql` is written and not applied from the app. No balances, interpretation, or attention UI. The temporary probe is removed
+- [x] Plaid account identity (WE-ATTENTION-003C). Observational name, mask, type, and subtype from the existing sync payload. `20260927_plaid_accounts.sql` is written and not applied from the app. No balances, interpretation, or attention UI. The temporary foreground probe is removed. A temporary four-field account count log remains in `lib/babylon/plaid-sync-fetch.ts`
 - [ ] Plaid attention confirmation / steward review
 - [ ] Multi-currency
 - [ ] Shared household vaults

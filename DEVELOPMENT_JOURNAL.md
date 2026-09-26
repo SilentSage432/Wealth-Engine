@@ -1,5 +1,18 @@
 # Development Journal
 
+## 2026-09-25 — WE-ATTENTION-003C temporary account identity probe
+
+### What changed
+- `fetchPlaidTransactionSyncPage` logs `[WE-ATTENTION-ACCOUNT-PROBE]` once per parsed `/transactions/sync` page.
+- The log is four fields: `accountsPresent`, `accountsCount`, `parsedAccountsCount`, and `pageAccepted`.
+- Parsing, persistence, and the vault are unchanged. This does not backfill `plaid_accounts`.
+
+### Ownership
+- Temporary log: `lib/babylon/plaid-sync-fetch.ts`
+
+### Not in this tranche
+- No Plaid call, no migration, and no client, route, RPC, or SQL instrumentation.
+
 ## 2026-09-25 — WE-ATTENTION-003C observational account identity
 
 ### What changed

@@ -18,6 +18,19 @@ export async function fetchPlaidTransactionSyncPage(args: {
   );
   if (!result.ok) return { ok: false };
   const page = parsePlaidTransactionsSyncResponse(result.data);
+  const rawAccounts =
+    result.data &&
+    typeof result.data === "object" &&
+    !Array.isArray(result.data) &&
+    Array.isArray((result.data as { accounts?: unknown }).accounts)
+      ? (result.data as { accounts: unknown[] }).accounts
+      : null;
+  console.log("[WE-ATTENTION-ACCOUNT-PROBE]", {
+    accountsPresent: rawAccounts !== null,
+    accountsCount: rawAccounts ? rawAccounts.length : 0,
+    parsedAccountsCount: page ? page.accounts.length : 0,
+    pageAccepted: page !== null,
+  });
   if (!page) return { ok: false };
   return { ok: true, page };
 }

@@ -174,7 +174,7 @@ Nothing else reimplements these rules. If a surface needs a financial fact, it c
 - Cloud relational schema (`supabase/migrations/*`)
 - Supabase user-id check (`lib/babylon/cloud-mappers.ts`)
 - Versioned per-user vault (`lib/babylon/cloud-vault.ts`, `supabase/migrations/20260925_wealth_engine_vault.sql`)
-- Plaid connection, transaction observations, and account descriptors (`supabase/migrations/20260808_plaid_tables.sql`, `supabase/migrations/20260926_plaid_transaction_sync.sql`, `supabase/migrations/20260927_plaid_accounts.sql`). The access token is plaintext and service-role only. It is not application-encrypted. Observation rows and account descriptors are not `vault_data` and do not store balances. A signed-in visit requests that sync once per Item from `hooks/usePlaidConnections.ts`. `20260927` is written and not applied from the app.
+- Plaid connection, transaction observations, and account descriptors (`supabase/migrations/20260808_plaid_tables.sql`, `supabase/migrations/20260926_plaid_transaction_sync.sql`, `supabase/migrations/20260927_plaid_accounts.sql`). The access token is plaintext and service-role only. It is not application-encrypted. Observation rows and account descriptors are not `vault_data` and do not store balances. A signed-in visit requests that sync once per Item from `hooks/usePlaidConnections.ts`. `fetchPlaidTransactionSyncPage` temporarily logs whether the sync body contained an `accounts` array and how many descriptors the parser kept. `20260927` is written and not applied from the app.
 - Explicit bootstrap and empty-device hydration (`lib/babylon/cloud-setup.ts`)
 - Typed database contracts (`lib/supabase/database.types.ts`)
 
