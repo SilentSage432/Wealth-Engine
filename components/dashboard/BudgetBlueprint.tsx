@@ -39,10 +39,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { formatDiscreetCurrency } from "@/lib/babylon/discreet";
 import { cn, formatCurrency } from "@/lib/utils";
 import type { BudgetCategoryVariance, BudgetTarget } from "@/types/babylon";
 
 interface BudgetBlueprintProps {
+  layout?: "full" | "phone";
+  discreet?: boolean;
   variances: BudgetCategoryVariance[];
   budgetTargets: BudgetTarget[];
   plannedTotal: number;
@@ -57,6 +60,8 @@ interface BudgetBlueprintProps {
 }
 
 export function BudgetBlueprint({
+  layout = "full",
+  discreet = false,
   variances,
   budgetTargets,
   plannedTotal,
@@ -127,6 +132,9 @@ export function BudgetBlueprint({
     closeEditor();
   };
 
+  const money = (value: number) =>
+    formatDiscreetCurrency(value, discreet, formatCurrency);
+
   const canAutoScale =
     Boolean(onAutoScaleCaps) &&
     budgetTargets.length > 0 &&
@@ -145,7 +153,114 @@ export function BudgetBlueprint({
   };
 
   return (
-    <section className="animate-fade-up">
+    <section className={layout === "phone" ? undefined : "animate-fade-up"}>
+      {layout === "phone" ? (
+        <Card className="border-slate-800/80">
+          <CardContent className="space-y-3 p-4">
+            <h2 className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+              Categories
+            </h2>
+            <p className="text-xs text-slate-500">
+              Planned{" "}
+              <span className="tabular-nums text-slate-300">
+                {money(plannedTotal)}
+              </span>
+              {" · "}
+              Spent{" "}
+              <span className="tabular-nums text-slate-300">
+                {money(actualTotal)}
+              </span>
+            </p>
+            {onAutoScaleCaps ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="min-h-10"
+                disabled={!canAutoScale}
+                onClick={handleAutoScale}
+                aria-label="Auto-scale budget allocations to the 70 percent pool"
+              >
+                <Scale className="h-3.5 w-3.5" aria-hidden="true" />
+                Auto-Scale Allocations
+              </Button>
+            ) : null}
+            {scaleFeedback ? (
+              <p
+                role="status"
+                className="rounded-md border border-slate-700 bg-slate-950/50 px-3 py-2 text-xs text-slate-300"
+              >
+                {scaleFeedback}
+              </p>
+            ) : null}
+            {isOverPlanned ? (
+              <div
+                role="alert"
+                className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-3"
+              >
+                <p className="text-sm font-medium text-amber-200">
+                  Over-planned by{" "}
+                  <span className="tabular-nums">{money(overPlanAmount)}</span>
+                </p>
+                <p className="mt-1 text-xs leading-relaxed text-amber-200/80">
+                  Planned caps {money(plannedTotal)} exceed this month&apos;s
+                  Living Budget {money(expenditurePool)}.
+                </p>
+              </div>
+            ) : null}
+            {variances.length === 0 ? (
+              <p className="text-sm text-slate-500">
+                No categories yet. Use Add to create one.
+              </p>
+            ) : (
+              <ul className="space-y-2">
+                {variances.map((row) => {
+                  const overCap = row.actualAmount > row.plannedAmount;
+                  return (
+                    <li
+                      key={row.id}
+                      className="flex items-start justify-between gap-3 border-t border-slate-800/80 pt-2 first:border-t-0 first:pt-0"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-slate-100">
+                          {row.categoryName}
+                          <span className="ml-2 text-[11px] font-medium text-slate-500">
+                            {row.isEssential ? "Need" : "Want"}
+                          </span>
+                        </p>
+                        <p className="mt-0.5 text-xs text-slate-400">
+                          {overCap ? (
+                            <span className="text-amber-200">
+                              {money(row.actualAmount - row.plannedAmount)} over{" "}
+                              {money(row.plannedAmount)}
+                            </span>
+                          ) : (
+                            <span>
+                              {money(row.actualAmount)} of {money(row.plannedAmount)}
+                              {" · "}
+                              {row.usedPct}% used
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setEditing(row)}
+                        aria-label={`Edit category ${row.categoryName}`}
+                      >
+                        <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
+                        Edit
+                      </Button>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+      ) : (
       <Card className="border-slate-800/80">
         <CardHeader className="flex flex-col gap-3 px-4 sm:flex-row sm:items-start sm:justify-between sm:px-6">
           <div className="min-w-0">
@@ -352,6 +467,7 @@ export function BudgetBlueprint({
           )}
         </CardContent>
       </Card>
+      )}
 
       <Dialog
         open={editing !== null}

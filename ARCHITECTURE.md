@@ -69,7 +69,7 @@ Infrastructure Layer
 
 **Owns**
 
-- `components/babylon/*` (including the desktop quick-add bar, the phone header, bottom navigation, and phone Home composition, and desktop Overview / Ledger / Financial Guidance)
+- `components/babylon/*` (including the desktop quick-add bar, the phone header, bottom navigation, phone Home, and phone Budget, and desktop Overview / Ledger / Financial Guidance)
 - `components/dashboard/*`
 - `components/modals/*`
 - `components/ui/*`

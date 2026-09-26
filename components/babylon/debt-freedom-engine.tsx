@@ -30,6 +30,10 @@ interface DebtFreedomEngineProps {
   currentMonthKey: string;
   periodArchives: PeriodArchive[];
   discreet?: boolean;
+  /** Full keeps the desktop planner. Compact is the phone plan summary. */
+  density?: "full" | "compact";
+  /** Desktop shows the closed-month chart. Phone starts with it hidden. */
+  showVelocityChart?: boolean;
 }
 
 export function DebtFreedomEngine({
@@ -38,6 +42,8 @@ export function DebtFreedomEngine({
   currentMonthKey,
   periodArchives,
   discreet = false,
+  density = "full",
+  showVelocityChart = true,
 }: DebtFreedomEngineProps) {
   const [strategy, setStrategy] = useState<DebtPayoffStrategy>("snowball");
   const [extraTribute, setExtraTribute] = useState(0);
@@ -88,11 +94,18 @@ export function DebtFreedomEngine({
     <section className="animate-fade-up space-y-4 rounded-xl border border-slate-800/80 bg-slate-900/40 p-4 sm:p-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-            Debt Payoff Planner
-          </p>
-          <h2 className="mt-1 font-[family-name:var(--font-display)] text-2xl text-slate-50">
-            Debt-free date
+          {density === "full" ? (
+            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+              Debt Payoff Planner
+            </p>
+          ) : null}
+          <h2
+            className={cn(
+              "mt-1 font-[family-name:var(--font-display)] text-slate-50",
+              density === "compact" ? "text-lg" : "text-2xl"
+            )}
+          >
+            {density === "compact" ? "Debt Payoff" : "Debt-free date"}
           </h2>
         </div>
         <div className="flex gap-2">
@@ -117,17 +130,37 @@ export function DebtFreedomEngine({
         </div>
       </div>
 
-      <div className="rounded-xl border border-emerald-900/40 bg-emerald-950/20 px-4 py-5 text-center sm:px-6">
+      <div
+        className={cn(
+          "rounded-xl border border-emerald-900/40 bg-emerald-950/20 px-4 sm:px-6",
+          density === "compact" ? "py-3 text-left" : "py-5 text-center"
+        )}
+      >
         {!activeDebt ? (
-          <p className="font-[family-name:var(--font-display)] text-2xl text-emerald-300 sm:text-3xl">
+          <p
+            className={cn(
+              "font-[family-name:var(--font-display)] text-emerald-300",
+              density === "compact" ? "text-xl" : "text-2xl sm:text-3xl"
+            )}
+          >
             100% Debt-Free today
           </p>
         ) : projection.debtFreeLabel ? (
-          <p className="font-[family-name:var(--font-display)] text-2xl text-emerald-300 sm:text-4xl">
+          <p
+            className={cn(
+              "font-[family-name:var(--font-display)] text-emerald-300",
+              density === "compact" ? "text-xl" : "text-2xl sm:text-4xl"
+            )}
+          >
             100% Debt-Free by {projection.debtFreeLabel}
           </p>
         ) : (
-          <p className="font-[family-name:var(--font-display)] text-xl text-amber-300 sm:text-2xl">
+          <p
+            className={cn(
+              "font-[family-name:var(--font-display)] text-amber-300",
+              density === "compact" ? "text-lg" : "text-xl sm:text-2xl"
+            )}
+          >
             Increase the monthly payment to see a debt-free date
           </p>
         )}
@@ -191,7 +224,7 @@ export function DebtFreedomEngine({
         </ol>
       )}
 
-      {velocity.length > 0 && (
+      {showVelocityChart && velocity.length > 0 && (
         <div className="rounded-lg border border-slate-800/80 bg-slate-950/40 p-3">
           <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
             Cumulative Closed-Month Allocations
@@ -202,7 +235,13 @@ export function DebtFreedomEngine({
                 <CartesianGrid stroke="#1e293b" strokeDasharray="3 3" />
                 <XAxis dataKey="month" tick={{ fill: "#64748b", fontSize: 11 }} />
                 <YAxis tick={{ fill: "#64748b", fontSize: 11 }} width={48} />
-                <Tooltip content={<ChartTooltipShell />} />
+                <Tooltip
+                  content={
+                    <ChartTooltipShell
+                      discreet={density === "compact" && discreet}
+                    />
+                  }
+                />
                 <Line
                   type="monotone"
                   dataKey="wealthVelocity"

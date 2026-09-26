@@ -1,5 +1,18 @@
 # Development Journal
 
+## 2026-09-26 — WE-MOBILE-005 phone Budget
+
+### What changed
+- Phone Budget now leads with Living Budget remaining, then a vertical 10/20/70 purpose, category caps, and the debt payoff plan. Income breakdown, charts, and the affordability check stay closed until the steward opens them. The payoff chart stays closed until asked.
+- When there is no active debt, the 20% row says that share goes to Wealth Building. The amounts are the existing month allocations.
+- Home is unchanged. Desktop Overview still mounts Spending Power, the 10/20/70 cards, Budget Blueprint, Debt Freedom with its chart, Analytics, and Affordability.
+
+### Authority
+- No allocation, Living Budget, category variance, or debt math changed. Phone Budget reads the figures the engine already derived.
+
+### Not in this tranche
+- No Home redesign, Snowball/Avalanche correction, notification work, or new financial figure.
+
 ## 2026-09-26 — WE-MOBILE-004 phone Home
 
 ### What changed

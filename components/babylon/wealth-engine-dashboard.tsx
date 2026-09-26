@@ -12,6 +12,7 @@ import { UpcomingNeeds } from "@/components/babylon/upcoming-needs";
 import { GoldenTriad } from "@/components/babylon/golden-triad";
 import { LedgerMatrices } from "@/components/babylon/ledger-matrices";
 import { MobileBottomNav, MOBILE_NAV_CLEARANCE } from "@/components/babylon/mobile-bottom-nav";
+import { MobileBudget } from "@/components/babylon/mobile-budget";
 import { MobileHeader } from "@/components/babylon/mobile-header";
 import { MobileHome } from "@/components/babylon/mobile-home";
 import { MobileMore } from "@/components/babylon/mobile-more";
@@ -310,24 +311,35 @@ export function WealthEngineDashboard() {
             )}
 
             {!desktopLayout && mobileDestination === "budget" && (
-              <div className="space-y-4">
-                {focusCards}
-                {triad}
-                <TributeEnginesPanel snapshot={engine.tributeEngines} />
-                {budgetBlueprint}
-                {debtFreedom}
-                <AnalyticsHub
-                  chartData={engine.chartData}
-                  donutData={engine.donutData}
-                  currentMonthNeed={engine.currentMonthNeed}
-                  currentMonthDesire={engine.currentMonthDesire}
-                  currentMonthRemaining={engine.currentMonthRemaining}
-                />
-                <AffordabilityAnchor
-                  desiresPoolRemaining={engine.desiresPoolRemaining}
-                  hourlyLaborRate={engine.hourlyLaborRate}
-                />
-              </div>
+              <MobileBudget
+                expenditureRemaining={engine.expenditureRemaining}
+                expenditurePool={engine.expenditurePool}
+                totalSpent={engine.totalSpent}
+                expenditureRemainingPct={engine.expenditureRemainingPct}
+                hasActiveDebt={engine.hasActiveDebt}
+                wealthAllocated={engine.monthlyCloseSummary.wealthAllocated}
+                debtAllocated={engine.monthlyCloseSummary.debtAllocated}
+                discreet={discreet}
+                variances={engine.budgetVariances}
+                budgetTargets={engine.budgetTargets}
+                plannedTotal={engine.budgetPlannedTotal}
+                actualTotal={engine.budgetActualTotal}
+                onUpdateTargetFull={engine.updateBudgetTargetFull}
+                onDeleteTarget={engine.deleteBudgetTarget}
+                onAutoScaleCaps={engine.autoScaleBudgetCaps}
+                debts={engine.debts}
+                monthlyDebtBudget={monthlyDebtBudget}
+                currentMonthKey={engine.currentMonthKey}
+                periodArchives={engine.periodArchives}
+                chartData={engine.chartData}
+                donutData={engine.donutData}
+                currentMonthNeed={engine.currentMonthNeed}
+                currentMonthDesire={engine.currentMonthDesire}
+                currentMonthRemaining={engine.currentMonthRemaining}
+                tributeSnapshot={engine.tributeEngines}
+                desiresPoolRemaining={engine.desiresPoolRemaining}
+                hourlyLaborRate={engine.hourlyLaborRate}
+              />
             )}
 
             {!desktopLayout && mobileDestination === "ledger" && (

@@ -157,13 +157,11 @@ describe("phone Home source boundaries", () => {
     expect(homeSource).toContain("Still upcoming");
   });
 
-  it("keeps Budget, Ledger, and More capabilities mounted on those destinations", () => {
-    expect(budgetBlock).toContain("focusCards");
-    expect(budgetBlock).toContain("triad");
-    expect(budgetBlock).toContain("budgetBlueprint");
-    expect(budgetBlock).toContain("debtFreedom");
-    expect(budgetBlock).toContain("AnalyticsHub");
-    expect(budgetBlock).toContain("AffordabilityAnchor");
+  it("keeps Ledger and More capabilities mounted on those destinations", () => {
+    expect(budgetBlock).toContain("<MobileBudget");
+    expect(budgetBlock).not.toContain("AnalyticsHub");
+    expect(budgetBlock).not.toContain("GoldenTriad");
+    expect(budgetBlock).not.toContain("DebtFreedomEngine");
     expect(ledgerBlock).toContain("ledgers");
     expect(moreBlock).toContain("financialPosition");
     expect(moreBlock).toContain("<MobileMore");

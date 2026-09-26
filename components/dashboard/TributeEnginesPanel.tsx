@@ -15,11 +15,13 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { STREAM_KIND_LABELS } from "@/lib/babylon/constants";
+import { formatDiscreetCurrency } from "@/lib/babylon/discreet";
 import { cn, formatCurrency } from "@/lib/utils";
 import type { IncomeStreamKind, TributeEngineSnapshot } from "@/types/babylon";
 
 interface TributeEnginesPanelProps {
   snapshot: TributeEngineSnapshot;
+  discreet?: boolean;
 }
 
 const KIND_ACCENT: Record<
@@ -56,7 +58,12 @@ const KIND_TOOLTIPS: Partial<Record<IncomeStreamKind, string>> = {
   other: "Other income is irregular money that still splits 10/20/70.",
 };
 
-export function TributeEnginesPanel({ snapshot }: TributeEnginesPanelProps) {
+export function TributeEnginesPanel({
+  snapshot,
+  discreet = false,
+}: TributeEnginesPanelProps) {
+  const money = (value: number) =>
+    formatDiscreetCurrency(value, discreet, formatCurrency);
   return (
     <TooltipProvider delayDuration={200}>
       <section className="animate-fade-up">
@@ -76,7 +83,7 @@ export function TributeEnginesPanel({ snapshot }: TributeEnginesPanelProps) {
                 Income this month
               </p>
               <p className="font-[family-name:var(--font-display)] text-2xl font-semibold tabular-nums text-slate-50">
-                {formatCurrency(snapshot.monthTotal)}
+                {money(snapshot.monthTotal)}
               </p>
             </div>
           </CardHeader>
@@ -87,7 +94,7 @@ export function TributeEnginesPanel({ snapshot }: TributeEnginesPanelProps) {
                   Main Income
                 </p>
                 <p className="mt-1 font-[family-name:var(--font-display)] text-xl font-semibold tabular-nums text-slate-100">
-                  {formatCurrency(snapshot.primaryAmount)}
+                  {money(snapshot.primaryAmount)}
                 </p>
                 <p className="mt-1 text-xs text-slate-500">
                   {snapshot.primaryPct}% of this month&apos;s income
@@ -98,7 +105,7 @@ export function TributeEnginesPanel({ snapshot }: TributeEnginesPanelProps) {
                   Other Income
                 </p>
                 <p className="mt-1 font-[family-name:var(--font-display)] text-xl font-semibold tabular-nums text-amber-200">
-                  {formatCurrency(snapshot.secondaryAmount)}
+                  {money(snapshot.secondaryAmount)}
                 </p>
                 <p className="mt-1 text-xs text-slate-500">
                   {snapshot.secondaryPct}% · side, passive, and other
@@ -167,7 +174,7 @@ export function TributeEnginesPanel({ snapshot }: TributeEnginesPanelProps) {
                             badge
                           )}
                           <span className="tabular-nums text-sm text-slate-200">
-                            {formatCurrency(row.amount)}
+                            {money(row.amount)}
                           </span>
                         </div>
                         <div className="flex items-center gap-3 text-xs tabular-nums text-slate-500">

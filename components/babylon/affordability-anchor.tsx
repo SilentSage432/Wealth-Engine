@@ -7,16 +7,19 @@ import {
   desiresPoolSharePct,
   laborHoursForAmount,
 } from "@/lib/babylon/engine";
+import { formatDiscreetCurrency } from "@/lib/babylon/discreet";
 import { formatCurrency } from "@/lib/utils";
 
 interface AffordabilityAnchorProps {
   desiresPoolRemaining: number;
   hourlyLaborRate: number;
+  discreet?: boolean;
 }
 
 export function AffordabilityAnchor({
   desiresPoolRemaining,
   hourlyLaborRate,
+  discreet = false,
 }: AffordabilityAnchorProps) {
   const [amountRaw, setAmountRaw] = useState("");
 
@@ -32,6 +35,9 @@ export function AffordabilityAnchor({
         : desiresPoolSharePct(amount, desiresPoolRemaining),
     [amount, desiresPoolRemaining]
   );
+
+  const money = (value: number) =>
+    formatDiscreetCurrency(value, discreet, formatCurrency);
 
   const laborHours = useMemo(
     () =>
@@ -81,7 +87,7 @@ export function AffordabilityAnchor({
             {poolPct === null ? "—" : `${poolPct}%`}
           </p>
           <p className="mt-1 text-xs text-slate-500">
-            Left for wants: {formatCurrency(desiresPoolRemaining)}
+            Left for wants: {money(desiresPoolRemaining)}
           </p>
         </div>
         <div className="rounded-lg border border-slate-800/70 bg-slate-950/40 px-3.5 py-3">
@@ -93,7 +99,7 @@ export function AffordabilityAnchor({
           </p>
           <p className="mt-1 text-xs text-slate-500">
             {hourlyLaborRate > 0
-              ? `Main income: ${formatCurrency(hourlyLaborRate)}/hr`
+              ? `Main income: ${money(hourlyLaborRate)}/hr`
               : "Add recurring main income to estimate hours"}
           </p>
         </div>

@@ -23,6 +23,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { formatDiscreetCurrency } from "@/lib/babylon/discreet";
 import { cn, formatCompactCurrency, formatCurrency } from "@/lib/utils";
 import type { ChartMonthPoint, DonutSlice } from "@/types/babylon";
 
@@ -32,6 +33,7 @@ interface AnalyticsHubProps {
   currentMonthNeed: number;
   currentMonthDesire: number;
   currentMonthRemaining: number;
+  discreet?: boolean;
 }
 
 export function AnalyticsHub({
@@ -40,7 +42,12 @@ export function AnalyticsHub({
   currentMonthNeed,
   currentMonthDesire,
   currentMonthRemaining,
+  discreet = false,
 }: AnalyticsHubProps) {
+  const money = (value: number) =>
+    formatDiscreetCurrency(value, discreet, formatCurrency);
+  const axisMoney = (value: number) =>
+    discreet ? money(value) : formatCompactCurrency(value);
   return (
     <section className="flex flex-col gap-4 xl:flex-row">
       <Card className="min-w-0 flex-1 animate-fade-up xl:flex-[3]">
@@ -83,9 +90,9 @@ export function AnalyticsHub({
                   tick={{ fill: "#64748b", fontSize: 11 }}
                   axisLine={false}
                   tickLine={false}
-                  tickFormatter={(v: number) => formatCompactCurrency(v)}
+                  tickFormatter={(v: number) => axisMoney(v)}
                 />
-                <Tooltip content={<ChartTooltipShell />} />
+                <Tooltip content={<ChartTooltipShell discreet={discreet} />} />
                 <Legend wrapperStyle={{ fontSize: 11, color: "#94a3b8" }} />
                 <Area
                   type="monotone"
@@ -157,7 +164,7 @@ export function AnalyticsHub({
                       ))}
                     </Pie>
                     <Tooltip
-                      formatter={(value) => formatCurrency(Number(value ?? 0))}
+                      formatter={(value) => money(Number(value ?? 0))}
                       contentStyle={{
                         background: "#020617",
                         border: "1px solid #1e293b",
@@ -195,7 +202,7 @@ export function AnalyticsHub({
                       {row.label}
                     </span>
                     <span className="tabular-nums text-slate-200">
-                      {formatCurrency(row.value)}
+                      {money(row.value)}
                     </span>
                   </div>
                 ))}

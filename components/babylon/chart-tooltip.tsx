@@ -1,15 +1,18 @@
+import { DISCREET_MASK } from "@/lib/babylon/discreet";
 import { formatCurrency } from "@/lib/utils";
 
 interface ChartTooltipShellProps {
   active?: boolean;
   payload?: Array<{ name?: string; value?: number; color?: string }>;
   label?: string;
+  discreet?: boolean;
 }
 
 export function ChartTooltipShell({
   active,
   payload,
   label,
+  discreet = false,
 }: ChartTooltipShellProps) {
   if (!active || !payload?.length) return null;
 
@@ -22,7 +25,10 @@ export function ChartTooltipShell({
           className="text-sm tabular-nums"
           style={{ color: entry.color }}
         >
-          {entry.name}: {formatCurrency(Number(entry.value ?? 0))}
+          {entry.name}:{" "}
+          {discreet
+            ? DISCREET_MASK
+            : formatCurrency(Number(entry.value ?? 0))}
         </p>
       ))}
     </div>
