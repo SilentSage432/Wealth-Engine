@@ -1,5 +1,43 @@
 # Development Journal
 
+## 2026-09-25 — WE-ATTENTION-006 observational stopping boundary
+
+### What changed
+- WE-ATTENTION-006 is complete. It establishes the stopping boundary for observational relationship primitives. No reasoner, test, schema, sync path, vault, or screen was changed. The temporary characterization runner was removed. Production was not mutated. Plaid was not called.
+- A fresh read-only production export was partitioned by the two committed reasoners, in order. `deriveCorrelatedInternalMovements` ran first. `deriveObservedRepetitions` then ran with those movement ids excluded. `pending_transaction_id` was not an input to either function. The export's single user identity was replaced in memory with a synthetic identity.
+
+### Accepted partition
+- Fresh corpus: 339 observations, 4 pending, 0 removed, 7 account descriptors.
+- Class A, Correlated Internal Movement participants: 94.
+- Class B, Observed Repetition participants after that exclusion: 86.
+- Class C, current pending: 4.
+- Class D, removed: 0.
+- Class E, posted/current observations in neither reasoner: 155.
+- 94 + 86 + 4 + 0 + 155 = 339. Every observation is in exactly one class. A and B are disjoint. No pending or removed observation is in A or B.
+
+### Class E
+- All 155 Class E observations are legitimate isolated posted/current observations. Isolated: 155. Ineligible: 0.
+- No eligible Class E observation shares a user, an account, and exact normalized signed cents with another eligible Class E observation.
+- These observations are not unresolved failures. The higher-order relationship the evidence currently justifies is none.
+- Isolation is a valid absence. A posted/current observation does not need to belong to a higher-order relationship. Another primitive is not added merely to shrink this population.
+
+### Candidate primitives
+- Lifecycle identity: 0 current posted rows carry a nonblank pending-transaction pointer. 0 current posted rows link to a current pending row. No lifecycle primitive is earned.
+- Exact one-to-many cent partition: 0 structures. No primitive is earned.
+- Same sign, same exact cents, different accounts, same civil date: 0 structures. No primitive is earned.
+- Opposite sign outside the established movement reasoner: one exact-cent pair sat outside Class A. It occurred once and failed multiple committed movement gates. No repeated exact opposite-sign structure exists outside Class A. No primitive is earned.
+- Category text is reused across isolated observations and across differing amounts. Category text is not identity. Using it as relationship authority would exceed the evidence.
+
+### Architectural conclusion
+- The core observational model now recognizes three states. Correlated Internal Movement is the deterministic cross-account relationship. Observed Repetition is the deterministic across-time relationship. Isolated Observation is the valid absence of an established higher-order relationship.
+- The system should never know more than its evidence entitles it to know. Further interpretation of this isolated corpus would require evidence the system does not possess, such as semantic authority, an arbitrary amount or date tolerance, merchant interpretation, or probabilistic inference. Those mechanisms are not justified for the core observational reasoning layer.
+
+### Next
+- WE-ATTENTION-007 is Attention Surfacing / Human Confirmation Design. The observational reasoning layer is sufficient for the core product. 007 does not begin by creating another detector. Its purpose is to determine how established observations and derived relationships become useful human attention without replacing steward judgment. The interaction remains Detect, Interpret, Surface, Confirm, Record. This closeout does not design or implement 007.
+
+### Not in this tranche
+- No reasoner change, test change, UI, persistence, migration, vault, backup, WE-SYNC, recurring-obligation, or income change.
+
 ## 2026-09-25 — WE-ATTENTION-005C production corpus acceptance of observed repetition
 
 ### What changed
