@@ -18,6 +18,8 @@ type ApiErrorBody = { error?: string; code?: string };
 type PlaidApiFetchOptions = {
   /** Link and exchange announce failures. Foreground observation sync stays quiet. */
   announceError?: boolean;
+  /** Temporary production probe. Logs booleans only. Sync opts in. */
+  probe?: boolean;
 };
 
 async function authBearer(): Promise<string | null> {
@@ -35,6 +37,11 @@ async function plaidApiFetch<T>(
   const announceError = options?.announceError !== false;
   try {
     const token = await authBearer();
+    if (options?.probe) {
+      console.info(
+        `[WE-ATTENTION-PROBE] op=auth-result bearerPresent=${Boolean(token)}`
+      );
+    }
     if (!token) {
       if (announceError) {
         emitVaultToast({
@@ -45,6 +52,9 @@ async function plaidApiFetch<T>(
       return { ok: false };
     }
 
+    if (options?.probe) {
+      console.info("[WE-ATTENTION-PROBE] op=fetch-start");
+    }
     const res = await fetch(path, {
       ...init,
       headers: {
@@ -133,6 +143,9 @@ export async function createPlaidLinkTokenOrToast(): Promise<string | null> {
 export async function requestPlaidObservationSync(
   itemRowId: string
 ): Promise<boolean> {
+  console.info(
+    `[WE-ATTENTION-PROBE] op=request-enter idPresent=${typeof itemRowId === "string" && itemRowId.trim().length > 0}`
+  );
   const id = itemRowId.trim();
   if (!id) return false;
   const result = await plaidApiFetch<{ status?: string }>(
@@ -141,7 +154,7 @@ export async function requestPlaidObservationSync(
       method: "POST",
       body: JSON.stringify({ id }),
     },
-    { announceError: false }
+    { announceError: false, probe: true }
   );
   if (!result.ok) {
     console.error("[plaid] observation sync failed — ledger unchanged.");

@@ -1,5 +1,16 @@
 # Development Journal
 
+## 2026-09-25 — WE-ATTENTION-003A temporary foreground sync probe
+
+### What changed
+- Temporary console lines prefixed `[WE-ATTENTION-PROBE]` record whether the foreground effect ran, how many Item requests the planner returned, whether `requestPlaidObservationSync` was entered, whether a bearer exists, and whether `fetch` is about to start.
+- The lines are booleans, counts, and operation labels. They do not change sync, auth, or the requested-id set.
+- Remove this probe after the production stop is identified.
+
+### Ownership
+- Effect and plan logs: `hooks/usePlaidConnections.ts`, `lib/babylon/plaid-foreground-sync.ts`
+- Request, auth, and fetch logs: `lib/babylon/plaid-client.ts`
+
 ## 2026-09-25 — WE-ATTENTION-003A foreground observation sync
 
 ### What changed

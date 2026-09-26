@@ -94,6 +94,10 @@ export function usePlaidConnections({ enabled }: UsePlaidConnectionsArgs) {
   const items: PlaidItemPublic[] = itemsQuery.data ?? [];
 
   useEffect(() => {
+    const itemCount = itemsQuery.data?.length ?? 0;
+    console.info(
+      `[WE-ATTENTION-PROBE] op=foreground-effect enabled=${enabled} isSuccess=${itemsQuery.isSuccess} isFetching=${itemsQuery.isFetching} itemCount=${itemCount}`
+    );
     startForegroundObservationSync({
       authenticated: enabled,
       itemsReady: itemsQuery.isSuccess && !itemsQuery.isFetching,

@@ -40,6 +40,9 @@ export function startForegroundObservationSync(input: {
   request: (itemRowId: string) => void;
 }): readonly string[] {
   const due = planForegroundObservationSync(input);
+  console.info(
+    `[WE-ATTENTION-PROBE] op=foreground-plan requestCount=${due.length}`
+  );
   for (const itemRowId of due) input.request(itemRowId);
   return due;
 }
