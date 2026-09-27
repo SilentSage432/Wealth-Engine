@@ -160,11 +160,7 @@ export function MobileHome({
             {balanceObservation ? (
               <ObservedBalanceUpdates
                 accounts={accounts}
-                enabled={balanceObservation.enabled}
-                settled={balanceObservation.settled}
-                plaidAccounts={balanceObservation.plaidAccounts}
-                observations={balanceObservation.observations}
-                associations={balanceObservation.associations}
+                load={balanceObservation.load}
                 discreet={discreet}
                 onUpdateAccount={onUpdateAccount}
               />

@@ -214,21 +214,37 @@ export async function listPlaidItems(): Promise<PlaidItemPublic[]> {
   }
 }
 
+/**
+ * A failed evidence read throws. An empty array is a successful read with no rows.
+ * The message is static so logs do not include balances or account rows.
+ */
+function unavailableEvidence(message: string): never {
+  console.error(message);
+  throw new Error(message);
+}
+
+async function guardEvidenceRead<T>(message: string, read: () => Promise<T>): Promise<T> {
+  try {
+    return await read();
+  } catch (err) {
+    if (err instanceof Error && err.message === message) throw err;
+    unavailableEvidence(message);
+  }
+}
+
 /** Owner-scoped Plaid account descriptors. No balances and no access token. */
 export async function listPlaidAccounts(): Promise<PlaidAccountPublic[]> {
-  try {
+  const message = "[plaid] list accounts failed.";
+  return guardEvidenceRead(message, async () => {
     const supabase = getSupabaseBrowserClient();
-    if (!supabase) return [];
+    if (!supabase) unavailableEvidence(message);
 
     const { data, error } = await supabase
       .from("plaid_accounts")
       .select(PLAID_ACCOUNT_PUBLIC_COLUMNS)
       .order("name", { ascending: true });
 
-    if (error || !data) {
-      console.error("[plaid] list accounts failed.", error);
-      return [];
-    }
+    if (error || !data) unavailableEvidence(message);
 
     return data.map((row) =>
       toPlaidAccountPublic(
@@ -244,63 +260,50 @@ export async function listPlaidAccounts(): Promise<PlaidAccountPublic[]> {
         }
       )
     );
-  } catch (err) {
-    console.error("[plaid] list accounts crashed.", err);
-    return [];
-  }
+  });
 }
 
 /** Current cached balance observations. Superseded rows stay in the table. */
 export async function listCurrentBalanceObservations(): Promise<
   BalanceObservationPublic[]
 > {
-  try {
+  const message = "[plaid] list balance observations failed.";
+  return guardEvidenceRead(message, async () => {
     const supabase = getSupabaseBrowserClient();
-    if (!supabase) return [];
+    if (!supabase) unavailableEvidence(message);
 
     const { data, error } = await supabase
       .from("plaid_balance_observations")
       .select(BALANCE_OBSERVATION_COLUMNS)
       .eq("state", "current");
 
-    if (error || !data) {
-      console.error("[plaid] list balance observations failed.");
-      return [];
-    }
+    if (error || !data) unavailableEvidence(message);
 
     return data.flatMap((row) => {
       const observation = toBalanceObservationPublic(row);
       return observation ? [observation] : [];
     });
-  } catch {
-    console.error("[plaid] list balance observations failed.");
-    return [];
-  }
+  });
 }
 
 /** Steward account links. This does not read the vault. */
 export async function listAccountAssociations(): Promise<AccountAssociationPublic[]> {
-  try {
+  const message = "[plaid] list account associations failed.";
+  return guardEvidenceRead(message, async () => {
     const supabase = getSupabaseBrowserClient();
-    if (!supabase) return [];
+    if (!supabase) unavailableEvidence(message);
 
     const { data, error } = await supabase
       .from("plaid_account_associations")
       .select(ACCOUNT_ASSOCIATION_COLUMNS);
 
-    if (error || !data) {
-      console.error("[plaid] list account associations failed.");
-      return [];
-    }
+    if (error || !data) unavailableEvidence(message);
 
     return data.flatMap((row) => {
       const association = toAccountAssociationPublic(row);
       return association ? [association] : [];
     });
-  } catch {
-    console.error("[plaid] list account associations failed.");
-    return [];
-  }
+  });
 }
 
 /**

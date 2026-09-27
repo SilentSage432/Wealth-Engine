@@ -1,11 +1,15 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import type {
-  AccountAssociationPublic,
-  BalanceObservationPublic,
-} from "@/lib/babylon/balance-observation";
+import {
+  deriveBalanceObservationLoad,
+  sameBalanceObservationEvidence,
+  type BalanceEvidenceRead,
+  type BalanceObservationEvidence,
+  type BalanceObservationLoad,
+} from "@/lib/babylon/balance-evidence-load";
+import type { AccountAssociationPublic, BalanceObservationPublic } from "@/lib/babylon/balance-observation";
 import {
   associatePlaidFinancialAccount,
   listAccountAssociations,
@@ -19,19 +23,30 @@ export const BALANCE_OBSERVATION_QUERY_KEY = ["plaid-balance-observations"] as c
 export const PLAID_DESCRIPTOR_QUERY_KEY = ["plaid-balance-accounts"] as const;
 export const ACCOUNT_ASSOCIATION_QUERY_KEY = ["plaid-account-associations"] as const;
 
+function evidenceRead<T>(query: {
+  isError: boolean;
+  isSuccess: boolean;
+  data: T | undefined;
+}): BalanceEvidenceRead<T> {
+  if (query.isError) return { status: "error" };
+  if (query.isSuccess && query.data !== undefined) {
+    return { status: "success", data: query.data };
+  }
+  return { status: "pending" };
+}
+
 /**
  * Owner-scoped balance observations and steward account links.
  * Refresh follows the existing foreground sync. This hook does not poll.
+ * The last successful evidence lives in component state for this session only.
  */
 export function useBalanceObservation(enabled: boolean): {
-  plaidAccounts: PlaidAccountPublic[];
-  observations: BalanceObservationPublic[];
-  associations: AccountAssociationPublic[];
-  settled: boolean;
+  load: BalanceObservationLoad;
   associate: (financialAccountId: string, plaidAccountId: string) => Promise<boolean>;
   removeAssociation: (financialAccountId: string) => Promise<boolean>;
 } {
   const queryClient = useQueryClient();
+  const [retained, setRetained] = useState<BalanceObservationEvidence | null>(null);
   const accountsQuery = useQuery({
     queryKey: PLAID_DESCRIPTOR_QUERY_KEY,
     queryFn: listPlaidAccounts,
@@ -50,6 +65,17 @@ export function useBalanceObservation(enabled: boolean): {
     enabled,
     staleTime: 60_000,
   });
+
+  const derived = deriveBalanceObservationLoad({
+    enabled,
+    accounts: evidenceRead<readonly PlaidAccountPublic[]>(accountsQuery),
+    observations: evidenceRead<readonly BalanceObservationPublic[]>(observationsQuery),
+    associations: evidenceRead<readonly AccountAssociationPublic[]>(associationsQuery),
+    retained,
+  });
+  if (!sameBalanceObservationEvidence(derived.retained, retained)) {
+    setRetained(derived.retained);
+  }
 
   const associate = useCallback(
     async (financialAccountId: string, plaidAccountId: string) => {
@@ -79,13 +105,7 @@ export function useBalanceObservation(enabled: boolean): {
   );
 
   return {
-    plaidAccounts: accountsQuery.data ?? [],
-    observations: observationsQuery.data ?? [],
-    associations: associationsQuery.data ?? [],
-    settled:
-      accountsQuery.isFetched &&
-      observationsQuery.isFetched &&
-      associationsQuery.isFetched,
+    load: derived.load,
     associate,
     removeAssociation,
   };

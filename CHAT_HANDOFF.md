@@ -5,6 +5,9 @@
 
 **Architecture map:** [`ARCHITECTURE.md`](./ARCHITECTURE.md) — layers, dependency rules, canonical ownership matrix.
 
+## Current state
+WE-RECONCILE-001B1 is accepted. A successful empty read of Plaid accounts, current balance observations, and account associations is ready. A failed read is unavailable. The last complete success may stay in session memory after a refresh failure, and that retention is not a successful read. Money Available is still declaration-only: `sumAccountBalances(accounts)`. The next tranche is WE-RECONCILE-001B2 Effective Financial Position. That tranche is not implemented.
+
 ## Entry points
 - App surface: `app/page.tsx` → `components/babylon/wealth-engine-dashboard.tsx`
 - Domain hook: `hooks/useBabylonEngine.ts` (state, persistence, auth, actions, metrics). Sign-in does not itself upload or download. Later edits sync through the revision cycle.

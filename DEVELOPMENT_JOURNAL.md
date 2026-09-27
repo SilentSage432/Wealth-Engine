@@ -1,5 +1,21 @@
 # Development Journal
 
+## 2026-09-27 — WE-RECONCILE-001B1 observation load truth
+
+### What changed
+- Accepted. A successful read of Plaid accounts, current balance observations, and account associations with zero rows stays ready. A failed read is unavailable. Those states no longer share an empty list.
+- A first failure in the session fabricates no empty success. A failed refresh keeps the last complete successful evidence in session memory and stays unavailable. Retaining that snapshot is not a successful read. A later successful empty read replaces it.
+- Unavailable evidence does not offer Update balance. A retained observation keeps its original `observedAt`.
+- Money Available remains `sumAccountBalances(accounts)`. Account rows still show `FinancialAccount.balance`. The Intelligence Contract stays version 1 and declaration-only. `deriveEffectiveAccountPosition` stays unwired. No migration or new stored fact.
+
+### Validation
+- Focused tests passed: `balance-evidence-load.test.ts` and `balance-observation.test.ts`, 55 tests.
+- The full suite passed: 32 files, 419 tests.
+- `tsc --noEmit`, lint, the production build, and `git diff --check` passed.
+
+### Not in this tranche
+- WE-RECONCILE-001B2 Effective Financial Position is pending. It is not implemented.
+
 ## 2026-09-27 — Home balance update
 
 ### What changed

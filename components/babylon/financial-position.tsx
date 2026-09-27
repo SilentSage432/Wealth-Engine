@@ -42,14 +42,17 @@ import {
   describeAccountBalance,
   observedBalanceUpdate,
   unassociatedDepositoryAccountIds,
-  type AccountAssociationPublic,
   type AccountBalanceView,
-  type BalanceObservationPublic,
 } from "@/lib/babylon/balance-observation";
+import {
+  BALANCE_EVIDENCE_UNAVAILABLE_LABEL,
+  presentAccountObservation,
+  type BalanceObservationLoad,
+} from "@/lib/babylon/balance-evidence-load";
 import { ACCOUNT_KIND_LABELS } from "@/lib/babylon/constants";
 import { formatDiscreetCurrency } from "@/lib/babylon/discreet";
 import { todayIso } from "@/lib/babylon/engine";
-import type { PlaidAccountPublic, PlaidItemPublic } from "@/lib/babylon/plaid-schema";
+import type { PlaidItemPublic } from "@/lib/babylon/plaid-schema";
 import {
   FINANCIAL_ACCOUNT_KINDS,
   formatAsOfLabel,
@@ -63,12 +66,8 @@ import type {
 } from "@/types/babylon";
 
 export interface FinancialPositionBalanceObservation {
-  enabled: boolean;
-  settled: boolean;
-  plaidAccounts: readonly PlaidAccountPublic[];
+  load: BalanceObservationLoad;
   institutions: readonly Pick<PlaidItemPublic, "id" | "institutionName">[];
-  observations: readonly BalanceObservationPublic[];
-  associations: readonly AccountAssociationPublic[];
   onAssociate: (financialAccountId: string, plaidAccountId: string) => Promise<boolean>;
   onRemoveAssociation: (financialAccountId: string) => Promise<boolean>;
 }
@@ -124,18 +123,38 @@ function AccountObservation({
   onRemoveAssociation: () => void;
   onAccept: () => void;
 }) {
-  if (!balanceObservation?.enabled || !balanceObservation.settled) return null;
+  if (!balanceObservation) return null;
+  const presentation = presentAccountObservation({
+    account,
+    load: balanceObservation.load,
+  });
+  if (presentation.status === "hidden") return null;
+  if (presentation.status === "unavailable") {
+    return (
+      <div className="basis-full space-y-2">
+        <p className="text-[11px] leading-relaxed text-slate-500">
+          {BALANCE_EVIDENCE_UNAVAILABLE_LABEL}
+        </p>
+        {presentation.observedAt !== null && presentation.currentCents !== null ? (
+          <p className="text-[11px] leading-relaxed text-slate-500">
+            Observed {money(presentation.currentCents / 100)}. Stored{" "}
+            {formatObservedAt(presentation.observedAt)}.
+          </p>
+        ) : null}
+      </div>
+    );
+  }
+  const evidence = presentation.evidence;
   const association =
-    balanceObservation.associations.find(
-      (row) => row.financialAccountId === account.id
-    ) ?? null;
+    evidence.associations.find((row) => row.financialAccountId === account.id) ??
+    null;
   const plaidAccount = association
-    ? balanceObservation.plaidAccounts.find(
+    ? evidence.plaidAccounts.find(
         (row) => row.plaidAccountId === association.plaidAccountId
       ) ?? null
     : null;
   const observation = association
-    ? balanceObservation.observations.find(
+    ? evidence.observations.find(
         (row) => row.plaidAccountId === association.plaidAccountId
       ) ?? null
     : null;
@@ -149,16 +168,16 @@ function AccountObservation({
   if (view.status === "hidden") return null;
 
   const ownerId =
-    balanceObservation.plaidAccounts[0]?.userId ??
-    balanceObservation.associations[0]?.userId ??
-    balanceObservation.observations[0]?.userId ??
+    evidence.plaidAccounts[0]?.userId ??
+    evidence.associations[0]?.userId ??
+    evidence.observations[0]?.userId ??
     "";
   const choiceIds =
     view.status === "unlinked"
       ? unassociatedDepositoryAccountIds({
           userId: ownerId,
-          plaidAccounts: balanceObservation.plaidAccounts,
-          associations: balanceObservation.associations,
+          plaidAccounts: evidence.plaidAccounts,
+          associations: evidence.associations,
           liveFinancialAccountIds,
         })
       : [];
@@ -184,7 +203,7 @@ function AccountObservation({
               </SelectTrigger>
               <SelectContent>
                 {choiceIds.map((plaidAccountId) => {
-                  const choice = balanceObservation.plaidAccounts.find(
+                  const choice = evidence.plaidAccounts.find(
                     (row) => row.plaidAccountId === plaidAccountId
                   );
                   if (!choice) return null;
@@ -445,11 +464,13 @@ export function FinancialPosition({
               }}
               onAccept={() => {
                 if (!balanceObservation) return;
+                if (balanceObservation.load.status !== "ready") return;
+                const ready = balanceObservation.load.evidence;
                 const accepted = observedBalanceUpdate({
                   account,
-                  associations: balanceObservation.associations,
-                  plaidAccounts: balanceObservation.plaidAccounts,
-                  observations: balanceObservation.observations,
+                  associations: ready.associations,
+                  plaidAccounts: ready.plaidAccounts,
+                  observations: ready.observations,
                   today: todayIso(),
                 });
                 if (!accepted) return;
@@ -492,11 +513,7 @@ export function FinancialPosition({
           {balanceObservation ? (
             <ObservedBalanceUpdates
               accounts={accounts}
-              enabled={balanceObservation.enabled}
-              settled={balanceObservation.settled}
-              plaidAccounts={balanceObservation.plaidAccounts}
-              observations={balanceObservation.observations}
-              associations={balanceObservation.associations}
+              load={balanceObservation.load}
               discreet={discreet}
               onUpdateAccount={onUpdateAccount}
             />
@@ -783,7 +800,12 @@ export function FinancialPosition({
               className="bg-rose-600 text-white shadow-sm hover:bg-rose-500 focus-visible:ring-rose-500/60"
               onClick={() => {
                 if (!pendingRemove) return;
-                const linked = balanceObservation?.associations.some(
+                const evidence =
+                  balanceObservation?.load.status === "ready" ||
+                  balanceObservation?.load.status === "unavailable"
+                    ? balanceObservation.load.evidence
+                    : null;
+                const linked = evidence?.associations.some(
                   (row) => row.financialAccountId === pendingRemove.id
                 );
                 if (linked) {

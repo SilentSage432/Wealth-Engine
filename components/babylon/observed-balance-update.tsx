@@ -1,15 +1,15 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
+import { observedBalanceUpdate } from "@/lib/babylon/balance-observation";
 import {
-  listActionableObservedBalances,
-  observedBalanceUpdate,
-  type AccountAssociationPublic,
-  type BalanceObservationPublic,
-} from "@/lib/babylon/balance-observation";
+  actionableObservedBalancesForLoad,
+  BALANCE_EVIDENCE_UNAVAILABLE_LABEL,
+  retainedObservedBalanceRows,
+  type BalanceObservationLoad,
+} from "@/lib/babylon/balance-evidence-load";
 import { formatDiscreetCurrency } from "@/lib/babylon/discreet";
 import { todayIso } from "@/lib/babylon/engine";
-import type { PlaidAccountPublic } from "@/lib/babylon/plaid-schema";
 import { formatCurrency } from "@/lib/utils";
 import type { FinancialAccount, FinancialAccountInput } from "@/types/babylon";
 
@@ -43,35 +43,47 @@ export function formatSignedDifference(
  */
 export function ObservedBalanceUpdates({
   accounts,
-  enabled,
-  settled,
-  plaidAccounts,
-  observations,
-  associations,
+  load,
   discreet = false,
   onUpdateAccount,
 }: {
   accounts: readonly FinancialAccount[];
-  enabled: boolean;
-  settled: boolean;
-  plaidAccounts: readonly PlaidAccountPublic[];
-  observations: readonly BalanceObservationPublic[];
-  associations: readonly AccountAssociationPublic[];
+  load: BalanceObservationLoad;
   discreet?: boolean;
   onUpdateAccount: (id: string, input: FinancialAccountInput) => boolean;
 }) {
-  const rows = listActionableObservedBalances({
-    accounts,
-    enabled,
-    settled,
-    plaidAccounts,
-    observations,
-    associations,
-  });
-  if (rows.length === 0) return null;
-
   const money = (value: number) =>
     formatDiscreetCurrency(value, discreet, formatCurrency);
+
+  if (load.status === "unavailable") {
+    const retained = retainedObservedBalanceRows({ accounts, load });
+    if (retained.length === 0) return null;
+    return (
+      <ul aria-label="Observed balance differences" className="mt-4 space-y-2">
+        {retained.map((row) => (
+          <li
+            key={row.accountId}
+            className="rounded-lg border border-slate-800/80 px-3 py-3"
+          >
+            <p className="min-w-0 text-sm font-medium text-slate-100">
+              {row.accountName}
+            </p>
+            <p className="mt-1 text-[11px] leading-relaxed text-slate-500">
+              {BALANCE_EVIDENCE_UNAVAILABLE_LABEL}
+            </p>
+            <p className="mt-1 text-[11px] leading-relaxed text-slate-400">
+              Observed {money(row.currentCents / 100)}. Stored{" "}
+              {formatObservedAt(row.observedAt)}.
+            </p>
+          </li>
+        ))}
+      </ul>
+    );
+  }
+
+  const rows = actionableObservedBalancesForLoad({ accounts, load });
+  if (rows.length === 0 || load.status !== "ready") return null;
+  const evidence = load.evidence;
 
   return (
     <ul aria-label="Observed balance differences" className="mt-4 space-y-2">
@@ -93,9 +105,9 @@ export function ObservedBalanceUpdates({
                 if (!account) return;
                 const accepted = observedBalanceUpdate({
                   account,
-                  associations,
-                  plaidAccounts,
-                  observations,
+                  associations: evidence.associations,
+                  plaidAccounts: evidence.plaidAccounts,
+                  observations: evidence.observations,
                   today: todayIso(),
                 });
                 if (!accepted) return;

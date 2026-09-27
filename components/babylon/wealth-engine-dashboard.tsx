@@ -105,6 +105,13 @@ export function WealthEngineDashboard() {
     return Math.max(fromAllocations, fromMins);
   }, [engine.allocations, engine.currentMonthKey, engine.debts]);
 
+  const balanceObservationView = {
+    load: balanceObservation.load,
+    institutions: plaid.items,
+    onAssociate: balanceObservation.associate,
+    onRemoveAssociation: balanceObservation.removeAssociation,
+  };
+
   if (!hydrated) {
     return (
       <SecurityGate>
@@ -134,16 +141,7 @@ export function WealthEngineDashboard() {
       onRemoveAccount={engine.removeAccount}
       onUpdateProtected={engine.updateProtectedDesignations}
       onEditorOpenChange={setAccountEditorOpen}
-      balanceObservation={{
-        enabled: hydrated && isCloudSynced,
-        settled: balanceObservation.settled,
-        plaidAccounts: balanceObservation.plaidAccounts,
-        institutions: plaid.items,
-        observations: balanceObservation.observations,
-        associations: balanceObservation.associations,
-        onAssociate: balanceObservation.associate,
-        onRemoveAssociation: balanceObservation.removeAssociation,
-      }}
+      balanceObservation={balanceObservationView}
     />
   );
 
@@ -330,16 +328,7 @@ export function WealthEngineDashboard() {
                 onNavigate={setMobileDestination}
                 accounts={engine.accounts}
                 onUpdateAccount={engine.updateAccount}
-                balanceObservation={{
-                  enabled: hydrated && isCloudSynced,
-                  settled: balanceObservation.settled,
-                  plaidAccounts: balanceObservation.plaidAccounts,
-                  institutions: plaid.items,
-                  observations: balanceObservation.observations,
-                  associations: balanceObservation.associations,
-                  onAssociate: balanceObservation.associate,
-                  onRemoveAssociation: balanceObservation.removeAssociation,
-                }}
+                balanceObservation={balanceObservationView}
               />
             )}
 
@@ -436,16 +425,7 @@ export function WealthEngineDashboard() {
                 onRemoveAccount={engine.removeAccount}
                 onUpdateProtected={engine.updateProtectedDesignations}
                 onEditorOpenChange={setAccountEditorOpen}
-                balanceObservation={{
-                  enabled: hydrated && isCloudSynced,
-                  settled: balanceObservation.settled,
-                  plaidAccounts: balanceObservation.plaidAccounts,
-                  institutions: plaid.items,
-                  observations: balanceObservation.observations,
-                  associations: balanceObservation.associations,
-                  onAssociate: balanceObservation.associate,
-                  onRemoveAssociation: balanceObservation.removeAssociation,
-                }}
+                balanceObservation={balanceObservationView}
               />
             )}
 
