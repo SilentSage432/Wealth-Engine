@@ -342,7 +342,16 @@ describe("WE-ATTENTION-008 repository boundary", () => {
     expect(route).not.toContain("associate");
     expect(route).not.toContain("confirm_plaid");
     expect(route).not.toContain("transactions_cursor");
-    expect(route).not.toContain("export async function POST");
+    const foreground = route.slice(route.indexOf("export async function POST"));
+    const scheduled = route.slice(
+      route.indexOf("export async function GET"),
+      route.indexOf("export async function POST")
+    );
+    expect(scheduled).toContain("authorizeCronRequest");
+    expect(foreground).toContain("requireAuthenticatedUser");
+    expect(foreground).toContain('.eq("user_id", auth.user.id)');
+    expect(foreground).not.toContain("authorizeCronRequest");
+    expect(foreground).not.toContain("syncPlaidItemObservations");
     expect(recorder).not.toContain("/accounts/balance/get");
     expect(recorder).not.toContain("/transactions/refresh");
     expect(recorder).not.toContain("transactions_cursor");
@@ -365,10 +374,11 @@ describe("WE-ATTENTION-008 repository boundary", () => {
     expect(meaning).not.toContain("recordPlaidBalanceObservations");
     expect(syncRoute).toContain("syncPlaidItemObservations");
     expect(syncRoute).not.toContain("observe-balances");
-    expect(syncRoute).toContain("await recordPlaidBalanceObservations");
+    expect(syncRoute).not.toContain("recordPlaidBalanceObservations");
+    expect(syncRoute).toContain("bootstrapPlaidAccountIdentityIfAbsent");
     expect(syncRoute).not.toContain("not-applied");
     expect(syncRoute.indexOf("plaidSyncHttpResult(outcome)")).toBeGreaterThan(
-      syncRoute.indexOf("await recordPlaidBalanceObservations")
+      syncRoute.indexOf("await bootstrapPlaidAccountIdentityIfAbsent")
     );
     const crons = JSON.parse(vercel) as {
       crons: { path: string; schedule: string }[];

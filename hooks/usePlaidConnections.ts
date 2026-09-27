@@ -8,12 +8,23 @@ import {
   PLAID_DESCRIPTOR_QUERY_KEY,
 } from "@/hooks/useBalanceObservation";
 import {
+  foregroundBalanceRefreshApplied,
+  hasUnseenBalanceItem,
+  markUnseenBalanceItem,
+  noteForegroundBalanceRefreshResult,
+  planForegroundBalanceRefresh,
+} from "@/lib/babylon/foreground-balance-refresh";
+import {
   createPlaidLinkTokenOrToast,
   listPlaidItems,
+  requestForegroundBalanceRefresh,
   requestPlaidObservationSync,
   startPlaidLinkExchange,
 } from "@/lib/babylon/plaid-client";
-import { startForegroundObservationSync } from "@/lib/babylon/plaid-foreground-sync";
+import {
+  itemIdsBeyondInitialReadyList,
+  startForegroundObservationSync,
+} from "@/lib/babylon/plaid-foreground-sync";
 import type { PlaidItemPublic } from "@/lib/babylon/plaid-schema";
 import { usePlaidLink } from "react-plaid-link";
 
@@ -97,11 +108,51 @@ export function usePlaidConnections({ enabled }: UsePlaidConnectionsArgs) {
   }, [launching]);
 
   const items: PlaidItemPublic[] = itemsQuery.data ?? [];
+  const itemsReady = itemsQuery.isSuccess && !itemsQuery.isFetching;
+
+  const recordVisibleBalances = useCallback(
+    (ignoreRecentSuccess: boolean) => {
+      const visible =
+        typeof document !== "undefined" && document.visibilityState === "visible";
+      const decision = planForegroundBalanceRefresh({
+        authenticated: enabled,
+        visible,
+        now: Date.now(),
+        ignoreRecentSuccess,
+      });
+      if (decision.action !== "request") return;
+      void requestForegroundBalanceRefresh().then((summary) => {
+        const applied = foregroundBalanceRefreshApplied(summary);
+        noteForegroundBalanceRefreshResult({
+          ticket: decision.ticket,
+          applied,
+          now: Date.now(),
+        });
+        if (applied) {
+          void queryClient.invalidateQueries({ queryKey: BALANCE_OBSERVATION_QUERY_KEY });
+          void queryClient.invalidateQueries({ queryKey: PLAID_DESCRIPTOR_QUERY_KEY });
+          void queryClient.invalidateQueries({ queryKey: ACCOUNT_ASSOCIATION_QUERY_KEY });
+        }
+        if (hasUnseenBalanceItem()) recordVisibleBalances(true);
+      });
+    },
+    [enabled, queryClient]
+  );
 
   useEffect(() => {
-    startForegroundObservationSync({
+    recordVisibleBalances(false);
+    const onVisibility = () => {
+      if (document.visibilityState !== "visible") return;
+      recordVisibleBalances(false);
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, [recordVisibleBalances]);
+
+  useEffect(() => {
+    const due = startForegroundObservationSync({
       authenticated: enabled,
-      itemsReady: itemsQuery.isSuccess && !itemsQuery.isFetching,
+      itemsReady,
       itemIds: (itemsQuery.data ?? []).map((item) => item.id),
       request: (itemRowId) => {
         void requestPlaidObservationSync(itemRowId).then((ok) => {
@@ -112,7 +163,15 @@ export function usePlaidConnections({ enabled }: UsePlaidConnectionsArgs) {
         });
       },
     });
-  }, [enabled, itemsQuery.data, itemsQuery.isFetching, itemsQuery.isSuccess, queryClient]);
+    const beyond = itemIdsBeyondInitialReadyList({
+      authenticated: enabled,
+      itemsReady,
+      dueItemIds: due,
+    });
+    if (beyond.length === 0) return;
+    markUnseenBalanceItem();
+    recordVisibleBalances(true);
+  }, [enabled, itemsQuery.data, itemsReady, queryClient, recordVisibleBalances]);
 
   return {
     items,

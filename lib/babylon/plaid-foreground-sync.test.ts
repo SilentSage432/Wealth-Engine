@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { EMPTY_STATE } from "@/lib/babylon/constants";
 import { emitVaultToast } from "@/lib/babylon/vault-toast";
 import {
+  itemIdsBeyondInitialReadyList,
   resetForegroundObservationSyncSession,
   startForegroundObservationSync,
 } from "@/lib/babylon/plaid-foreground-sync";
@@ -137,6 +138,44 @@ describe("foreground observation sync", () => {
     expect(request).toHaveBeenCalledTimes(1);
   });
 
+  it("treats the first ready list as already covered and a later Item as new", () => {
+    expect(
+      itemIdsBeyondInitialReadyList({
+        authenticated: true,
+        itemsReady: false,
+        dueItemIds: [ITEM_A],
+      })
+    ).toEqual([]);
+    expect(
+      itemIdsBeyondInitialReadyList({
+        authenticated: true,
+        itemsReady: true,
+        dueItemIds: [],
+      })
+    ).toEqual([]);
+    expect(
+      itemIdsBeyondInitialReadyList({
+        authenticated: true,
+        itemsReady: true,
+        dueItemIds: [ITEM_A],
+      })
+    ).toEqual([ITEM_A]);
+    expect(
+      itemIdsBeyondInitialReadyList({
+        authenticated: false,
+        itemsReady: true,
+        dueItemIds: [ITEM_A],
+      })
+    ).toEqual([]);
+    expect(
+      itemIdsBeyondInitialReadyList({
+        authenticated: true,
+        itemsReady: true,
+        dueItemIds: [ITEM_B],
+      })
+    ).toEqual([]);
+  });
+
   it("syncs a newly connected Item and leaves the earlier Item alone", () => {
     const request = vi.fn();
     startForegroundObservationSync({
@@ -253,7 +292,9 @@ describe("foreground observation sync", () => {
     expect(hook).toContain("requestPlaidObservationSync");
     expect(hook).not.toContain("setInterval");
     expect(hook).not.toContain("setTimeout");
-    expect(hook).not.toContain("visibilitychange");
+    expect(planner).not.toContain("visibilitychange");
+    expect(hook).toContain("planForegroundBalanceRefresh");
+    expect(hook).toContain("visibilitychange");
     expect(hook).not.toContain("serviceWorker");
     expect(hook).not.toContain("access_token");
     expect(hook).not.toContain("wealth_engine_vaults");

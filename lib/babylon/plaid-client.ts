@@ -27,6 +27,8 @@ import {
   type PlaidItemPublic,
   type PlaidObservationPublic,
 } from "@/lib/babylon/plaid-schema";
+import { readBalanceObservationSummary } from "@/lib/babylon/foreground-balance-refresh";
+import type { BackgroundBalanceSummary } from "@/lib/babylon/background-balance-observation";
 import { emitVaultToast } from "@/lib/babylon/vault-toast";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 
@@ -165,6 +167,21 @@ export async function requestPlaidObservationSync(
     return false;
   }
   return result.data.status === "synced" || result.data.status === "incomplete";
+}
+
+/**
+ * Ask the signed-in route to store cached balances for this steward's Items.
+ * No body. No Item id. Transaction sync is not part of this request.
+ * The caller decides success from the returned counts. A failed request is null.
+ */
+export async function requestForegroundBalanceRefresh(): Promise<BackgroundBalanceSummary | null> {
+  const result = await plaidApiFetch<unknown>(
+    "/api/plaid/observe-balances",
+    { method: "POST" },
+    { announceError: false }
+  );
+  if (!result.ok) return null;
+  return readBalanceObservationSummary(result.data);
 }
 
 export async function startPlaidLinkExchange(

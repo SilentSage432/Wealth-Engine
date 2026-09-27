@@ -1,5 +1,22 @@
 # Development Journal
 
+## 2026-09-27 — WE-BALANCE-FRESHNESS-002 foreground cached balance refresh
+
+### What changed
+- Production use showed an operational Financial Position staying on an older cached balance because Wealth Engine rarely asked again. A later `/accounts/get` of the same cached source already contained the newer cents, and WE-RECONCILE-001B2 propagated that stored evidence. Acceptance of 001B2 is unchanged and still pending.
+- A signed-in document that is visible, or becomes visible, now asks `POST /api/plaid/observe-balances` when this page has no applied balance recording in the last 60 seconds. That window matches the balance-evidence query staleTime. It lives in page memory only. A failure or a not-applied result does not start it. A hidden document does not ask. There is no interval.
+- The route reuses `recordPlaidBalanceObservations` for the session user's Items. It does not sync transactions and does not use `CRON_SECRET`. The daily `GET` cron is unchanged. Foreground transaction sync does not record balances. Visibility owns that ask, including when sync succeeds, fails, or is incomplete. An Item connected after the first ready list asks the same owner once and does not wait out the 60-second window. A hidden document still does not ask.
+- An applied result invalidates the existing descriptor, observation, and association queries. Money Available still comes from that evidence. Phone Home does not gain an observation time: Money Available can mix accounts whose evidence times differ, and one timestamp would not describe the figure.
+- `/accounts/get` remains cached. There is no live balance product, webhook, poll, new persistence, or vault write. Production acceptance is pending.
+
+### Validation
+- Focused tests passed: `foreground-balance-refresh.test.ts`, `background-balance-observation.test.ts`, `plaid-foreground-sync.test.ts`, `balance-observation.test.ts`, `plaid-account-identity.test.ts`, and `effective-financial-position.test.ts`, 6 files, 103 tests.
+- The full suite passed: 34 files, 453 tests.
+- `tsc --noEmit`, lint, the production build, and `git diff --check` passed.
+
+### Not in this tranche
+- No cron change. No `/accounts/balance/get`. No `/transactions/refresh`. No Month Close or Honesty Report work.
+
 ## 2026-09-27 — WE-RECONCILE-001B2 effective financial position
 
 ### What changed

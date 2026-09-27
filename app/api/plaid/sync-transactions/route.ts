@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { recordPlaidBalanceObservations } from "@/lib/babylon/plaid-balance-record";
 import { bootstrapPlaidAccountIdentityIfAbsent } from "@/lib/babylon/plaid-account-bootstrap";
 import { createSupabasePlaidObservationStore } from "@/lib/babylon/plaid-observation-store";
 import { fetchPlaidTransactionSyncPage } from "@/lib/babylon/plaid-sync-fetch";
@@ -53,11 +52,6 @@ export async function POST(request: Request) {
 
   if (outcome.status === "synced" || outcome.status === "incomplete") {
     await bootstrapPlaidAccountIdentityIfAbsent({
-      service,
-      userId: auth.user.id,
-      itemRowId,
-    });
-    await recordPlaidBalanceObservations({
       service,
       userId: auth.user.id,
       itemRowId,

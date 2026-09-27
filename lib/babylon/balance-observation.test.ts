@@ -391,10 +391,8 @@ describe("balance observation", () => {
     expect(record).not.toContain("/accounts/balance/get");
     expect(fetch).not.toContain("/accounts/balance/get");
     expect(fetch).toContain('"/accounts/get"');
+    expect(route).not.toContain("recordPlaidBalanceObservations");
     expect(route.indexOf("await bootstrapPlaidAccountIdentityIfAbsent")).toBeLessThan(
-      route.indexOf("await recordPlaidBalanceObservations")
-    );
-    expect(route.indexOf("await recordPlaidBalanceObservations")).toBeLessThan(
       route.indexOf("plaidSyncHttpResult(outcome)")
     );
     expect(route).not.toContain("transactions_cursor");
