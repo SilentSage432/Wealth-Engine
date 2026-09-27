@@ -120,7 +120,7 @@ describe("background balance observation", () => {
         { id: ITEM_B, user_id: OWNER_B },
       ])
     );
-    recordPlaidBalanceObservations.mockResolvedValue(undefined);
+    recordPlaidBalanceObservations.mockResolvedValue("applied");
 
     const response = await GET(
       request(
@@ -131,7 +131,7 @@ describe("background balance observation", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store");
     const body = await response.json();
-    expect(body).toEqual({ items: 2, attempted: 2 });
+    expect(body).toEqual({ items: 2, attempted: 2, applied: 2, notApplied: 0 });
     const text = JSON.stringify(body);
     expect(text).not.toContain(OWNER_A);
     expect(text).not.toContain(OWNER_B);
@@ -162,13 +162,18 @@ describe("background balance observation", () => {
     );
     recordPlaidBalanceObservations
       .mockRejectedValueOnce(new Error(`token ${ITEM_A} cents 44025`))
-      .mockResolvedValueOnce(undefined);
+      .mockResolvedValueOnce("applied");
 
     const response = await GET(
       request("https://wealth-engine.example/api/plaid/observe-balances", `Bearer ${SECRET}`)
     );
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ items: 2, attempted: 2 });
+    expect(await response.json()).toEqual({
+      items: 2,
+      attempted: 2,
+      applied: 1,
+      notApplied: 1,
+    });
     expect(recordPlaidBalanceObservations).toHaveBeenCalledTimes(2);
     const logged = errorLog.mock.calls.map((call) => call.map(String).join(" ")).join("\n");
     expect(logged).toContain("[plaid] background balance observation failed.");
@@ -233,10 +238,22 @@ describe("authoritative item rows", () => {
       record: async (item) => {
         seen.push(item.id);
         if (item.id === ITEM_A) throw new Error("access-token 8800");
+        return "applied";
       },
     });
-    expect(summary).toEqual({ items: 2, attempted: 2 });
+    expect(summary).toEqual({ items: 2, attempted: 2, applied: 1, notApplied: 1 });
     expect(seen).toEqual([ITEM_A, ITEM_B]);
+  });
+
+  it("counts a not-applied Item without stopping the next", async () => {
+    const summary = await observeBackgroundBalances({
+      items: [
+        { id: ITEM_A, userId: OWNER_A },
+        { id: ITEM_B, userId: OWNER_B },
+      ],
+      record: async (item) => (item.id === ITEM_A ? "not-applied" : "applied"),
+    });
+    expect(summary).toEqual({ items: 2, attempted: 2, applied: 1, notApplied: 1 });
   });
 });
 
@@ -348,6 +365,11 @@ describe("WE-ATTENTION-008 repository boundary", () => {
     expect(meaning).not.toContain("recordPlaidBalanceObservations");
     expect(syncRoute).toContain("syncPlaidItemObservations");
     expect(syncRoute).not.toContain("observe-balances");
+    expect(syncRoute).toContain("await recordPlaidBalanceObservations");
+    expect(syncRoute).not.toContain("not-applied");
+    expect(syncRoute.indexOf("plaidSyncHttpResult(outcome)")).toBeGreaterThan(
+      syncRoute.indexOf("await recordPlaidBalanceObservations")
+    );
     const crons = JSON.parse(vercel) as {
       crons: { path: string; schedule: string }[];
     };

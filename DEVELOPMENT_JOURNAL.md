@@ -1,5 +1,11 @@
 # Development Journal
 
+## 2026-09-27 — WE-ATTENTION-008A recorder outcome contract
+
+### What changed
+- WE-ATTENTION-008 is deployed. Production acceptance remains pending. The first cron wake returned HTTP 200, and a known account's Stored timestamp did not advance. Route completion did not establish that the recorder committed an observation. The root cause of that miss is not identified.
+- `recordPlaidBalanceObservations` now returns `applied` only when `apply_plaid_balance_observations` returns its accepted success result, and `not-applied` on every earlier exit. The cron counts `items`, `attempted`, `applied`, and `notApplied`. Foreground sync still ignores that result and keeps its previous HTTP contract. No balance semantics, schema, Attention, or notification change.
+
 ## 2026-09-27 — WE-ATTENTION-008 daily cached balance observation
 
 ### What changed

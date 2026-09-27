@@ -56,7 +56,12 @@ export async function GET(request: Request) {
   return json(summary, 200);
 }
 
-function json(body: { error: string } | { items: number; attempted: number }, status: number) {
+function json(
+  body:
+    | { error: string }
+    | { items: number; attempted: number; applied: number; notApplied: number },
+  status: number
+) {
   return NextResponse.json(body, {
     status,
     headers: { "Cache-Control": "no-store" },

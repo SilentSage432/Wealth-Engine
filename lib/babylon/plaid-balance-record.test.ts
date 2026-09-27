@@ -61,14 +61,18 @@ describe("recordPlaidBalanceObservations", () => {
     errorLog.mockClear();
   });
 
-  it("leaves the previous observation untouched when the cached read fails", async () => {
-    const gateway = serviceFor({ token: TOKEN });
-    fetchPlaidAccountBalances.mockResolvedValue({ ok: false });
-    await recordPlaidBalanceObservations({
+  async function record(gateway: ReturnType<typeof serviceFor>) {
+    return recordPlaidBalanceObservations({
       service: gateway.client as never,
       userId: USER,
       itemRowId: ITEM,
     });
+  }
+
+  it("returns not-applied when the cached read fails and does not call storage", async () => {
+    const gateway = serviceFor({ token: TOKEN });
+    fetchPlaidAccountBalances.mockResolvedValue({ ok: false });
+    await expect(record(gateway)).resolves.toBe("not-applied");
     expect(gateway.eqs).toEqual([
       ["id", ITEM],
       ["user_id", USER],
@@ -82,7 +86,36 @@ describe("recordPlaidBalanceObservations", () => {
     expect(logged).not.toContain(ITEM);
   });
 
-  it("loads the token only for the matching Item and owner", async () => {
+  it("returns not-applied when the token lookup fails or the token is blank", async () => {
+    fetchPlaidAccountBalances.mockResolvedValue({ ok: true, accounts: [] });
+    const failed = serviceFor({ error: true });
+    await expect(record(failed)).resolves.toBe("not-applied");
+    const missing = serviceFor({});
+    await expect(record(missing)).resolves.toBe("not-applied");
+    const blank = serviceFor({ token: "   " });
+    await expect(record(blank)).resolves.toBe("not-applied");
+    expect(fetchPlaidAccountBalances).not.toHaveBeenCalled();
+    expect(failed.rpc).not.toHaveBeenCalled();
+    expect(missing.rpc).not.toHaveBeenCalled();
+    expect(blank.rpc).not.toHaveBeenCalled();
+  });
+
+  it("returns not-applied when storage fails or does not accept the payload", async () => {
+    fetchPlaidAccountBalances.mockResolvedValue({ ok: true, accounts: [] });
+    const rpcError = serviceFor({
+      token: TOKEN,
+      rpc: vi.fn(async () => ({ data: null, error: { code: "XX000" } })),
+    });
+    await expect(record(rpcError)).resolves.toBe("not-applied");
+    const rejected = serviceFor({
+      token: TOKEN,
+      rpc: vi.fn(async () => ({ data: { status: "forbidden" }, error: null })),
+    });
+    await expect(record(rejected)).resolves.toBe("not-applied");
+    expect(errorLog.mock.calls.map((call) => String(call[0]))).not.toContain(TOKEN);
+  });
+
+  it("returns applied only when the observation RPC accepts the payload", async () => {
     const gateway = serviceFor({ token: TOKEN });
     fetchPlaidAccountBalances.mockResolvedValue({
       ok: true,
@@ -98,11 +131,7 @@ describe("recordPlaidBalanceObservations", () => {
         },
       ],
     });
-    await recordPlaidBalanceObservations({
-      service: gateway.client as never,
-      userId: USER,
-      itemRowId: ITEM,
-    });
+    await expect(record(gateway)).resolves.toBe("applied");
     expect(gateway.rpc).toHaveBeenCalledTimes(1);
     expect(gateway.rpc.mock.calls[0]?.[0]).toBe("apply_plaid_balance_observations");
     expect(gateway.rpc.mock.calls[0]?.[1]).toMatchObject({ actor_user_id: USER });

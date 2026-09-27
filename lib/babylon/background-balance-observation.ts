@@ -1,3 +1,5 @@
+import type { BalanceObservationRecordResult } from "@/lib/babylon/plaid-balance-record";
+
 /**
  * Daily server wake for cached balance observation.
  * Enumerates owner/Item pairs and calls the existing recorder.
@@ -12,6 +14,8 @@ export type BackgroundBalanceItem = {
 export type BackgroundBalanceSummary = {
   items: number;
   attempted: number;
+  applied: number;
+  notApplied: number;
 };
 
 /**
@@ -35,20 +39,24 @@ export function readPlaidItemOwners(rows: unknown): BackgroundBalanceItem[] | nu
 
 /**
  * One attempt per authoritative pair. A thrown recorder does not stop the rest.
- * The recorder itself swallows Plaid and storage failures and leaves the prior row.
+ * `applied` counts only a recorder result that the observation RPC committed.
  */
 export async function observeBackgroundBalances(input: {
   items: readonly BackgroundBalanceItem[];
-  record: (item: BackgroundBalanceItem) => Promise<void>;
+  record: (item: BackgroundBalanceItem) => Promise<BalanceObservationRecordResult>;
 }): Promise<BackgroundBalanceSummary> {
   let attempted = 0;
+  let applied = 0;
+  let notApplied = 0;
   for (const item of input.items) {
     attempted += 1;
     try {
-      await input.record(item);
+      if ((await input.record(item)) === "applied") applied += 1;
+      else notApplied += 1;
     } catch {
+      notApplied += 1;
       console.error("[plaid] background balance observation failed.");
     }
   }
-  return { items: input.items.length, attempted };
+  return { items: input.items.length, attempted, applied, notApplied };
 }
