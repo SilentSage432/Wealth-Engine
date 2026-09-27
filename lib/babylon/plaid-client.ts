@@ -1,6 +1,14 @@
 "use client";
 
 import {
+  ACCOUNT_ASSOCIATION_COLUMNS,
+  BALANCE_OBSERVATION_COLUMNS,
+  toAccountAssociationPublic,
+  toBalanceObservationPublic,
+  type AccountAssociationPublic,
+  type BalanceObservationPublic,
+} from "@/lib/babylon/balance-observation";
+import {
   isTeachableObservation,
   PLAID_CONFIRMATION_COLUMNS,
   toObservationConfirmation,
@@ -242,6 +250,59 @@ export async function listPlaidAccounts(): Promise<PlaidAccountPublic[]> {
   }
 }
 
+/** Current cached balance observations. Superseded rows stay in the table. */
+export async function listCurrentBalanceObservations(): Promise<
+  BalanceObservationPublic[]
+> {
+  try {
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) return [];
+
+    const { data, error } = await supabase
+      .from("plaid_balance_observations")
+      .select(BALANCE_OBSERVATION_COLUMNS)
+      .eq("state", "current");
+
+    if (error || !data) {
+      console.error("[plaid] list balance observations failed.");
+      return [];
+    }
+
+    return data.flatMap((row) => {
+      const observation = toBalanceObservationPublic(row);
+      return observation ? [observation] : [];
+    });
+  } catch {
+    console.error("[plaid] list balance observations failed.");
+    return [];
+  }
+}
+
+/** Steward account links. This does not read the vault. */
+export async function listAccountAssociations(): Promise<AccountAssociationPublic[]> {
+  try {
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) return [];
+
+    const { data, error } = await supabase
+      .from("plaid_account_associations")
+      .select(ACCOUNT_ASSOCIATION_COLUMNS);
+
+    if (error || !data) {
+      console.error("[plaid] list account associations failed.");
+      return [];
+    }
+
+    return data.flatMap((row) => {
+      const association = toAccountAssociationPublic(row);
+      return association ? [association] : [];
+    });
+  } catch {
+    console.error("[plaid] list account associations failed.");
+    return [];
+  }
+}
+
 /**
  * Current Plaid observations for the signed-in user.
  * Removed rows are omitted. This does not read or write the financial vault.
@@ -357,8 +418,10 @@ function readConfirmationResult(value: unknown): ConfirmationWriteResult | null 
  * The signed-in session is the owner. Evidence and the category name are
  * read inside the database function. The caller sends only the two ids.
  */
-async function writeConfirmation(
-  call: () => Promise<{ data: unknown; error: { message: string } | null }>
+async function writeOwnerFact(
+  call: () => Promise<{ data: unknown; error: { message: string } | null }>,
+  failureMessage: (reason: string | undefined) => string,
+  logLabel: string
 ): Promise<ConfirmationWriteResult | null> {
   try {
     const supabase = getSupabaseBrowserClient();
@@ -371,10 +434,10 @@ async function writeConfirmation(
     }
     const { data, error } = await call();
     if (error) {
-      console.error("[plaid] confirmation write failed.", error);
+      console.error(logLabel);
       emitVaultToast({
         tone: "error",
-        message: "Wealth Engine could not record that meaning.",
+        message: failureMessage(undefined),
       });
       return null;
     }
@@ -382,19 +445,29 @@ async function writeConfirmation(
     if (!result || result.status === "rejected") {
       emitVaultToast({
         tone: "error",
-        message: confirmationFailureMessage(result?.reason),
+        message: failureMessage(result?.reason),
       });
       return result;
     }
     return result;
-  } catch (err) {
-    console.error("[plaid] confirmation write crashed.", err);
+  } catch {
+    console.error(logLabel);
     emitVaultToast({
       tone: "error",
       message: plaidUserMessage("network"),
     });
     return null;
   }
+}
+
+async function writeConfirmation(
+  call: () => Promise<{ data: unknown; error: { message: string } | null }>
+): Promise<ConfirmationWriteResult | null> {
+  return writeOwnerFact(
+    call,
+    confirmationFailureMessage,
+    "[plaid] confirmation write failed."
+  );
 }
 
 /** Confirm, or supersede, one observation as an existing budget category. */
@@ -410,6 +483,56 @@ export async function confirmPlaidObservationMeaning(
       target_budget_id: budgetTargetId,
     });
   });
+}
+
+function associationFailureMessage(reason: string | undefined): string {
+  if (reason === "account_not_in_vault") {
+    return "Wealth Engine has not saved that account yet.";
+  }
+  if (reason === "ineligible_account") {
+    return "Only a checking or savings account can be linked.";
+  }
+  if (reason === "already_associated") {
+    return "That account is already linked. Remove the link first.";
+  }
+  if (reason === "unauthenticated") return plaidUserMessage("unauthorized");
+  return "Wealth Engine could not link those accounts.";
+}
+
+/** Confirm one vault account corresponds to one Plaid account. */
+export async function associatePlaidFinancialAccount(
+  financialAccountId: string,
+  plaidAccountId: string
+): Promise<ConfirmationWriteResult | null> {
+  return writeOwnerFact(
+    async () => {
+      const supabase = getSupabaseBrowserClient();
+      if (!supabase) return { data: null, error: { message: "no session" } };
+      return supabase.rpc("associate_plaid_financial_account", {
+        target_financial_account_id: financialAccountId,
+        target_plaid_account_id: plaidAccountId,
+      });
+    },
+    associationFailureMessage,
+    "[plaid] account association failed."
+  );
+}
+
+/** Remove one steward link. The balance observation stays. */
+export async function removePlaidFinancialAccountAssociation(
+  financialAccountId: string
+): Promise<ConfirmationWriteResult | null> {
+  return writeOwnerFact(
+    async () => {
+      const supabase = getSupabaseBrowserClient();
+      if (!supabase) return { data: null, error: { message: "no session" } };
+      return supabase.rpc("remove_plaid_financial_account_association", {
+        target_financial_account_id: financialAccountId,
+      });
+    },
+    associationFailureMessage,
+    "[plaid] account association removal failed."
+  );
 }
 
 /** Revoke the current confirmation. Historical rows stay. */

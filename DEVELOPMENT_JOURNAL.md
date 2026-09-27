@@ -1,5 +1,20 @@
 # Development Journal
 
+## 2026-09-26 — WE-BALANCE-001 minimum balance observation
+
+### What changed
+- A signed-in foreground sync can now keep a cached Plaid balance without making that balance Financial Position. After a successful transaction sync, the server calls `/accounts/get` even when descriptors already exist. Depository checking and savings readings store `current` and `available` separately, with currency and the time Wealth Engine stored them. The source is `accounts_get`. Identity parsing still drops balances. The transaction cursor does not move. `/accounts/balance/get` is not called.
+- An unchanged reading refreshes the stored time. A change in current, available, or currency keeps one superseded predecessor and does not grow a series.
+- The steward associates one vault checking or savings account with one Plaid depository checking or savings account. The link is stored outside the vault. Cash and credit cannot be linked. A second live link in either direction is rejected. A link whose vault account is gone can be replaced. Name and mask are not used.
+- The account row shows the observed current, the storage time, and the signed cent difference when the two figures differ. Zero shows no accept action. Unknown stays unknown. Accept writes the observed current into that account and sets `asOf` to the local civil date through the existing vault update. A negative current cannot be accepted. Available is never the accepted figure.
+- Opening or reloading Wealth Engine is the refresh. There is no new timer, cron, notification, Home Attention, reconciliation, or Intelligence Contract field.
+
+### Production status
+- The steward manually applied `20261002_plaid_balance_observation.sql` on Wealth_Engine (`nklmgzxxdhuvqayhcigp`). The SQL Editor reported success. Application deployment is pending this ship. Manual production acceptance of a real association and observed balance is still pending.
+
+### Confirmed meaning record
+- WE-MEANING-001 is production accepted. The steward manually applied `20261001_plaid_confirmed_meaning.sql`. The implementation is deployed. Manual acceptance succeeded on a real Amazon Prime observation, and the confirmation persisted across close and reopen.
+
 ## 2026-09-26 — WE-MEANING-001 confirmed meaning
 
 ### What changed

@@ -11,6 +11,7 @@
  * - `supabase/migrations/20260929_notification_foundation.sql`
  * - `supabase/migrations/20260930_notification_deliveries.sql`
  * - `supabase/migrations/20261001_plaid_confirmed_meaning.sql`
+ * - `supabase/migrations/20261002_plaid_balance_observation.sql`
  */
 
 export type IncomeStreamKindDb =
@@ -428,6 +429,69 @@ export interface Database {
         };
         Relationships: [];
       };
+      plaid_balance_observations: {
+        Row: {
+          id: string;
+          user_id: string;
+          plaid_account_id: string;
+          current_cents: number | null;
+          available_cents: number | null;
+          iso_currency_code: string | null;
+          unofficial_currency_code: string | null;
+          observed_at: string;
+          source: string;
+          state: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          plaid_account_id: string;
+          current_cents?: number | null;
+          available_cents?: number | null;
+          iso_currency_code?: string | null;
+          unofficial_currency_code?: string | null;
+          observed_at?: string;
+          source: string;
+          state: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          plaid_account_id?: string;
+          current_cents?: number | null;
+          available_cents?: number | null;
+          iso_currency_code?: string | null;
+          unofficial_currency_code?: string | null;
+          observed_at?: string;
+          source?: string;
+          state?: string;
+        };
+        Relationships: [];
+      };
+      plaid_account_associations: {
+        Row: {
+          id: string;
+          user_id: string;
+          financial_account_id: string;
+          plaid_account_id: string;
+          confirmed_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          financial_account_id: string;
+          plaid_account_id: string;
+          confirmed_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          financial_account_id?: string;
+          plaid_account_id?: string;
+          confirmed_at?: string;
+        };
+        Relationships: [];
+      };
       notification_preferences: {
         Row: {
           user_id: string;
@@ -605,6 +669,26 @@ export interface Database {
       revoke_plaid_observation_confirmation: {
         Args: {
           target_plaid_transaction_id: string;
+        };
+        Returns: Json;
+      };
+      apply_plaid_balance_observations: {
+        Args: {
+          actor_user_id: string;
+          observations: Json;
+        };
+        Returns: Json;
+      };
+      associate_plaid_financial_account: {
+        Args: {
+          target_financial_account_id: string;
+          target_plaid_account_id: string;
+        };
+        Returns: Json;
+      };
+      remove_plaid_financial_account_association: {
+        Args: {
+          target_financial_account_id: string;
         };
         Returns: Json;
       };

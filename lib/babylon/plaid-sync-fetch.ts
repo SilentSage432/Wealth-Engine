@@ -1,5 +1,9 @@
 import "server-only";
 
+import {
+  parsePlaidBalanceGetResponse,
+  type PlaidBalanceDraft,
+} from "@/lib/babylon/balance-observation";
 import { plaidFetch } from "@/lib/babylon/plaid-server";
 import {
   parsePlaidAccountsGetResponse,
@@ -33,6 +37,22 @@ export async function fetchPlaidAccountIdentity(args: {
   });
   if (!result.ok) return { ok: false };
   const accounts = parsePlaidAccountsGetResponse(result.data);
+  if (!accounts) return { ok: false };
+  return { ok: true, accounts };
+}
+
+/**
+ * Cached balances from /accounts/get. Identity parsing stays separate and
+ * still drops balances. This does not request a live balance pull.
+ */
+export async function fetchPlaidAccountBalances(args: {
+  accessToken: string;
+}): Promise<{ ok: true; accounts: PlaidBalanceDraft[] } | { ok: false }> {
+  const result = await plaidFetch<unknown>("/accounts/get", {
+    access_token: args.accessToken,
+  });
+  if (!result.ok) return { ok: false };
+  const accounts = parsePlaidBalanceGetResponse(result.data);
   if (!accounts) return { ok: false };
   return { ok: true, accounts };
 }

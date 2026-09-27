@@ -31,9 +31,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  acceptObservedBalance,
+  depositoryChoiceLabel,
+  describeAccountBalance,
+  unassociatedDepositoryAccountIds,
+  type AccountAssociationPublic,
+  type AccountBalanceView,
+  type BalanceObservationPublic,
+} from "@/lib/babylon/balance-observation";
 import { ACCOUNT_KIND_LABELS } from "@/lib/babylon/constants";
 import { formatDiscreetCurrency } from "@/lib/babylon/discreet";
 import { todayIso } from "@/lib/babylon/engine";
+import type { PlaidAccountPublic, PlaidItemPublic } from "@/lib/babylon/plaid-schema";
 import {
   FINANCIAL_ACCOUNT_KINDS,
   formatAsOfLabel,
@@ -45,6 +55,17 @@ import type {
   FinancialAccountInput,
   FinancialAccountKind,
 } from "@/types/babylon";
+
+export interface FinancialPositionBalanceObservation {
+  enabled: boolean;
+  settled: boolean;
+  plaidAccounts: readonly PlaidAccountPublic[];
+  institutions: readonly Pick<PlaidItemPublic, "id" | "institutionName">[];
+  observations: readonly BalanceObservationPublic[];
+  associations: readonly AccountAssociationPublic[];
+  onAssociate: (financialAccountId: string, plaidAccountId: string) => Promise<boolean>;
+  onRemoveAssociation: (financialAccountId: string) => Promise<boolean>;
+}
 
 interface FinancialPositionProps {
   accounts: FinancialAccount[];
@@ -63,6 +84,8 @@ interface FinancialPositionProps {
   onRemoveAccount: (id: string) => void;
   onUpdateProtected: (wealth: number, emergency: number) => string | null;
   onEditorOpenChange?: (open: boolean) => void;
+  /** Present when the signed-in steward can see cached bank balances. */
+  balanceObservation?: FinancialPositionBalanceObservation;
 }
 
 const EMPTY_DRAFT = {
@@ -71,6 +94,180 @@ const EMPTY_DRAFT = {
   balance: "",
   asOf: "",
 };
+
+function formatStoredAt(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "time unknown";
+  return date.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+function signedDifference(cents: number, money: (value: number) => string): string {
+  const amount = money(Math.abs(cents) / 100);
+  if (cents > 0) return `+${amount}`;
+  if (cents < 0) return `−${amount}`;
+  return amount;
+}
+
+function AccountObservation({
+  account,
+  balanceObservation,
+  linkChoice,
+  linking,
+  liveFinancialAccountIds,
+  money,
+  onLinkChoice,
+  onAssociate,
+  onRemoveAssociation,
+  onAccept,
+}: {
+  account: FinancialAccount;
+  balanceObservation: FinancialPositionProps["balanceObservation"];
+  linkChoice: string | undefined;
+  linking: boolean;
+  liveFinancialAccountIds: readonly string[];
+  money: (value: number) => string;
+  onLinkChoice: (plaidAccountId: string) => void;
+  onAssociate: () => void;
+  onRemoveAssociation: () => void;
+  onAccept: () => void;
+}) {
+  if (!balanceObservation?.enabled || !balanceObservation.settled) return null;
+  const association =
+    balanceObservation.associations.find(
+      (row) => row.financialAccountId === account.id
+    ) ?? null;
+  const plaidAccount = association
+    ? balanceObservation.plaidAccounts.find(
+        (row) => row.plaidAccountId === association.plaidAccountId
+      ) ?? null
+    : null;
+  const observation = association
+    ? balanceObservation.observations.find(
+        (row) => row.plaidAccountId === association.plaidAccountId
+      ) ?? null
+    : null;
+  const view: AccountBalanceView = describeAccountBalance({
+    account,
+    associatedPlaidAccountId: association?.plaidAccountId ?? null,
+    accountType: plaidAccount?.accountType ?? null,
+    subtype: plaidAccount?.subtype ?? null,
+    observation,
+  });
+  if (view.status === "hidden") return null;
+
+  const ownerId =
+    balanceObservation.plaidAccounts[0]?.userId ??
+    balanceObservation.associations[0]?.userId ??
+    balanceObservation.observations[0]?.userId ??
+    "";
+  const choiceIds =
+    view.status === "unlinked"
+      ? unassociatedDepositoryAccountIds({
+          userId: ownerId,
+          plaidAccounts: balanceObservation.plaidAccounts,
+          associations: balanceObservation.associations,
+          liveFinancialAccountIds,
+        })
+      : [];
+  const institutions = new Map(
+    balanceObservation.institutions.map((item) => [item.id, item.institutionName])
+  );
+
+  return (
+    <div className="basis-full space-y-2">
+      {view.status === "unlinked" ? (
+        choiceIds.length === 0 ? (
+          <p className="text-[11px] leading-relaxed text-slate-500">
+            No unlinked checking or savings account is available.
+          </p>
+        ) : (
+          <div className="flex flex-wrap items-center gap-2">
+            <Select value={linkChoice} onValueChange={onLinkChoice}>
+              <SelectTrigger
+                className="h-8 w-full max-w-xs text-xs"
+                aria-label={`Link ${account.name}`}
+              >
+                <SelectValue placeholder="Choose account" />
+              </SelectTrigger>
+              <SelectContent>
+                {choiceIds.map((plaidAccountId) => {
+                  const choice = balanceObservation.plaidAccounts.find(
+                    (row) => row.plaidAccountId === plaidAccountId
+                  );
+                  if (!choice) return null;
+                  return (
+                    <SelectItem key={plaidAccountId} value={plaidAccountId}>
+                      {depositoryChoiceLabel({
+                        name: choice.name,
+                        mask: choice.mask,
+                        subtype: choice.subtype,
+                        institutionName: institutions.get(choice.plaidItemId) ?? null,
+                      })}
+                    </SelectItem>
+                  );
+                })}
+              </SelectContent>
+            </Select>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={!linkChoice || linking}
+              onClick={onAssociate}
+            >
+              Associate
+            </Button>
+          </div>
+        )
+      ) : null}
+      {view.status === "unknown" ? (
+        <p className="text-[11px] leading-relaxed text-slate-500">
+          Observed balance is unknown.
+        </p>
+      ) : null}
+      {view.status === "match" ? (
+        <p className="text-[11px] leading-relaxed text-slate-500">
+          Observed {money(view.currentCents / 100)}. Stored {formatStoredAt(view.observedAt)}.
+        </p>
+      ) : null}
+      {view.status === "differs" ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-[11px] leading-relaxed text-slate-400">
+            Observed {money(view.currentCents / 100)}. Stored{" "}
+            {formatStoredAt(view.observedAt)}. Difference{" "}
+            {signedDifference(view.differenceCents, money)}.
+          </p>
+          {view.canAccept ? (
+            <Button type="button" size="sm" onClick={onAccept}>
+              Accept observed balance
+            </Button>
+          ) : (
+            <p className="text-[11px] leading-relaxed text-amber-200">
+              This observed balance is negative, so it cannot be accepted.
+            </p>
+          )}
+        </div>
+      ) : null}
+      {view.status !== "unlinked" ? (
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          className="h-7 px-2 text-[11px] text-slate-500"
+          disabled={linking}
+          onClick={onRemoveAssociation}
+        >
+          Remove link
+        </Button>
+      ) : null}
+    </div>
+  );
+}
 
 export function FinancialPosition({
   accounts,
@@ -88,6 +285,7 @@ export function FinancialPosition({
   onRemoveAccount,
   onUpdateProtected,
   onEditorOpenChange,
+  balanceObservation,
 }: FinancialPositionProps) {
   const money = (value: number) =>
     formatDiscreetCurrency(value, discreet, formatCurrency);
@@ -99,6 +297,8 @@ export function FinancialPosition({
   const [pendingRemove, setPendingRemove] = useState<FinancialAccount | null>(
     null
   );
+  const [linkChoice, setLinkChoice] = useState<Record<string, string>>({});
+  const [linkingId, setLinkingId] = useState<string | null>(null);
   const [protectedOpen, setProtectedOpen] = useState(false);
   const [wealthDraft, setWealthDraft] = useState("");
   const [emergencyDraft, setEmergencyDraft] = useState("");
@@ -217,6 +417,66 @@ export function FinancialPosition({
                 <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
               </Button>
             </div>
+            <AccountObservation
+              account={account}
+              balanceObservation={balanceObservation}
+              linkChoice={linkChoice[account.id]}
+              linking={linkingId === account.id}
+              liveFinancialAccountIds={accounts.map((row) => row.id)}
+              money={money}
+              onLinkChoice={(plaidAccountId) =>
+                setLinkChoice((prev) => ({ ...prev, [account.id]: plaidAccountId }))
+              }
+              onAssociate={async () => {
+                const plaidAccountId = linkChoice[account.id];
+                if (!plaidAccountId || !balanceObservation || linkingId) return;
+                setLinkingId(account.id);
+                const ok = await balanceObservation.onAssociate(
+                  account.id,
+                  plaidAccountId
+                );
+                if (ok) {
+                  setLinkChoice((prev) => {
+                    const next = { ...prev };
+                    delete next[account.id];
+                    return next;
+                  });
+                }
+                setLinkingId(null);
+              }}
+              onRemoveAssociation={async () => {
+                if (!balanceObservation || linkingId) return;
+                setLinkingId(account.id);
+                await balanceObservation.onRemoveAssociation(account.id);
+                setLinkingId(null);
+              }}
+              onAccept={() => {
+                if (!balanceObservation) return;
+                const association = balanceObservation.associations.find(
+                  (row) => row.financialAccountId === account.id
+                );
+                const plaidAccount = association
+                  ? balanceObservation.plaidAccounts.find(
+                      (row) => row.plaidAccountId === association.plaidAccountId
+                    )
+                  : undefined;
+                const observation = association
+                  ? balanceObservation.observations.find(
+                      (row) => row.plaidAccountId === association.plaidAccountId
+                    )
+                  : undefined;
+                const accepted = acceptObservedBalance({
+                  account,
+                  associated: Boolean(association),
+                  accountType: plaidAccount?.accountType ?? null,
+                  subtype: plaidAccount?.subtype ?? null,
+                  observation: observation ?? null,
+                  today: todayIso(),
+                });
+                if (!accepted) return;
+                onUpdateAccount(account.id, accepted);
+              }}
+            />
           </li>
         ))}
       </ul>
@@ -529,7 +789,14 @@ export function FinancialPosition({
             <AlertDialogAction
               className="bg-rose-600 text-white shadow-sm hover:bg-rose-500 focus-visible:ring-rose-500/60"
               onClick={() => {
-                if (pendingRemove) onRemoveAccount(pendingRemove.id);
+                if (!pendingRemove) return;
+                const linked = balanceObservation?.associations.some(
+                  (row) => row.financialAccountId === pendingRemove.id
+                );
+                if (linked) {
+                  void balanceObservation?.onRemoveAssociation(pendingRemove.id);
+                }
+                onRemoveAccount(pendingRemove.id);
                 setPendingRemove(null);
               }}
             >

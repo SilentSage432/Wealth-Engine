@@ -5,7 +5,10 @@ import { CalendarCheck } from "lucide-react";
 import { ConnectedBanksCard } from "@/components/babylon/connected-banks-card";
 import { ObservationTeaching } from "@/components/babylon/observation-teaching";
 import { DeviceNotifications } from "@/components/babylon/device-notifications";
-import { FinancialPosition } from "@/components/babylon/financial-position";
+import {
+  FinancialPosition,
+  type FinancialPositionBalanceObservation,
+} from "@/components/babylon/financial-position";
 import {
   AllocationReference,
   VaultCloudSession,
@@ -64,6 +67,7 @@ interface MobileMoreProps {
   onRemoveAccount: (id: string) => void;
   onUpdateProtected: (wealth: number, emergency: number) => string | null;
   onEditorOpenChange?: (open: boolean) => void;
+  balanceObservation?: FinancialPositionBalanceObservation;
 }
 
 function GroupHeading({ children }: { children: string }) {
@@ -114,6 +118,7 @@ export function MobileMore({
   onRemoveAccount,
   onUpdateProtected,
   onEditorOpenChange,
+  balanceObservation,
 }: MobileMoreProps) {
   const [guidanceOpen, setGuidanceOpen] = useState(false);
   const [referenceOpen, setReferenceOpen] = useState(false);
@@ -149,6 +154,7 @@ export function MobileMore({
           onRemoveAccount={onRemoveAccount}
           onUpdateProtected={onUpdateProtected}
           onEditorOpenChange={onEditorOpenChange}
+          balanceObservation={balanceObservation}
         />
         <Button
           type="button"

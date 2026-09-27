@@ -3,6 +3,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  ACCOUNT_ASSOCIATION_QUERY_KEY,
+  BALANCE_OBSERVATION_QUERY_KEY,
+  PLAID_DESCRIPTOR_QUERY_KEY,
+} from "@/hooks/useBalanceObservation";
+import {
   createPlaidLinkTokenOrToast,
   listPlaidItems,
   requestPlaidObservationSync,
@@ -99,10 +104,15 @@ export function usePlaidConnections({ enabled }: UsePlaidConnectionsArgs) {
       itemsReady: itemsQuery.isSuccess && !itemsQuery.isFetching,
       itemIds: (itemsQuery.data ?? []).map((item) => item.id),
       request: (itemRowId) => {
-        void requestPlaidObservationSync(itemRowId);
+        void requestPlaidObservationSync(itemRowId).then((ok) => {
+          if (!ok) return;
+          void queryClient.invalidateQueries({ queryKey: BALANCE_OBSERVATION_QUERY_KEY });
+          void queryClient.invalidateQueries({ queryKey: PLAID_DESCRIPTOR_QUERY_KEY });
+          void queryClient.invalidateQueries({ queryKey: ACCOUNT_ASSOCIATION_QUERY_KEY });
+        });
       },
     });
-  }, [enabled, itemsQuery.data, itemsQuery.isFetching, itemsQuery.isSuccess]);
+  }, [enabled, itemsQuery.data, itemsQuery.isFetching, itemsQuery.isSuccess, queryClient]);
 
   return {
     items,

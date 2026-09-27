@@ -1,6 +1,7 @@
 /**
  * Financial Position — money that already exists.
- * Account balances are observations. They never enter 10/20/70.
+ * Account balances are what the steward says already exists. They never enter 10/20/70.
+ * A cached bank balance is a separate observation and does not write these balances.
  */
 
 import { roundMoney, todayIso } from "@/lib/babylon/engine";
