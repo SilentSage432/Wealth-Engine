@@ -1,9 +1,17 @@
 # Development Journal
 
+## 2026-09-27 — WE-ATTENTION-008 production acceptance
+
+### What changed
+- WE-ATTENTION-008 is production accepted. Wealth Engine woke in production and committed a cached Plaid balance observation while the application stayed closed. Financial Position was not changed. No balance was accepted. No association was created. No transaction sync, live balance pull, Attention, or notification was part of that wake.
+- Implementation is `0e79584e6fd54bd47d0de8eceb0a754011dabec3`. `GET /api/plaid/observe-balances` at `2026-09-27T07:13:15.446Z` returned HTTP 200. A current `plaid_balance_observations` row has `observed_at` later than that wake. HTTP 200 alone was not the acceptance evidence. The Vercel cron trigger did not retain the count body.
+- WE-ATTENTION-008A is deployed at `9713358663d7c0b7b509a2a1125ee668956ce3ca`. The recorder returns `applied` or `not-applied`, and the cron counts `items`, `attempted`, `applied`, and `notApplied`. The missing response body is the invocation tooling, not an 008A failure.
+- `plaid_account_associations` had no rows. An earlier WE-BALANCE-001 demonstration of a Financial Position association is not currently present. The cause is not established. That absence is separate from this acceptance. The label `active_item_no_observation` does not prove an association exists, because its CASE ELSE branch also matches an empty association table.
+
 ## 2026-09-27 — WE-ATTENTION-008A recorder outcome contract
 
 ### What changed
-- WE-ATTENTION-008 is deployed. Production acceptance remains pending. The first cron wake returned HTTP 200, and a known account's Stored timestamp did not advance. Route completion did not establish that the recorder committed an observation. The root cause of that miss is not identified.
+- WE-ATTENTION-008A adds the recorder outcome contract. Acceptance of background observation is recorded in the closeout above.
 - `recordPlaidBalanceObservations` now returns `applied` only when `apply_plaid_balance_observations` returns its accepted success result, and `not-applied` on every earlier exit. The cron counts `items`, `attempted`, `applied`, and `notApplied`. Foreground sync still ignores that result and keeps its previous HTTP contract. No balance semantics, schema, Attention, or notification change.
 
 ## 2026-09-27 — WE-ATTENTION-008 daily cached balance observation
@@ -11,7 +19,7 @@
 ### What changed
 - WE-BALANCE-001 production acceptance succeeded. A real associated account showed the observed balance, the storage time, the deterministic cent difference, and the Accept action. Financial Position changed only when the steward accepted.
 - Wealth Engine can now store that same cached `/accounts/get` reading once a day without a signed-in browser. `GET /api/plaid/observe-balances` reuses cron authorization, the canonical Wealth_Engine project check, and the service-role client. It lists `plaid_items` as `id, user_id` and calls the existing balance recorder. Vercel cron is `0 15 * * *`, beside the notification cron and not inside it.
-- A failed Item leaves the previous observation in place. Other Items are still attempted. The response is counts only. There is no transaction sync, no live balance pull, no vault write, no Accept, and no new Attention or notification. No new table or migration. WE-ATTENTION-008 is not production accepted.
+- A failed Item leaves the previous observation in place. Other Items are still attempted. The response is counts only. There is no transaction sync, no live balance pull, no vault write, no Accept, and no new Attention or notification. No new table or migration. Production acceptance is recorded in the closeout above.
 
 ## 2026-09-26 — WE-BALANCE-001 minimum balance observation
 
