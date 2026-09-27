@@ -51,6 +51,7 @@ interface MobileLedgerProps {
       budgetCategoryId: string;
       dueDay: number;
       isActive: boolean;
+      intervalMonths: number;
     }
   ) => boolean;
   discreet: boolean;
@@ -229,7 +230,10 @@ export function MobileLedger({
               ) : (
                 <ul className="space-y-2">
                   {expenses.map((row) => {
-                    const timing = phoneExpenseTiming(row);
+                    const rule = recurringObligations.find(
+                      (item) => item.id === row.recurringObligationId
+                    );
+                    const timing = phoneExpenseTiming(row, undefined, rule?.intervalMonths);
                     const bucket = categoryLabel(row.budgetCategoryId);
                     return (
                       <li

@@ -22,6 +22,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { INTERVAL_LABELS, STREAM_KIND_LABELS } from "@/lib/babylon/constants";
 import { isDueWithinWeek, isOverdue } from "@/lib/babylon/engine";
+import { obligationIntervalLabel } from "@/lib/babylon/recurring-obligations";
 import { cn, formatCurrency } from "@/lib/utils";
 import type {
   BudgetTarget,
@@ -60,6 +61,7 @@ interface LedgerMatricesProps {
       budgetCategoryId: string;
       dueDay: number;
       isActive: boolean;
+      intervalMonths: number;
     }
   ) => boolean;
 }
@@ -321,8 +323,11 @@ export function LedgerMatrices({
                             : dueSoon
                               ? "Due soon"
                               : "Upcoming";
+                        const rule = recurringObligations.find(
+                          (item) => item.id === row.recurringObligationId
+                        );
                         const statusLabel = row.recurringObligationId
-                          ? `Monthly · ${timing}`
+                          ? `${obligationIntervalLabel(rule?.intervalMonths)} · ${timing}`
                           : timing;
                         return (
                           <TableRow

@@ -20,6 +20,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import {
+  obligationIntervalChoices,
+  obligationIntervalLabel,
+  obligationIntervalMonths,
+} from "@/lib/babylon/recurring-obligations";
 import type {
   BudgetTarget,
   ExpenseEntry,
@@ -53,6 +58,7 @@ interface LedgerRecordEditorsProps {
       budgetCategoryId: string;
       dueDay: number;
       isActive: boolean;
+      intervalMonths: number;
     }
   ) => boolean;
   children: (api: LedgerRecordEditorApi) => ReactNode;
@@ -82,6 +88,7 @@ export function LedgerRecordEditors({
   const [ruleCategory, setRuleCategory] = useState<ExpenseKind>("need");
   const [ruleBudgetId, setRuleBudgetId] = useState("");
   const [ruleDueDay, setRuleDueDay] = useState("1");
+  const [ruleInterval, setRuleInterval] = useState("1");
   const [ruleActive, setRuleActive] = useState(true);
   const [ruleError, setRuleError] = useState<string | null>(null);
 
@@ -132,6 +139,7 @@ export function LedgerRecordEditors({
     setRuleCategory(rule.category);
     setRuleBudgetId(rule.budgetCategoryId);
     setRuleDueDay(String(rule.dueDay));
+    setRuleInterval(String(obligationIntervalMonths(rule)));
     setRuleActive(rule.isActive);
     setRuleError(null);
   };
@@ -146,6 +154,7 @@ export function LedgerRecordEditors({
       budgetCategoryId: ruleBudgetId,
       dueDay: Number.parseInt(ruleDueDay, 10),
       isActive: ruleActive,
+      intervalMonths: Number.parseInt(ruleInterval, 10),
     });
     if (!ok) {
       setRuleError("Check the name, amount, category, and due day.");
@@ -176,8 +185,8 @@ export function LedgerRecordEditors({
             <DialogHeader>
               <DialogTitle>Edit this month</DialogTitle>
               <DialogDescription>
-                This changes only this occurrence. The monthly rule keeps its
-                normal amount.
+                This changes only this occurrence. The rule keeps its normal
+                amount.
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-2">
@@ -231,10 +240,13 @@ export function LedgerRecordEditors({
         <DialogContent className="sm:max-w-md">
           <form onSubmit={submitRuleEdit} className="space-y-4">
             <DialogHeader>
-              <DialogTitle>Monthly bill</DialogTitle>
+              <DialogTitle>
+                {obligationIntervalLabel(Number.parseInt(ruleInterval, 10))} bill
+              </DialogTitle>
               <DialogDescription>
-                Changes apply to months generated after this save. Months
-                already on the ledger stay as they are.
+                Changes apply to due months generated after this save. Months
+                already on the ledger stay as they are. Months the rhythm
+                skips are not deleted months.
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-2">
@@ -295,6 +307,23 @@ export function LedgerRecordEditors({
               </div>
             </div>
             <div className="space-y-2">
+              <Label htmlFor="rule-frequency">Frequency</Label>
+              <Select value={ruleInterval} onValueChange={setRuleInterval}>
+                <SelectTrigger id="rule-frequency" aria-label="Frequency">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {obligationIntervalChoices(Number.parseInt(ruleInterval, 10)).map(
+                    (interval) => (
+                      <SelectItem key={interval} value={String(interval)}>
+                        {obligationIntervalLabel(interval)}
+                      </SelectItem>
+                    )
+                  )}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="rule-day">Due day</Label>
               <Input
                 id="rule-day"
@@ -321,7 +350,7 @@ export function LedgerRecordEditors({
               <Switch
                 checked={ruleActive}
                 onCheckedChange={setRuleActive}
-                aria-label="Monthly bill active"
+                aria-label="Repeating bill active"
               />
             </div>
             {ruleError ? (

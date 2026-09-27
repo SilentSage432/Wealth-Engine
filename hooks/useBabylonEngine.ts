@@ -70,6 +70,7 @@ import {
   comingUpObligations,
   deleteExpenseOccurrence,
   materializeRecurringObligations,
+  obligationIntervalLabel,
   replaceExpenseOccurrence,
   replaceRecurringObligation,
 } from "@/lib/babylon/recurring-obligations";
@@ -690,8 +691,16 @@ export function useBabylonEngine() {
   const comingUp = useMemo(() => comingUpObligations(expenses), [expenses]);
 
   const dueAttention = useMemo(
-    () => deriveDueAttention(expenses, financialToday),
-    [expenses, financialToday]
+    () =>
+      deriveDueAttention(expenses, financialToday).map((item) => {
+        if (!item.recurringObligationId) return item;
+        const rule = recurringObligations.find(
+          (entry) => entry.id === item.recurringObligationId
+        );
+        if (!rule?.intervalMonths || rule.intervalMonths === 1) return item;
+        return { ...item, intervalMonths: rule.intervalMonths };
+      }),
+    [expenses, financialToday, recurringObligations]
   );
 
   const monthCloseAttention = useMemo(
@@ -1001,7 +1010,16 @@ export function useBabylonEngine() {
       );
       if (!knownTarget) return false;
 
-      if (input.repeatsMonthly) {
+      const requestedInterval =
+        typeof input.intervalMonths === "number"
+          ? input.intervalMonths
+          : input.repeatsMonthly
+            ? 1
+            : null;
+      if (requestedInterval !== null) {
+        if (!Number.isInteger(requestedInterval) || requestedInterval < 1) {
+          return false;
+        }
         if (input.isSettled) return false;
         const rule = buildRecurringObligation(
           {
@@ -1010,6 +1028,7 @@ export function useBabylonEngine() {
             category: input.category,
             budgetCategoryId: input.budgetCategoryId,
             firstDueDate: input.dueDate,
+            intervalMonths: requestedInterval,
           },
           generateId(),
           todayIso()
@@ -1019,7 +1038,10 @@ export function useBabylonEngine() {
         pushActivity({
           kind: "expense",
           title: rule.name,
-          subtitle: "Repeats monthly",
+          subtitle:
+            requestedInterval === 1
+              ? "Repeats monthly"
+              : obligationIntervalLabel(requestedInterval),
           amount: rule.amount,
         });
         setTributeOpen(false);
@@ -1557,6 +1579,7 @@ export function useBabylonEngine() {
         budgetCategoryId: string;
         dueDay: number;
         isActive: boolean;
+        intervalMonths: number;
       }
     ): boolean => {
       const current = recurringObligations.find((rule) => rule.id === id);
@@ -1570,10 +1593,11 @@ export function useBabylonEngine() {
       const next = replaceRecurringObligation(recurringObligations, id, patch);
       if (!next) return false;
       setRecurringObligations(next);
+      const cadence = obligationIntervalLabel(patch.intervalMonths);
       pushActivity({
         kind: "expense",
         title: patch.name.trim(),
-        subtitle: patch.isActive ? "Monthly bill updated" : "Monthly bill stopped",
+        subtitle: patch.isActive ? `${cadence} bill updated` : `${cadence} bill stopped`,
         amount: roundMoney(patch.amount),
       });
       return true;

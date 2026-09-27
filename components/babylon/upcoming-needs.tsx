@@ -7,6 +7,7 @@ import {
   applyDueAttentionDecision,
   type DueAttentionItem,
 } from "@/lib/babylon/attention";
+import { obligationIntervalLabel } from "@/lib/babylon/recurring-obligations";
 import { formatDiscreetCurrency } from "@/lib/babylon/discreet";
 import { formatCurrency } from "@/lib/utils";
 
@@ -86,7 +87,7 @@ export function UpcomingNeeds({
                         <span className="font-medium">{item.name}</span>
                         {item.recurringObligationId ? (
                           <span className="ml-2 text-[11px] font-medium text-slate-500">
-                            Monthly
+                            {obligationIntervalLabel(item.intervalMonths)}
                           </span>
                         ) : null}
                       </span>

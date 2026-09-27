@@ -1,8 +1,14 @@
 /**
- * Monthly recurring obligations.
- * A rule describes the bill. An expense occurrence is one month of it.
+ * Declared recurring obligations.
+ * A rule describes the bill and how many calendar months pass between
+ * occurrences. An expense occurrence is one due month of it.
  * Generation creates Upcoming expenses. It never marks them paid.
+ * A missing interval is monthly. Months the interval does not include are
+ * not skips, and the rule does not set money aside between occurrences.
  */
+
+/** UI frequencies. The rule itself accepts any positive integer interval. */
+export const OBLIGATION_INTERVAL_CHOICES = [1, 2, 3, 6, 12] as const;
 
 import { nextMonthKey, roundMoney } from "@/lib/babylon/engine";
 import type {
@@ -37,6 +43,55 @@ export function horizonMonthKeys(today: string): [string, string] {
   return [current, nextMonthKey(current)];
 }
 
+/** Months since year 0. Not a day count. Invalid keys are null. */
+function calendarMonthIndex(monthKeyValue: string): number | null {
+  if (!MONTH_KEY.test(monthKeyValue)) return null;
+  const year = Number(monthKeyValue.slice(0, 4));
+  const month = Number(monthKeyValue.slice(5, 7));
+  if (month < 1 || month > 12) return null;
+  return year * 12 + (month - 1);
+}
+
+/**
+ * True when the candidate month is the start month or a later month whose
+ * calendar-month distance from the start is a multiple of the interval.
+ */
+export function isObligationMonthDue(
+  startMonth: string,
+  candidateMonth: string,
+  intervalMonths: number
+): boolean {
+  if (!Number.isInteger(intervalMonths) || intervalMonths < 1) return false;
+  const start = calendarMonthIndex(startMonth);
+  const candidate = calendarMonthIndex(candidateMonth);
+  if (start === null || candidate === null) return false;
+  const distance = candidate - start;
+  return distance >= 0 && distance % intervalMonths === 0;
+}
+
+/** Absent interval is monthly. */
+export function obligationIntervalMonths(
+  rule: Pick<RecurringObligation, "intervalMonths">
+): number {
+  return rule.intervalMonths ?? 1;
+}
+
+/** Steward-facing cadence. Interval 1 and a missing interval are Monthly. */
+export function obligationIntervalLabel(intervalMonths?: number): string {
+  const interval = intervalMonths ?? 1;
+  if (interval === 1) return "Monthly";
+  if (interval === 12) return "Yearly";
+  return `Every ${interval} months`;
+}
+
+export function obligationIntervalChoices(current?: number): number[] {
+  const interval = current ?? 1;
+  if ((OBLIGATION_INTERVAL_CHOICES as readonly number[]).includes(interval)) {
+    return [...OBLIGATION_INTERVAL_CHOICES];
+  }
+  return [...OBLIGATION_INTERVAL_CHOICES, interval].sort((left, right) => left - right);
+}
+
 /**
  * Calendar day in a month. Day 31 in February is the 28th or 29th.
  * The rule's dueDay is not changed.
@@ -52,6 +107,10 @@ function isDueDay(value: number): boolean {
   return Number.isInteger(value) && value >= 1 && value <= 31;
 }
 
+function isIntervalMonths(value: number): boolean {
+  return Number.isInteger(value) && value >= 1;
+}
+
 export function buildRecurringObligation(
   input: {
     name: string;
@@ -59,6 +118,8 @@ export function buildRecurringObligation(
     category: ExpenseKind;
     budgetCategoryId: string;
     firstDueDate: string;
+    /** Absent or 1 stays off the stored rule. Both mean monthly. */
+    intervalMonths?: number;
   },
   id: string,
   createdAt: string
@@ -70,7 +131,14 @@ export function buildRecurringObligation(
   if (!isRealLocalIsoDate(input.firstDueDate)) return null;
   if (!isRealLocalIsoDate(createdAt)) return null;
   if (!id.trim()) return null;
+  if (
+    input.intervalMonths !== undefined &&
+    !isIntervalMonths(input.intervalMonths)
+  ) {
+    return null;
+  }
   const day = Number(input.firstDueDate.slice(8, 10));
+  const intervalMonths = input.intervalMonths;
   return {
     id,
     name: input.name.trim(),
@@ -79,6 +147,9 @@ export function buildRecurringObligation(
     budgetCategoryId: input.budgetCategoryId.trim(),
     dueDay: day,
     startMonth: monthKey(input.firstDueDate),
+    ...(intervalMonths !== undefined && intervalMonths !== 1
+      ? { intervalMonths }
+      : {}),
     isActive: true,
     createdAt,
     skippedMonths: [],
@@ -105,6 +176,13 @@ export function parseRecurringObligation(value: unknown): RecurringObligation | 
   if (typeof raw.createdAt !== "string" || !isRealLocalIsoDate(raw.createdAt)) {
     return null;
   }
+  let intervalMonths: number | undefined;
+  if (raw.intervalMonths !== undefined) {
+    if (typeof raw.intervalMonths !== "number" || !isIntervalMonths(raw.intervalMonths)) {
+      return null;
+    }
+    intervalMonths = raw.intervalMonths;
+  }
   if (!Array.isArray(raw.skippedMonths)) return null;
   const skippedMonths: string[] = [];
   for (const month of raw.skippedMonths) {
@@ -119,6 +197,7 @@ export function parseRecurringObligation(value: unknown): RecurringObligation | 
     budgetCategoryId: raw.budgetCategoryId.trim(),
     dueDay: raw.dueDay,
     startMonth: raw.startMonth,
+    ...(intervalMonths !== undefined ? { intervalMonths } : {}),
     isActive: raw.isActive,
     createdAt: raw.createdAt,
     skippedMonths,
@@ -138,9 +217,11 @@ function hasOccurrence(
 }
 
 /**
- * Ensure each active rule has an Upcoming occurrence for the current month
- * and the next month, starting at the rule's first month. Existing and
- * skipped months are left alone. Nothing is marked paid.
+ * Ensure each active rule has an Upcoming occurrence for a due month inside
+ * the current month and the next month. A longer interval does not widen
+ * that horizon. A month the interval does not include is left alone and is
+ * not recorded as skipped. Existing and skipped due months are left alone.
+ * Nothing is marked paid.
  */
 export function materializeRecurringObligations(
   rules: readonly RecurringObligation[],
@@ -156,7 +237,15 @@ export function materializeRecurringObligations(
   for (const rule of rules) {
     if (!rule.isActive) continue;
     for (const recurrenceMonth of months) {
-      if (recurrenceMonth < rule.startMonth) continue;
+      if (
+        !isObligationMonthDue(
+          rule.startMonth,
+          recurrenceMonth,
+          obligationIntervalMonths(rule)
+        )
+      ) {
+        continue;
+      }
       if (rule.skippedMonths.includes(recurrenceMonth)) continue;
       if (hasOccurrence(next, rule.id, recurrenceMonth)) continue;
       const dueDate = dueDateForMonth(rule.dueDay, recurrenceMonth);
@@ -191,6 +280,7 @@ export function replaceRecurringObligation(
     budgetCategoryId?: string;
     dueDay?: number;
     isActive?: boolean;
+    intervalMonths?: number;
   }
 ): RecurringObligation[] | null {
   const current = rules.find((rule) => rule.id === id);
@@ -213,10 +303,16 @@ export function replaceRecurringObligation(
     return null;
   }
   if (patch.dueDay !== undefined && !isDueDay(patch.dueDay)) return null;
+  if (
+    patch.intervalMonths !== undefined &&
+    !isIntervalMonths(patch.intervalMonths)
+  ) {
+    return null;
+  }
 
   return rules.map((rule) => {
     if (rule.id !== id) return rule;
-    return {
+    const next: RecurringObligation = {
       ...rule,
       ...(patch.name !== undefined ? { name: patch.name.trim() } : {}),
       ...(patch.amount !== undefined ? { amount: roundMoney(patch.amount) } : {}),
@@ -227,6 +323,13 @@ export function replaceRecurringObligation(
       ...(patch.dueDay !== undefined ? { dueDay: patch.dueDay } : {}),
       ...(patch.isActive !== undefined ? { isActive: patch.isActive } : {}),
     };
+    if (patch.intervalMonths === undefined) return next;
+    if (patch.intervalMonths === 1) {
+      delete next.intervalMonths;
+      return next;
+    }
+    next.intervalMonths = patch.intervalMonths;
+    return next;
   });
 }
 

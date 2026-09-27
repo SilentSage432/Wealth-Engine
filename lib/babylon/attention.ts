@@ -48,6 +48,8 @@ export type DueAttentionItem = {
   amount: number;
   dueDate: string;
   recurringObligationId?: string;
+  /** Present when the hook joins a stored interval. Absent means monthly. */
+  intervalMonths?: number;
 };
 
 /**

@@ -114,8 +114,9 @@ export interface FinancialAccount {
 }
 
 /**
- * Monthly bill the user expects. This is not spending and not an account.
+ * Declared bill the user expects. This is not spending and not an account.
  * Occurrences are ordinary expenses generated from the rule.
+ * A missing interval is monthly. This is not a spending cap or a reserve.
  */
 export interface RecurringObligation {
   id: string;
@@ -127,6 +128,11 @@ export interface RecurringObligation {
   dueDay: number;
   /** First YYYY-MM that may be generated. Earlier months are not created. */
   startMonth: string;
+  /**
+   * Calendar months between due occurrences, anchored at startMonth.
+   * Absent means 1. A month that is not due is not a skipped month.
+   */
+  intervalMonths?: number;
   isActive: boolean;
   /** Local calendar date the rule was created. */
   createdAt: string;
@@ -289,6 +295,11 @@ export interface ExpenseInput {
   isSettled: boolean;
   /** Upcoming only. Creates a monthly rule. Already Paid cannot repeat. */
   repeatsMonthly?: boolean;
+  /**
+   * Calendar-month interval when this upcoming expense repeats.
+   * 1 is monthly. Used instead of repeatsMonthly when both are sent.
+   */
+  intervalMonths?: number;
 }
 
 /**

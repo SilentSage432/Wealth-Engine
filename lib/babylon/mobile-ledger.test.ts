@@ -60,6 +60,17 @@ describe("phone Ledger composition", () => {
         today
       )
     ).toBe("Monthly · Upcoming");
+    expect(
+      phoneExpenseTiming(
+        {
+          isSettled: false,
+          dueDate: "2026-10-04",
+          recurringObligationId: "rule-1",
+        },
+        today,
+        3
+      )
+    ).toBe("Every 3 months · Upcoming");
   });
 
   it("formats a stored date without inventing a new one", () => {
@@ -169,7 +180,7 @@ describe("phone Ledger source boundaries", () => {
     expect(desktopSource).toContain("formatCurrency");
     expect(desktopSource).not.toContain("formatDiscreetCurrency");
     expect(editorsSource).toContain("Edit this month");
-    expect(editorsSource).toContain("Monthly bill");
+    expect(editorsSource).toContain("obligationIntervalLabel");
   });
 
   it("mounts phone records on Ledger and leaves Home, Budget, and desktop tables in place", () => {

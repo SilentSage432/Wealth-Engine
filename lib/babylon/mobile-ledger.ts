@@ -4,6 +4,7 @@
  */
 
 import { isDueWithinWeek, isOverdue } from "@/lib/babylon/engine";
+import { obligationIntervalLabel } from "@/lib/babylon/recurring-obligations";
 import type { ExpenseEntry } from "@/types/babylon";
 
 export const PHONE_LEDGER_SECTIONS = [
@@ -37,7 +38,8 @@ export function selectPhoneLedgerSection(
 /** Same words the desktop expense row already shows. */
 export function phoneExpenseTiming(
   row: Pick<ExpenseEntry, "isSettled" | "dueDate" | "recurringObligationId">,
-  today?: string
+  today?: string,
+  intervalMonths?: number
 ): string {
   const dueSoon = !row.isSettled && isDueWithinWeek(row.dueDate, today);
   const overdue = !row.isSettled && isOverdue(row.dueDate, today);
@@ -48,7 +50,9 @@ export function phoneExpenseTiming(
       : dueSoon
         ? "Due soon"
         : "Upcoming";
-  return row.recurringObligationId ? `Monthly · ${timing}` : timing;
+  return row.recurringObligationId
+    ? `${obligationIntervalLabel(intervalMonths)} · ${timing}`
+    : timing;
 }
 
 /** Local calendar label for a stored YYYY-MM-DD. Invalid text is left as stored. */

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { deriveDueAttention } from "@/lib/babylon/attention";
 import { EMPTY_STATE } from "@/lib/babylon/constants";
 import {
   actualSpendTotals,
@@ -17,7 +18,9 @@ import {
   comingUpObligations,
   deleteExpenseOccurrence,
   dueDateForMonth,
+  isObligationMonthDue,
   materializeRecurringObligations,
+  parseRecurringObligation,
   replaceExpenseOccurrence,
   replaceRecurringObligation,
 } from "@/lib/babylon/recurring-obligations";
@@ -495,6 +498,211 @@ describe("monthly recurring obligations", () => {
         openingWealthBuilding: 0,
         openingEmergencyFund: 0,
       })
+    ).toBeNull();
+  });
+});
+
+function createdMonths(
+  rules: RecurringObligation[],
+  today: string,
+  expenses: ExpenseEntry[] = []
+): string[] {
+  return materializeRecurringObligations(rules, expenses, today, ids())
+    .created.map((row) => row.recurrenceMonth ?? "")
+    .sort();
+}
+
+describe("calendar-month obligation intervals", () => {
+  it("treats a stored rule with no interval as monthly", () => {
+    const legacy = {
+      id: "phone-rule",
+      name: "Phone",
+      amount: 85,
+      category: "need" as const,
+      budgetCategoryId: "utilities",
+      dueDay: 18,
+      startMonth: "2026-10",
+      isActive: true,
+      createdAt: "2026-09-24",
+      skippedMonths: [],
+    };
+    const parsed = parseRecurringObligation(legacy);
+    expect(parsed?.intervalMonths).toBeUndefined();
+    expect(createdMonths([parsed!], "2026-10-18")).toEqual(["2026-10", "2026-11"]);
+    const normalized = normalizePersistedState({
+      ...EMPTY_STATE,
+      recurringObligations: [legacy],
+    });
+    expect(normalized.recurringObligations[0]?.intervalMonths).toBeUndefined();
+  });
+
+  it("treats an explicit interval of 1 as monthly and does not store it on create", () => {
+    const created = buildRecurringObligation(
+      {
+        name: "Phone",
+        amount: 85,
+        category: "need",
+        budgetCategoryId: "utilities",
+        firstDueDate: "2026-10-18",
+        intervalMonths: 1,
+      },
+      "phone-rule",
+      "2026-09-24"
+    );
+    expect(created?.intervalMonths).toBeUndefined();
+    expect(createdMonths([rule({ intervalMonths: 1 })], "2026-10-18")).toEqual([
+      "2026-10",
+      "2026-11",
+    ]);
+  });
+
+  it("uses calendar-month distance from the start month", () => {
+    expect(isObligationMonthDue("2026-01", "2026-01", 3)).toBe(true);
+    expect(isObligationMonthDue("2026-01", "2026-02", 3)).toBe(false);
+    expect(isObligationMonthDue("2026-01", "2026-03", 3)).toBe(false);
+    expect(isObligationMonthDue("2026-01", "2026-04", 3)).toBe(true);
+    expect(isObligationMonthDue("2026-02", "2027-02", 3)).toBe(true);
+    expect(isObligationMonthDue("2026-11", "2027-02", 3)).toBe(true);
+    expect(isObligationMonthDue("2026-11", "2027-01", 3)).toBe(false);
+  });
+
+  it("generates an interval of 3 only in due months inside the existing horizon", () => {
+    const periodic = rule({
+      startMonth: "2026-01",
+      dueDay: 10,
+      intervalMonths: 3,
+    });
+    expect(createdMonths([periodic], "2026-01-15")).toEqual(["2026-01"]);
+    expect(createdMonths([periodic], "2026-02-15")).toEqual([]);
+    expect(createdMonths([periodic], "2026-03-15")).toEqual(["2026-04"]);
+    expect(createdMonths([periodic], "2026-04-15")).toEqual(["2026-04"]);
+    expect(createdMonths([rule({ startMonth: "2026-11", intervalMonths: 3 })], "2027-01-15")).toEqual([
+      "2027-02",
+    ]);
+  });
+
+  it("does not record a naturally non-due month as skipped", () => {
+    const periodic = rule({ startMonth: "2026-01", intervalMonths: 3 });
+    const result = materializeRecurringObligations(
+      [periodic],
+      [],
+      "2026-02-15",
+      ids()
+    );
+    expect(result.created).toEqual([]);
+    expect(result.expenses).toEqual([]);
+    expect(periodic.skippedMonths).toEqual([]);
+  });
+
+  it("keeps an explicitly skipped due month skipped", () => {
+    const periodic = rule({
+      startMonth: "2026-01",
+      intervalMonths: 3,
+      skippedMonths: ["2026-04"],
+    });
+    const result = materializeRecurringObligations(
+      [periodic],
+      [],
+      "2026-04-15",
+      ids()
+    );
+    expect(result.created).toEqual([]);
+    expect(periodic.skippedMonths).toEqual(["2026-04"]);
+  });
+
+  it("does not create an occurrence for a skipped month that is not due", () => {
+    const periodic = rule({
+      startMonth: "2026-01",
+      intervalMonths: 3,
+      skippedMonths: ["2026-02"],
+    });
+    const result = materializeRecurringObligations(
+      [periodic],
+      [],
+      "2026-02-15",
+      ids()
+    );
+    expect(result.created).toEqual([]);
+    expect(periodic.skippedMonths).toEqual(["2026-02"]);
+  });
+
+  it("keeps the existing due-day rule on a due short month", () => {
+    const periodic = rule({
+      startMonth: "2026-02",
+      dueDay: 31,
+      intervalMonths: 3,
+    });
+    const result = materializeRecurringObligations(
+      [periodic],
+      [],
+      "2026-02-15",
+      ids()
+    );
+    expect(result.created).toHaveLength(1);
+    expect(result.created[0]?.dueDate).toBe(dueDateForMonth(31, "2026-02"));
+    expect(result.created[0]?.dueDate).toBe("2026-02-28");
+    expect(result.created[0]?.recurringObligationId).toBe(periodic.id);
+    expect(result.created[0]?.recurrenceMonth).toBe("2026-02");
+  });
+
+  it("does not create the same occurrence twice", () => {
+    const periodic = rule({ startMonth: "2026-01", intervalMonths: 3 });
+    const once = materializeRecurringObligations([periodic], [], "2026-01-15", ids());
+    const twice = materializeRecurringObligations(
+      [periodic],
+      once.expenses,
+      "2026-01-15",
+      ids()
+    );
+    expect(once.created).toHaveLength(1);
+    expect(twice.created).toEqual([]);
+    expect(once.created[0]?.id).toBe("occ-1");
+  });
+
+  it("gives due attention only when a periodic occurrence exists and is due", () => {
+    const periodic = rule({
+      startMonth: "2026-01",
+      dueDay: 10,
+      intervalMonths: 3,
+    });
+    const dueMonth = materializeRecurringObligations(
+      [periodic],
+      [],
+      "2026-01-15",
+      ids()
+    );
+    expect(deriveDueAttention(dueMonth.expenses, "2026-01-15")).toHaveLength(1);
+
+    const quietMonth = materializeRecurringObligations(
+      [periodic],
+      [],
+      "2026-02-15",
+      ids()
+    );
+    expect(quietMonth.created).toEqual([]);
+    expect(deriveDueAttention(quietMonth.expenses, "2026-02-15")).toEqual([]);
+  });
+
+  it("rejects an interval that is not a positive integer", () => {
+    expect(
+      parseRecurringObligation({
+        ...rule(),
+        intervalMonths: 0,
+      })
+    ).toBeNull();
+    expect(
+      buildRecurringObligation(
+        {
+          name: "Phone",
+          amount: 85,
+          category: "need",
+          budgetCategoryId: "utilities",
+          firstDueDate: "2026-01-10",
+          intervalMonths: 1.5,
+        },
+        "phone-rule",
+        "2026-01-01"
+      )
     ).toBeNull();
   });
 });

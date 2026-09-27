@@ -1,5 +1,16 @@
 # Development Journal
 
+## 2026-09-26 — WE-OBLIGATION-001 non-monthly declared obligations
+
+### What changed
+- A monthly bill rule could not say that a purpose occurs every three calendar months. Skipping intervening months would have meant those months were deleted. A monthly category cap is still only a spending cap.
+- A recurring obligation may now carry `intervalMonths`. Absent, and `1`, mean every calendar month from the start month. A larger positive integer means every that many calendar months. The count is calendar months, not days.
+- Generation still looks only at the current month and the next month. It creates an occurrence only when that month is due. A non-due month is not stored as a skip. A skip is still a due month the steward deleted. The rule does not divide the amount, reserve money, or change a category cap.
+- The Intelligence Contract uses the same materializer and does not gain fields. No new Attention kind. No Plaid match and no confirmed observational meaning.
+
+### Not in this tranche
+- No vault schema bump, database migration, sinking fund, amount range, notification, or contract expansion.
+
 ## 2026-09-26 — WE-MUSE-004 Intelligence Contract v1 semantic finalization
 
 ### What changed

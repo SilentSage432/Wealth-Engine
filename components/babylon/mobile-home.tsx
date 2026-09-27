@@ -6,6 +6,7 @@ import {
   applyDueAttentionDecision,
   type DueAttentionItem,
 } from "@/lib/babylon/attention";
+import { obligationIntervalLabel } from "@/lib/babylon/recurring-obligations";
 import type { AvailableAfterPlannedNeeds } from "@/lib/babylon/available-after-planned-needs";
 import type { MobileDestination } from "@/lib/babylon/constants";
 import { formatDiscreetCurrency } from "@/lib/babylon/discreet";
@@ -90,7 +91,7 @@ export function MobileHome({
                         <span className="font-medium">{item.name}</span>
                         {item.recurringObligationId ? (
                           <span className="ml-2 text-[11px] font-medium text-slate-500">
-                            Monthly
+                            {obligationIntervalLabel(item.intervalMonths)}
                           </span>
                         ) : null}
                       </span>

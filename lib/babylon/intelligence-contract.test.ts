@@ -259,6 +259,19 @@ describe("intelligence contract", () => {
     expect(assemble().obligations.unpaid).toEqual([]);
   });
 
+  it("does not materialize a longer interval as monthly", () => {
+    const contract = assemble({
+      recurringObligations: [{ ...rule(), intervalMonths: 3 }],
+      expenses: [],
+    });
+    const months = contract.obligations.unpaid.map((item) => item.due_date.slice(0, 7));
+    expect(months).toContain("2026-01");
+    expect(months).not.toContain("2026-02");
+    expect(
+      contract.obligations.unpaid.every((item) => item.origin === "derived_from_rule")
+    ).toBe(true);
+  });
+
   it("marks an in-memory rule occurrence without changing the input", () => {
     const fixture = state({ recurringObligations: [rule()], expenses: [] });
     const before = structuredClone(fixture);

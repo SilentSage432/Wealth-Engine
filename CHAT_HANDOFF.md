@@ -58,7 +58,7 @@ Persisted in `localStorage` (`wealth-engine-babylon-v2`) as:
 - `budgetTargets[]` — planned caps inside the Living Budget (starts empty)
 - `accounts[]` — manual Financial Position (checking / savings / cash, balance, local `asOf`). Missing on older vaults; loads as `[]`. Never inferred from income or spending. Not cloud-backed.
 - `openingWealthBuilding` / `openingEmergencyFund` — existing designations inside current Money Available. Missing on older vaults; loads as `0`. Not income, not allocation events, and not cloud-backed.
-- `recurringObligations[]` — monthly bill rules. Missing on older vaults; loads as `[]`. Not spending and not cloud-backed. Generated months are ordinary expenses with `recurringObligationId` and `recurrenceMonth`. `skippedMonths` stops a deleted month from coming back.
+- `recurringObligations[]` — declared bill rules (WE-OBLIGATION-001). Missing on older vaults; loads as `[]`. A missing `intervalMonths`, or `1`, means every calendar month from `startMonth`. A larger positive integer means every that many calendar months. Non-due months are not skips. `skippedMonths` is a due month the steward deleted. Generation still covers only the current month and the next month, and only when that month is due. This is not a spending cap, a sinking fund, or a bank-observation match. Generated months are ordinary expenses with `recurringObligationId` and `recurrenceMonth`.
 - `activityLog[]` — mutation feed for Recent Activity (newest first, capped)
 - `emergencyShield` — tracked Emergency Fund from Monthly Close surplus only
 - `periodArchives[]` — sealed month snapshots
@@ -73,7 +73,7 @@ Legacy expenses without `dueDate` soft-migrate to use `date`. Want expenses (`ca
 - `addAccount` / `updateAccount` / `removeAccount` — Financial Position only. Never calls `addIncome`, `proposeIncomeSplit`, or `allocateIncome`
 - `updateProtectedDesignations` — sets Existing Wealth Building and Existing Emergency Fund when their sum fits inside Money Available. Does not change balances, income, allocations, or the activity log
 - `addIncome` — ID + 10/20/70 allocation (+ debt waterfall when active); appends activity log
-- `addExpense` — Need/Want, due date, category, and Already Paid (`isSettled: true`) or Upcoming (`isSettled: false`). Upcoming may repeat monthly. Already Paid cannot. A monthly rule does not cloud-write its generated occurrences
+- `addExpense` — Need/Want, due date, category, and Already Paid (`isSettled: true`) or Upcoming (`isSettled: false`). Upcoming may repeat every N calendar months. Already Paid cannot. Interval 1 is monthly. A rule does not set money aside between occurrences
 - `updateExpenseOccurrence` — changes one expense amount and due date. A generated month does not rewrite the rule
 - `updateRecurringObligation` — changes the rule for months generated after the save. Existing occurrences stay. `isActive: false` stops new months and keeps history
 - `addDebt` — ID + creditor tracking with mandatory monthly allocation
@@ -98,7 +98,7 @@ Legacy expenses without `dueDate` soft-migrate to use `date`. Want expenses (`ca
 - **Actual spending** — a paid expense. Living Budget remaining subtracts only this
 - **Upcoming Needs** — sum of every unpaid Need, including recurring occurrences already on the ledger and any unpaid Need dated further out. It is not limited to this month or the next seven days, and it is not subtracted from Money Available
 - **Available After Planned Needs** — Money Available minus Protected Money minus Upcoming Needs, floored at zero. Planned Needs Shortfall is the amount by which those two claims exceed Money Available. It is derived and not saved. It does not subtract Living Budget Remaining, tracked Wealth Building, tracked Emergency Fund contributions, Upcoming Wants, or paid expenses. Recurring rules are not subtracted; their generated unpaid Need rows are. Future paychecks are not included. It is not a promise that the remainder is safe to spend
-- **Recurring obligation** — a monthly rule. It is not spending and it is not added to Upcoming Needs
+- **Recurring obligation** — a declared bill every N calendar months. A missing interval is monthly. It is not spending, not a category cap, and not added to Upcoming Needs until an occurrence exists
 - **Occurrence** — one month's Upcoming expense generated from that rule. It becomes spending only when marked paid
 - Overview places Financial Position, including Available After Planned Needs, then Upcoming Needs, then the Living Budget. Coming up, under Upcoming Needs, lists the next unpaid bills, including Wants. The derived figure uses the full Upcoming Needs total, not that preview. Month close does not settle unpaid expenses, change account balances, clear protected designations, or pay recurring bills
 - An expected payday is not received income. Recurrence does not create income or run 10/20/70

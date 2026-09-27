@@ -23,6 +23,10 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { INTERVAL_LABELS, STREAM_KIND_LABELS, STREAM_KIND_ORDER } from "@/lib/babylon/constants";
 import { todayIso } from "@/lib/babylon/engine";
+import {
+  OBLIGATION_INTERVAL_CHOICES,
+  obligationIntervalLabel,
+} from "@/lib/babylon/recurring-obligations";
 import { emitVaultToast } from "@/lib/babylon/vault-toast";
 import { cn, formatCurrency } from "@/lib/utils";
 import type {
@@ -114,7 +118,7 @@ export function RecordTransactionModal({
   const [expenseDueDate, setExpenseDueDate] = useState(todayIso());
   const [expenseIsDesire, setExpenseIsDesire] = useState(false);
   const [expenseAlreadyPaid, setExpenseAlreadyPaid] = useState(true);
-  const [expenseRepeatsMonthly, setExpenseRepeatsMonthly] = useState(false);
+  const [expenseInterval, setExpenseInterval] = useState("0");
   const [expenseBudgetId, setExpenseBudgetId] = useState("");
 
   const [debtCreditor, setDebtCreditor] = useState("");
@@ -144,7 +148,7 @@ export function RecordTransactionModal({
     setExpenseDueDate(todayIso());
     setExpenseIsDesire(false);
     setExpenseAlreadyPaid(true);
-    setExpenseRepeatsMonthly(false);
+    setExpenseInterval("0");
     setExpenseBudgetId(
       budgetTargets.find((t) => t.isEssential)?.id ??
         budgetTargets[0]?.id ??
@@ -333,7 +337,11 @@ export function RecordTransactionModal({
           category: expenseIsDesire ? "desire" : "need",
           budgetCategoryId: expenseBudgetId,
           isSettled: expenseAlreadyPaid,
-          repeatsMonthly: !expenseAlreadyPaid && expenseRepeatsMonthly,
+          repeatsMonthly: !expenseAlreadyPaid && expenseInterval === "1",
+          intervalMonths:
+            !expenseAlreadyPaid && expenseInterval !== "0"
+              ? Number(expenseInterval)
+              : undefined,
         });
         if (!ok) {
           setFormFeedback({
@@ -347,9 +355,9 @@ export function RecordTransactionModal({
           tone: "success",
           message: expenseAlreadyPaid
             ? "Expense saved."
-            : expenseRepeatsMonthly
-              ? "Monthly bill saved. It stays unpaid until you mark it paid."
-              : "Upcoming expense saved.",
+            : expenseInterval === "0"
+              ? "Upcoming expense saved."
+              : `${obligationIntervalLabel(Number(expenseInterval))} bill saved. It stays unpaid until you mark it paid.`,
           durationMs: 0,
         });
         return;
@@ -770,7 +778,7 @@ export function RecordTransactionModal({
                     aria-pressed={expenseAlreadyPaid}
                     onClick={() => {
                       setExpenseAlreadyPaid(true);
-                      setExpenseRepeatsMonthly(false);
+                      setExpenseInterval("0");
                     }}
                   >
                     Already Paid
@@ -791,21 +799,29 @@ export function RecordTransactionModal({
                     : "This stays unpaid until you mark it paid. It does not reduce your Living Budget yet."}
                 </p>
                 {!expenseAlreadyPaid ? (
-                  <div className="mt-3 flex items-center justify-between gap-3 border-t border-slate-800 pt-3">
-                    <div>
-                      <p className="text-sm font-medium text-slate-200">
-                        Repeats monthly
-                      </p>
-                      <p className="text-xs text-slate-500">
-                        Adds this bill as Upcoming each month. It is not paid
-                        until you mark that month paid.
-                      </p>
-                    </div>
-                    <Switch
-                      checked={expenseRepeatsMonthly}
-                      onCheckedChange={setExpenseRepeatsMonthly}
-                      aria-label="Repeats monthly"
-                    />
+                  <div className="mt-3 space-y-2 border-t border-slate-800 pt-3">
+                    <Label htmlFor="expense-frequency">Frequency</Label>
+                    <Select
+                      value={expenseInterval}
+                      onValueChange={setExpenseInterval}
+                    >
+                      <SelectTrigger id="expense-frequency" aria-label="Frequency">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="0">One time</SelectItem>
+                        {OBLIGATION_INTERVAL_CHOICES.map((interval) => (
+                          <SelectItem key={interval} value={String(interval)}>
+                            {obligationIntervalLabel(interval)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-slate-500">
+                      {expenseInterval === "0"
+                        ? "This stays a single upcoming expense."
+                        : "One occurrence is added when a due month is current or next. It is not paid until you mark it paid, and nothing is set aside in the months between."}
+                    </p>
                   </div>
                 ) : null}
               </div>
@@ -829,7 +845,7 @@ export function RecordTransactionModal({
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="expense-due-date">
-                    {expenseRepeatsMonthly && !expenseAlreadyPaid
+                    {expenseInterval !== "0" && !expenseAlreadyPaid
                       ? "First due"
                       : "Due Date"}
                   </Label>
