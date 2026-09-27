@@ -319,9 +319,15 @@ describe("confirmed meaning", () => {
       ianaTimeZone: "America/Boise",
       now: new Date("2026-09-26T18:00:00.000Z"),
       generatedAt: "2026-09-26T18:00:00.000Z",
+      balanceEvidence: {
+        status: "ready",
+        plaidAccounts: [],
+        observations: [],
+        associations: [],
+      },
     });
     const serialized = JSON.stringify(contract);
-    expect(contract.meta.contract_version).toBe("1");
+    expect(contract.meta.contract_version).toBe("2");
     expect(serialized).not.toContain("plaid_observation_confirmations");
     expect(serialized).not.toContain("confirmed_meaning");
     expect(serialized).toContain("plaid_is_not_vault_truth");

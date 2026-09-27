@@ -1,17 +1,120 @@
 import { NextResponse } from "next/server";
 import {
+  ACCOUNT_ASSOCIATION_COLUMNS,
+  BALANCE_OBSERVATION_COLUMNS,
+  toAccountAssociationPublic,
+  toBalanceObservationPublic,
+  type AccountAssociationPublic,
+  type BalanceObservationPublic,
+} from "@/lib/babylon/balance-observation";
+import {
   CLOUD_VAULT_SCHEMA_VERSION,
   parseCloudVaultData,
 } from "@/lib/babylon/cloud-vault";
-import { assembleIntelligenceContract } from "@/lib/babylon/intelligence-contract";
+import {
+  assembleIntelligenceContract,
+  type IntelligenceBalanceEvidence,
+} from "@/lib/babylon/intelligence-contract";
 import {
   authorizeCronRequest,
   isCanonicalSupabaseUrl,
 } from "@/lib/babylon/notification-delivery";
-import { getSupabaseServiceClient } from "@/lib/supabase/server";
+import {
+  PLAID_ACCOUNT_PUBLIC_COLUMNS,
+  toPlaidAccountPublic,
+} from "@/lib/babylon/plaid-schema";
+import {
+  getSupabaseServiceClient,
+  type BabylonServerSupabase,
+} from "@/lib/supabase/server";
 
 const READ_SECRET = "INTELLIGENCE_READ_SECRET";
 const SELECTOR_PARAMS = new Set(["user", "user_id", "userId"]);
+
+/**
+ * Owner-scoped stored evidence for effective position.
+ * A failed read is unavailable. It is not an empty success and it does not
+ * fail the rest of the contract. This does not call Plaid.
+ */
+async function readBalanceEvidence(
+  client: BabylonServerSupabase,
+  userId: string
+): Promise<IntelligenceBalanceEvidence> {
+  try {
+    const [accounts, observations, associations] = await Promise.all([
+      client.from("plaid_accounts").select(PLAID_ACCOUNT_PUBLIC_COLUMNS).eq("user_id", userId),
+      client
+        .from("plaid_balance_observations")
+        .select(BALANCE_OBSERVATION_COLUMNS)
+        .eq("user_id", userId)
+        .eq("state", "current"),
+      client
+        .from("plaid_account_associations")
+        .select(ACCOUNT_ASSOCIATION_COLUMNS)
+        .eq("user_id", userId),
+    ]);
+    if (
+      accounts.error ||
+      !accounts.data ||
+      observations.error ||
+      !observations.data ||
+      associations.error ||
+      !associations.data
+    ) {
+      return { status: "unavailable" };
+    }
+    return {
+      status: "ready",
+      plaidAccounts: accounts.data.map((row) =>
+        toPlaidAccountPublic(
+          row as {
+            id: string;
+            user_id: string;
+            plaid_item_id: string;
+            plaid_account_id: string;
+            name: string | null;
+            mask: string | null;
+            account_type: string | null;
+            subtype: string | null;
+          }
+        )
+      ),
+      observations: observations.data
+        .map((row) =>
+          toBalanceObservationPublic(
+            row as {
+              id: string;
+              user_id: string;
+              plaid_account_id: string;
+              current_cents: number | null;
+              available_cents: number | null;
+              iso_currency_code: string | null;
+              unofficial_currency_code: string | null;
+              observed_at: string;
+              source: string;
+              state: string;
+            }
+          )
+        )
+        .filter((row): row is BalanceObservationPublic => row !== null),
+      associations: associations.data
+        .map((row) =>
+          toAccountAssociationPublic(
+            row as {
+              id: string;
+              user_id: string;
+              financial_account_id: string;
+              plaid_account_id: string;
+              confirmed_at: string;
+            }
+          )
+        )
+        .filter((row): row is AccountAssociationPublic => row !== null),
+    };
+  } catch {
+    return { status: "unavailable" };
+  }
+}
 
 function json(body: unknown, status: number): NextResponse {
   return NextResponse.json(body, {
@@ -79,12 +182,14 @@ export async function GET(request: Request) {
     return json({ error: "Intelligence contract is unavailable." }, 503);
   }
 
+  const balanceEvidence = await readBalanceEvidence(client, vault.user_id);
   const now = new Date();
   const contract = assembleIntelligenceContract({
     state,
     ianaTimeZone: owned[0]?.iana_timezone ?? null,
     now,
     generatedAt: now.toISOString(),
+    balanceEvidence,
   });
   return json(contract, 200);
 }

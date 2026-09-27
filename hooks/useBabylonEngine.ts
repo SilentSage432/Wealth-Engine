@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useBalanceObservation } from "@/hooks/useBalanceObservation";
+import { operationalMoneyAvailable } from "@/lib/babylon/balance-evidence-load";
 import {
   BABYLON_WISDOM,
   DONUT_COLORS,
@@ -50,7 +52,6 @@ import {
   normalizeAccountDraft,
   prependAccount,
   replaceAccount,
-  sumAccountBalances,
   withoutAccount,
 } from "@/lib/babylon/financial-position";
 import {
@@ -630,10 +631,12 @@ export function useBabylonEngine() {
     [incomes]
   );
 
-  /** Sum of manual account balances. Not Living Budget and not safe-to-spend. */
+  const balanceObservation = useBalanceObservation(hydrated && cloudUserId !== null);
+
+  /** Operational Money Available. Declarations until usable evidence exists. */
   const moneyAvailable = useMemo(
-    () => sumAccountBalances(accounts),
-    [accounts]
+    () => operationalMoneyAvailable({ accounts, load: balanceObservation.load }),
+    [accounts, balanceObservation.load]
   );
 
   const protectedMoney = useMemo(
@@ -1640,6 +1643,7 @@ export function useBabylonEngine() {
     budgetTargets,
     accounts,
     moneyAvailable,
+    balanceObservation,
     username,
     setUsername,
     /** Visual greeting name — never locks the input value. */

@@ -1,5 +1,22 @@
 # Development Journal
 
+## 2026-09-27 — WE-RECONCILE-001B2 effective financial position
+
+### What changed
+- Implementation complete. Automated validation passed. Production acceptance is pending. Operational Money Available is the rounded sum of effective account positions. `FinancialAccount.balance` and `asOf` stay the declaration and the fallback. An eligible cached `accounts_get` current can establish the effective amount. Cash, unlinked accounts, and ineligible evidence stay declared.
+- A ready load uses that evidence. An unavailable load keeps a retained successful snapshot, including its `observedAt`, and still says balance evidence is unavailable. Loading, signed-out, and a failure with nothing retained use declarations. A successful empty read replaces retained evidence. There is no staleness threshold and no new persistence.
+- Account rows show the effective amount as Observed with the stored time, or Declared with the as-of date. Edit Account still edits only the declaration and does not override an eligible observation. Associate and Remove link remain. Update balance is removed. Nothing copies an observation into the vault.
+- Protected Money and Available After Planned Needs use the same operational Money Available. A stored designation above that amount stays a conflict. Living Budget and month close are unchanged. The cause of a balance change remains UNKNOWN.
+- The Intelligence Contract is version `2`. `money_available_cents` matches the screen under the same successfully loaded evidence. Each account carries declared and effective amounts. An observed account carries cached `accounts_get` provenance. A failed server evidence read falls back to declarations and reports `balance_evidence_unavailable` without failing the rest of the contract. `balances_are_manual` and `no_reconciliation` are no longer standing claims. `plaid_is_not_vault_truth` remains. Sindarin stays read-only.
+
+### Validation
+- Focused tests passed: `effective-financial-position.test.ts`, `balance-evidence-load.test.ts`, `balance-observation.test.ts`, `intelligence-contract.test.ts`, and `confirmed-meaning.test.ts`, 91 tests.
+- The full suite passed: 33 files, 425 tests.
+- `tsc --noEmit`, lint, the production build, and `git diff --check` passed.
+
+### Not in this tranche
+- Production acceptance is pending. Monthly Honesty Report is not built. No migration, override flag, transaction reconciliation, or background vault writer.
+
 ## 2026-09-27 — WE-RECONCILE-001B1 observation load truth
 
 ### What changed

@@ -41,6 +41,12 @@ const { GET } = await import("@/app/api/intelligence/route");
 const SECRET = "intelligence-read-secret";
 const NOW = new Date("2026-01-15T18:00:00.000Z");
 const GENERATED = "2026-01-15T18:00:00.000Z";
+const READY_EMPTY = {
+  status: "ready" as const,
+  plaidAccounts: [],
+  observations: [],
+  associations: [],
+};
 
 function state(partial: Partial<PersistedState> = {}): PersistedState {
   return { ...EMPTY_STATE, ...partial };
@@ -145,16 +151,17 @@ function assemble(
     ianaTimeZone: zone,
     now,
     generatedAt: GENERATED,
+      balanceEvidence: READY_EMPTY,
   });
 }
 
 describe("intelligence contract", () => {
-  it("is version 1 and reports integer cents", () => {
+  it("is version 2 and reports integer cents", () => {
     const contract = assemble({
       incomes: [income(10.1, "2026-01-02"), income(0.2, "2026-01-03")],
     });
     expect(contract.meta.contract_version).toBe(INTELLIGENCE_CONTRACT_VERSION);
-    expect(contract.meta.contract_version).toBe("1");
+    expect(contract.meta.contract_version).toBe("2");
     expect(contract.purpose.current_month_recorded_income_cents).toBe(1030);
     expect(Number.isInteger(contract.purpose.current_month_recorded_income_cents)).toBe(
       true
@@ -221,6 +228,7 @@ describe("intelligence contract", () => {
       ianaTimeZone: "America/Boise",
       now: NOW,
       generatedAt: GENERATED,
+      balanceEvidence: READY_EMPTY,
     });
     const available = deriveAvailableAfterPlannedNeeds({
       moneyAvailable: 1000,
@@ -249,8 +257,13 @@ describe("intelligence contract", () => {
     expect(contract.position.accounts[0]).toEqual({
       name: "Checking",
       kind: "checking",
-      balance_cents: 100_000,
-      as_of: "2026-01-01",
+      declared_balance_cents: 100_000,
+      declared_as_of: "2026-01-01",
+      effective_balance_cents: 100_000,
+      effective_source: "declared",
+      observed_current_cents: null,
+      observed_at: null,
+      observation_kind: null,
     });
     expect(contract.position.money_available_cents).toBe(100_000);
   });
@@ -280,6 +293,7 @@ describe("intelligence contract", () => {
       ianaTimeZone: "America/Boise",
       now: NOW,
       generatedAt: GENERATED,
+      balanceEvidence: READY_EMPTY,
     });
     expect(fixture).toEqual(before);
     const derived = contract.obligations.unpaid.filter(
@@ -300,6 +314,7 @@ describe("intelligence contract", () => {
       ianaTimeZone: "America/Boise",
       now: NOW,
       generatedAt: GENERATED,
+      balanceEvidence: READY_EMPTY,
     });
     const due = deriveDueAttention(dueState.expenses, "2026-01-15");
     expect(dueContract.attention.items).toEqual(
@@ -414,12 +429,15 @@ describe("intelligence contract", () => {
     expect(contract.boundaries.unknowns).toEqual(
       expect.arrayContaining([
         "no_expected_payday",
-        "balances_are_manual",
-        "no_reconciliation",
         "plaid_is_not_vault_truth",
+        "cached_accounts_get_balance",
+        "balance_change_cause_unknown",
         "internal_observational_reasoners_excluded",
       ])
     );
+    expect(contract.boundaries.unknowns).not.toContain("balances_are_manual");
+    expect(contract.boundaries.unknowns).not.toContain("no_reconciliation");
+    expect(contract.boundaries.unknowns).not.toContain("balance_evidence_unavailable");
     expect(contract.boundaries.unknowns).not.toContain(
       "observational_reasoners_unwired"
     );
@@ -459,10 +477,30 @@ describe("intelligence contract", () => {
       ianaTimeZone: "America/Boise",
       now: NOW,
       generatedAt: GENERATED,
+      balanceEvidence: READY_EMPTY,
     });
     expect(fixture).toEqual(before);
   });
 });
+
+function evidenceRows(
+  data: unknown[] | null,
+  error: { message: string } | null = null
+) {
+  const result = { data, error };
+  const builder = {
+    eq() {
+      return builder;
+    },
+    then(
+      onFulfilled?: (value: typeof result) => unknown,
+      onRejected?: (reason: unknown) => unknown
+    ) {
+      return Promise.resolve(result).then(onFulfilled, onRejected);
+    },
+  };
+  return { select: () => builder };
+}
 
 describe("GET /api/intelligence", () => {
   const previous: Record<string, string | undefined> = {};
@@ -560,7 +598,7 @@ describe("GET /api/intelligence", () => {
     expect(text).not.toContain("steward-1");
   });
 
-  it("reads only the vault and timezone, then returns a fresh contract", async () => {
+  it("reads the vault, timezone, and owner-scoped balance evidence", async () => {
     const tables: string[] = [];
     getSupabaseServiceClient.mockReturnValue({
       from(table: string) {
@@ -589,6 +627,13 @@ describe("GET /api/intelligence", () => {
               }),
           };
         }
+        if (
+          table === "plaid_accounts" ||
+          table === "plaid_balance_observations" ||
+          table === "plaid_account_associations"
+        ) {
+          return evidenceRows([]);
+        }
         throw new Error(`unexpected table ${table}`);
       },
     });
@@ -600,20 +645,180 @@ describe("GET /api/intelligence", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store");
     const body = await response.json();
-    expect(body.meta.contract_version).toBe("1");
+    expect(body.meta.contract_version).toBe("2");
     expect(body.meta.iana_timezone).toBe("America/Boise");
-    expect(tables).toEqual(["wealth_engine_vaults", "notification_preferences"]);
+    expect(body.boundaries.unknowns).not.toContain("balance_evidence_unavailable");
+    expect(tables).toEqual([
+      "wealth_engine_vaults",
+      "notification_preferences",
+      "plaid_accounts",
+      "plaid_balance_observations",
+      "plaid_account_associations",
+    ]);
     expect(JSON.stringify(body)).not.toContain("steward-1");
   });
 
-  it("does not write, read Plaid, or touch notification delivery", () => {
+  it("uses an eligible stored observation and falls back when that read fails", async () => {
+    getSupabaseServiceClient.mockReturnValue({
+      from(table: string) {
+        if (table === "wealth_engine_vaults") {
+          return {
+            select: () =>
+              Promise.resolve({
+                data: [
+                  {
+                    user_id: "steward-1",
+                    schema_version: 5,
+                    vault_data: serializeCloudVaultData(state({ accounts: [account()] })),
+                  },
+                ],
+                error: null,
+              }),
+          };
+        }
+        if (table === "notification_preferences") {
+          return {
+            select: () =>
+              Promise.resolve({
+                data: [{ user_id: "steward-1", iana_timezone: "America/Boise" }],
+                error: null,
+              }),
+          };
+        }
+        if (table === "plaid_accounts") {
+          return evidenceRows([
+            {
+              id: "pa-1",
+              user_id: "steward-1",
+              plaid_item_id: "item-1",
+              plaid_account_id: "plaid-secret",
+              name: "Checking",
+              mask: "1234",
+              account_type: "depository",
+              subtype: "checking",
+            },
+          ]);
+        }
+        if (table === "plaid_balance_observations") {
+          return evidenceRows([
+            {
+              id: "obs-secret",
+              user_id: "steward-1",
+              plaid_account_id: "plaid-secret",
+              current_cents: 184_726,
+              available_cents: 1,
+              iso_currency_code: "USD",
+              unofficial_currency_code: null,
+              observed_at: "2026-09-27T08:14:00.000Z",
+              source: "accounts_get",
+              state: "current",
+            },
+          ]);
+        }
+        if (table === "plaid_account_associations") {
+          return evidenceRows([
+            {
+              id: "assoc-secret",
+              user_id: "steward-1",
+              financial_account_id: "acct-1",
+              plaid_account_id: "plaid-secret",
+              confirmed_at: "2026-09-27T08:14:00.000Z",
+            },
+          ]);
+        }
+        throw new Error(`unexpected table ${table}`);
+      },
+    });
+    const observed = await GET(
+      request("https://wealth-engine-zeta.vercel.app/api/intelligence", {
+        headers: { Authorization: `Bearer ${SECRET}` },
+      })
+    );
+    expect(observed.status).toBe(200);
+    const observedBody = await observed.json();
+    expect(observedBody.position.money_available_cents).toBe(184_726);
+    expect(observedBody.position.accounts[0]).toMatchObject({
+      declared_balance_cents: 100_000,
+      declared_as_of: "2026-01-01",
+      effective_balance_cents: 184_726,
+      effective_source: "observed",
+      observed_current_cents: 184_726,
+      observed_at: "2026-09-27T08:14:00.000Z",
+      observation_kind: "cached_accounts_get",
+    });
+    expect(observedBody.boundaries.unknowns).toContain("balance_change_cause_unknown");
+    expect(observedBody.boundaries.unknowns).toContain("plaid_is_not_vault_truth");
+    expect(observedBody.boundaries.unknowns).not.toContain("balance_evidence_unavailable");
+    const observedText = JSON.stringify(observedBody);
+    expect(observedText).not.toContain("obs-secret");
+    expect(observedText).not.toContain("plaid-secret");
+    expect(observedText).not.toContain("steward-1");
+    expect(observedText).not.toContain("access_token");
+
+    getSupabaseServiceClient.mockReturnValue({
+      from(table: string) {
+        if (table === "wealth_engine_vaults") {
+          return {
+            select: () =>
+              Promise.resolve({
+                data: [
+                  {
+                    user_id: "steward-1",
+                    schema_version: 5,
+                    vault_data: serializeCloudVaultData(state({ accounts: [account()] })),
+                  },
+                ],
+                error: null,
+              }),
+          };
+        }
+        if (table === "notification_preferences") {
+          return {
+            select: () =>
+              Promise.resolve({
+                data: [{ user_id: "steward-1", iana_timezone: "America/Boise" }],
+                error: null,
+              }),
+          };
+        }
+        if (
+          table === "plaid_accounts" ||
+          table === "plaid_balance_observations" ||
+          table === "plaid_account_associations"
+        ) {
+          return evidenceRows(null, { message: "read failed" });
+        }
+        throw new Error(`unexpected table ${table}`);
+      },
+    });
+    const failed = await GET(
+      request("https://wealth-engine-zeta.vercel.app/api/intelligence", {
+        headers: { Authorization: `Bearer ${SECRET}` },
+      })
+    );
+    expect(failed.status).toBe(200);
+    const failedBody = await failed.json();
+    expect(failedBody.position.money_available_cents).toBe(100_000);
+    expect(failedBody.position.accounts[0].effective_source).toBe("declared");
+    expect(failedBody.boundaries.unknowns).toContain("balance_evidence_unavailable");
+    expect(failedBody.boundaries.unknowns).toContain("balance_change_cause_unknown");
+    expect(JSON.stringify(failedBody)).not.toContain("184726");
+  });
+
+  it("does not write, call Plaid, or load transactions", () => {
     const route = readFileSync("app/api/intelligence/route.ts", "utf8");
     const assembler = readFileSync("lib/babylon/intelligence-contract.ts", "utf8");
     expect(route).not.toContain(".insert(");
     expect(route).not.toContain(".update(");
     expect(route).not.toContain(".delete(");
     expect(route).not.toContain(".upsert(");
-    expect(route).not.toContain("plaid");
+    expect(route).toContain('.eq("user_id"');
+    expect(route).toContain("plaid_accounts");
+    expect(route).toContain("plaid_balance_observations");
+    expect(route).toContain("plaid_account_associations");
+    expect(route).not.toContain("plaid_transactions");
+    expect(route).not.toContain("access_token");
+    expect(route).not.toContain("/accounts/get");
     expect(route).not.toContain("notification_deliveries");
     expect(route).not.toContain("push_subscriptions");
     expect(route).not.toContain("process.env.CRON_SECRET");

@@ -2,10 +2,10 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  actionableObservedBalancesForLoad,
   deriveBalanceObservationLoad,
+  operationalAccountPosition,
+  operationalMoneyAvailable,
   presentAccountObservation,
-  retainedObservedBalanceRows,
   type BalanceEvidenceRead,
   type BalanceObservationEvidence,
   type BalanceObservationLoad,
@@ -202,9 +202,7 @@ describe("balance evidence load", () => {
       load: { status: "unavailable", evidence: null },
       retained: null,
     });
-    expect(actionableObservedBalancesForLoad({ accounts: [checking], load: derived.load })).toEqual(
-      []
-    );
+    expect(operationalMoneyAvailable({ accounts: [checking], load: derived.load })).toBe(80);
   });
 
   it("keeps the last successful evidence when a later refresh fails", () => {
@@ -229,12 +227,13 @@ describe("balance evidence load", () => {
       observedAt: AT,
       currentCents: 9_000,
     });
-    expect(
-      actionableObservedBalancesForLoad({ accounts: [checking], load: second.load })
-    ).toEqual([]);
-    expect(retainedObservedBalanceRows({ accounts: [checking], load: second.load })).toEqual([
-      expect.objectContaining({ accountId: checking.id, observedAt: AT, currentCents: 9_000 }),
-    ]);
+    expect(operationalMoneyAvailable({ accounts: [checking], load: second.load })).toBe(90);
+    expect(operationalAccountPosition({ account: checking, load: second.load })).toMatchObject({
+      source: "observed",
+      balance: 90,
+      observedAt: AT,
+      currentCents: 9_000,
+    });
   });
 
   it("replaces retained evidence when a later read succeeds empty", () => {
@@ -253,9 +252,7 @@ describe("balance evidence load", () => {
     });
     expect(second.load).toEqual({ status: "ready", evidence: empty });
     expect(second.retained).toEqual(empty);
-    expect(
-      actionableObservedBalancesForLoad({ accounts: [checking], load: second.load })
-    ).toEqual([]);
+    expect(operationalMoneyAvailable({ accounts: [checking], load: second.load })).toBe(80);
   });
 
   it("becomes ready when a failed read is followed by success", () => {
@@ -273,12 +270,11 @@ describe("balance evidence load", () => {
       retained: failed.retained,
     });
     expect(recovered.load).toEqual({ status: "ready", evidence });
-    expect(
-      actionableObservedBalancesForLoad({
-        accounts: [checking],
-        load: recovered.load,
-      }).map((row) => row.observedAt)
-    ).toEqual([AT]);
+    expect(operationalMoneyAvailable({ accounts: [checking], load: recovered.load })).toBe(90);
+    expect(operationalAccountPosition({ account: checking, load: recovered.load })).toMatchObject({
+      source: "observed",
+      observedAt: AT,
+    });
   });
 
   it("hides observation UI while loading or signed out, including cash", () => {
@@ -297,7 +293,7 @@ describe("balance evidence load", () => {
     ).toBe("hidden");
   });
 
-  it("leaves declaration math, the contract, and effective position unwired", () => {
+  it("wires operational position and keeps association controls", () => {
     const engine = readFileSync(
       resolve(process.cwd(), "hooks/useBabylonEngine.ts"),
       "utf8"
@@ -310,18 +306,32 @@ describe("balance evidence load", () => {
       resolve(process.cwd(), "components/babylon/financial-position.tsx"),
       "utf8"
     );
+    const home = readFileSync(
+      resolve(process.cwd(), "components/babylon/mobile-home.tsx"),
+      "utf8"
+    );
     const load = readFileSync(
       resolve(process.cwd(), "lib/babylon/balance-evidence-load.ts"),
       "utf8"
     );
-    expect(engine).toContain("sumAccountBalances(accounts)");
-    expect(engine).not.toContain("deriveEffectiveAccountPosition");
-    expect(engine).not.toContain("balance-evidence-load");
-    expect(contract).not.toContain("balance-evidence-load");
-    expect(contract).toContain('INTELLIGENCE_CONTRACT_VERSION = "1"');
-    expect(contract).toContain("balances_are_manual");
-    expect(position).toContain("{money(account.balance)}");
-    expect(position).not.toContain("deriveEffectiveAccountPosition");
+    expect(engine).toContain("operationalMoneyAvailable");
+    expect(engine).not.toContain("sumAccountBalances(accounts)");
+    expect(engine).not.toContain("acceptObservedBalance");
+    expect(contract).toContain('INTELLIGENCE_CONTRACT_VERSION = "2"');
+    expect(contract).not.toContain("balances_are_manual");
+    expect(contract).not.toContain("no_reconciliation");
+    expect(contract).toContain("plaid_is_not_vault_truth");
+    expect(contract).toContain("balance_change_cause_unknown");
+    expect(position).toContain("operationalAccountPosition");
+    expect(position).toContain("Observed ·");
+    expect(position).toContain("Declared ·");
+    expect(position).not.toContain("Update balance");
+    expect(position).not.toContain("observedBalanceUpdate");
+    expect(position).toContain("Associate");
+    expect(position).toContain("Remove link");
+    expect(position).toContain("Edit Account");
+    expect(home).not.toContain("Update balance");
+    expect(home).not.toContain("Balances you entered");
     expect(position).toContain("BALANCE_EVIDENCE_UNAVAILABLE_LABEL");
     expect(load).toContain("Balance evidence unavailable");
     expect(position).toContain("No unlinked checking or savings account is available.");

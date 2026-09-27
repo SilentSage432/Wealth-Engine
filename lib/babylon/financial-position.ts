@@ -37,6 +37,18 @@ export function isFinancialAccountKind(
   );
 }
 
+/** Stored observation time in the viewer's local zone. */
+export function formatObservedAt(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "time unknown";
+  return date.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 /** Local calendar label for an as-of date. Does not parse the date as UTC. */
 export function formatAsOfLabel(
   isoDate: string,
@@ -72,7 +84,7 @@ export function normalizeAccountDraft(
   };
 }
 
-/** Money Available — sum of manually entered balances. Not stored. */
+/** Declaration sum. Operational Money Available is derived beside balance evidence. */
 export function sumAccountBalances(
   accounts: readonly FinancialAccount[]
 ): number {

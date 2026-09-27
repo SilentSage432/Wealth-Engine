@@ -32,20 +32,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  formatObservedAt,
-  formatSignedDifference,
-  ObservedBalanceUpdates,
-  UPDATE_BALANCE_LABEL,
-} from "@/components/babylon/observed-balance-update";
-import {
   depositoryChoiceLabel,
   describeAccountBalance,
-  observedBalanceUpdate,
   unassociatedDepositoryAccountIds,
   type AccountBalanceView,
 } from "@/lib/babylon/balance-observation";
 import {
   BALANCE_EVIDENCE_UNAVAILABLE_LABEL,
+  operationalAccountPosition,
   presentAccountObservation,
   type BalanceObservationLoad,
 } from "@/lib/babylon/balance-evidence-load";
@@ -56,6 +50,7 @@ import type { PlaidItemPublic } from "@/lib/babylon/plaid-schema";
 import {
   FINANCIAL_ACCOUNT_KINDS,
   formatAsOfLabel,
+  formatObservedAt,
 } from "@/lib/babylon/financial-position";
 import { formatCurrency } from "@/lib/utils";
 import type { AvailableAfterPlannedNeeds } from "@/lib/babylon/available-after-planned-needs";
@@ -106,22 +101,18 @@ function AccountObservation({
   linkChoice,
   linking,
   liveFinancialAccountIds,
-  money,
   onLinkChoice,
   onAssociate,
   onRemoveAssociation,
-  onAccept,
 }: {
   account: FinancialAccount;
   balanceObservation: FinancialPositionProps["balanceObservation"];
   linkChoice: string | undefined;
   linking: boolean;
   liveFinancialAccountIds: readonly string[];
-  money: (value: number) => string;
   onLinkChoice: (plaidAccountId: string) => void;
   onAssociate: () => void;
   onRemoveAssociation: () => void;
-  onAccept: () => void;
 }) {
   if (!balanceObservation) return null;
   const presentation = presentAccountObservation({
@@ -135,12 +126,6 @@ function AccountObservation({
         <p className="text-[11px] leading-relaxed text-slate-500">
           {BALANCE_EVIDENCE_UNAVAILABLE_LABEL}
         </p>
-        {presentation.observedAt !== null && presentation.currentCents !== null ? (
-          <p className="text-[11px] leading-relaxed text-slate-500">
-            Observed {money(presentation.currentCents / 100)}. Stored{" "}
-            {formatObservedAt(presentation.observedAt)}.
-          </p>
-        ) : null}
       </div>
     );
   }
@@ -237,33 +222,10 @@ function AccountObservation({
           Observed balance is unknown.
         </p>
       ) : null}
-      {view.status === "match" ? (
-        <p className="text-[11px] leading-relaxed text-slate-500">
-          Observed {money(view.currentCents / 100)}. Stored {formatObservedAt(view.observedAt)}.
+      {view.status === "differs" && !view.canAccept ? (
+        <p className="text-[11px] leading-relaxed text-amber-200">
+          This stored reading is negative, so the declared balance is used.
         </p>
-      ) : null}
-      {view.status === "differs" ? (
-        <div className="flex flex-wrap items-center gap-2">
-          <p className="text-[11px] leading-relaxed text-slate-400">
-            Observed {money(view.currentCents / 100)}. Stored{" "}
-            {formatObservedAt(view.observedAt)}. Difference{" "}
-            {formatSignedDifference(view.differenceCents, money)}.
-          </p>
-          {view.canAccept ? (
-            <Button
-              type="button"
-              size="sm"
-              onClick={onAccept}
-              aria-label={`Update ${account.name} balance`}
-            >
-              {UPDATE_BALANCE_LABEL}
-            </Button>
-          ) : (
-            <p className="text-[11px] leading-relaxed text-amber-200">
-              This observed balance is negative, so it cannot be accepted.
-            </p>
-          )}
-        </div>
       ) : null}
       {view.status !== "unlinked" ? (
         <Button
@@ -390,7 +352,12 @@ export function FinancialPosition({
       <p className="text-sm text-slate-500">No accounts yet.</p>
     ) : (
       <ul className="divide-y divide-slate-800/80 rounded-lg border border-slate-800/80">
-        {accounts.map((account) => (
+        {accounts.map((account) => {
+          const accountPosition = operationalAccountPosition({
+            account,
+            load: balanceObservation?.load,
+          });
+          return (
           <li
             key={account.id}
             className="flex flex-wrap items-center gap-3 px-3 py-3 sm:px-4"
@@ -402,11 +369,13 @@ export function FinancialPosition({
               <p className="text-[11px] text-slate-500">
                 {ACCOUNT_KIND_LABELS[account.kind]}
                 {" · "}
-                Updated {formatAsOfLabel(account.asOf)}
+                {accountPosition.source === "observed"
+                  ? `Observed · ${formatObservedAt(accountPosition.observedAt)}`
+                  : `Declared · ${formatAsOfLabel(accountPosition.asOf)}`}
               </p>
             </div>
             <p className="font-[family-name:var(--font-display)] text-lg font-semibold tabular-nums text-slate-100">
-              {money(account.balance)}
+              {money(accountPosition.balance)}
             </p>
             <div className="flex items-center gap-1">
               <Button
@@ -435,7 +404,6 @@ export function FinancialPosition({
               linkChoice={linkChoice[account.id]}
               linking={linkingId === account.id}
               liveFinancialAccountIds={accounts.map((row) => row.id)}
-              money={money}
               onLinkChoice={(plaidAccountId) =>
                 setLinkChoice((prev) => ({ ...prev, [account.id]: plaidAccountId }))
               }
@@ -462,25 +430,22 @@ export function FinancialPosition({
                 await balanceObservation.onRemoveAssociation(account.id);
                 setLinkingId(null);
               }}
-              onAccept={() => {
-                if (!balanceObservation) return;
-                if (balanceObservation.load.status !== "ready") return;
-                const ready = balanceObservation.load.evidence;
-                const accepted = observedBalanceUpdate({
-                  account,
-                  associations: ready.associations,
-                  plaidAccounts: ready.plaidAccounts,
-                  observations: ready.observations,
-                  today: todayIso(),
-                });
-                if (!accepted) return;
-                onUpdateAccount(account.id, accepted);
-              }}
             />
           </li>
-        ))}
+          );
+        })}
       </ul>
     );
+
+  const editingAccount = editingId
+    ? (accounts.find((account) => account.id === editingId) ?? null)
+    : null;
+  const editingDeclaresFallback = editingAccount
+    ? operationalAccountPosition({
+        account: editingAccount,
+        load: balanceObservation?.load,
+      }).source === "observed"
+    : false;
 
   return (
     <section aria-label="Financial Position" className="animate-fade-up">
@@ -501,23 +466,20 @@ export function FinancialPosition({
                 {money(moneyAvailable)}
               </p>
               <p className="mt-2 max-w-xl text-xs leading-relaxed text-slate-500">
-                Money you&apos;ve entered as currently available. This is
-                separate from your Living Budget.
+                Observed eligible balances where Wealth Engine has them.
+                Declared balances otherwise. Separate from your Living Budget.
               </p>
+              {balanceObservation?.load.status === "unavailable" ? (
+                <p className="mt-2 text-xs leading-relaxed text-slate-500">
+                  {BALANCE_EVIDENCE_UNAVAILABLE_LABEL}
+                </p>
+              ) : null}
             </div>
             <Button type="button" size="sm" onClick={openAdd}>
               <Plus className="h-3.5 w-3.5" aria-hidden="true" />
               Add Account
             </Button>
           </div>
-          {balanceObservation ? (
-            <ObservedBalanceUpdates
-              accounts={accounts}
-              load={balanceObservation.load}
-              discreet={discreet}
-              onUpdateAccount={onUpdateAccount}
-            />
-          ) : null}
           </>
           ) : (
           <div className="flex items-center justify-between gap-3">
@@ -605,8 +567,9 @@ export function FinancialPosition({
               promise that the remainder is safe to spend.
             </p>
             <p className="mt-1 text-xs leading-relaxed text-slate-500">
-              Financial Position is manual. After money leaves your accounts,
-              update your account balances to keep this figure current.
+              Money Available uses an observed eligible balance when Wealth
+              Engine has one, and the balance you entered otherwise. It does
+              not explain why a balance changed.
             </p>
           </div>
           ) : null}
@@ -693,6 +656,9 @@ export function FinancialPosition({
               </DialogTitle>
               <DialogDescription>
                 A balance records money that already exists. It is not income.
+                {editingDeclaresFallback
+                  ? " This edits the declared fallback. The amount shown stays the observed balance."
+                  : null}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-2">

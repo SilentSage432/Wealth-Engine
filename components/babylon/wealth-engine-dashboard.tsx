@@ -32,7 +32,6 @@ import { AuthModal } from "@/components/modals/AuthModal";
 import { PaycheckSplitterModal } from "@/components/modals/PaycheckSplitterModal";
 import { RecordTransactionModal } from "@/components/modals/RecordTransactionModal";
 import { useBabylonEngine } from "@/hooks/useBabylonEngine";
-import { useBalanceObservation } from "@/hooks/useBalanceObservation";
 import { useDesktopLayout } from "@/hooks/useDesktopLayout";
 import { usePlaidConnections } from "@/hooks/usePlaidConnections";
 import { useTributeHotkeys } from "@/hooks/useTributeHotkeys";
@@ -55,7 +54,7 @@ export function WealthEngineDashboard() {
   } = engine;
 
   const plaid = usePlaidConnections({ enabled: hydrated && isCloudSynced });
-  const balanceObservation = useBalanceObservation(hydrated && isCloudSynced);
+  const balanceObservation = engine.balanceObservation;
   const { launchLink, launching, connectedCount, isLoading } = plaid;
 
   const handleLinkBank = useCallback(() => {
@@ -326,8 +325,6 @@ export function WealthEngineDashboard() {
                 recentActivity={engine.recentActivity}
                 discreet={discreet}
                 onNavigate={setMobileDestination}
-                accounts={engine.accounts}
-                onUpdateAccount={engine.updateAccount}
                 balanceObservation={balanceObservationView}
               />
             )}

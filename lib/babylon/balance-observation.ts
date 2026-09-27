@@ -7,7 +7,7 @@
  */
 
 import { roundMoney } from "@/lib/babylon/engine";
-import type { FinancialAccount, FinancialAccountInput } from "@/types/babylon";
+import type { FinancialAccount } from "@/types/babylon";
 
 export const BALANCE_OBSERVATION_SOURCE = "accounts_get" as const;
 
@@ -428,42 +428,6 @@ export function compareRecordedBalance(input: {
   return { status: "differs", currentCents, differenceCents };
 }
 
-/**
- * Explicit accept. Returns the existing account editor input, or null when
- * the observed current cannot become Financial Position.
- * Available cents are not read.
- */
-export function acceptObservedBalance(input: {
-  account: FinancialAccount;
-  associated: boolean;
-  accountType: string | null;
-  subtype: string | null;
-  observation: {
-    currentCents: number | null;
-    isoCurrencyCode: string | null;
-    unofficialCurrencyCode: string | null;
-  } | null;
-  today: string;
-}): FinancialAccountInput | null {
-  const comparison = compareRecordedBalance({
-    associated: input.associated,
-    recordedBalance: input.account.balance,
-    accountType: input.accountType,
-    subtype: input.subtype,
-    observation: input.observation
-      ? { ...input.observation, availableCents: null }
-      : null,
-  });
-  if (comparison.status !== "differs") return null;
-  if (comparison.currentCents < 0) return null;
-  return {
-    name: input.account.name,
-    kind: input.account.kind,
-    balance: dollarsFromCents(comparison.currentCents),
-    asOf: input.today,
-  };
-}
-
 type ObservedBalanceLink = {
   associations: readonly { financialAccountId: string; plaidAccountId: string }[];
   plaidAccounts: readonly {
@@ -472,16 +436,6 @@ type ObservedBalanceLink = {
     subtype: string | null;
   }[];
   observations: readonly BalanceObservationPublic[];
-};
-
-/** One associated account whose existing Accept action is available. */
-export type ActionableObservedBalance = {
-  accountId: string;
-  accountName: string;
-  recordedBalance: number;
-  currentCents: number;
-  differenceCents: number;
-  observedAt: string;
 };
 
 function observedBalanceLink(accountId: string, input: ObservedBalanceLink) {
@@ -503,63 +457,6 @@ function observedBalanceLink(accountId: string, input: ObservedBalanceLink) {
     subtype: plaidAccount?.subtype ?? null,
     observation,
   };
-}
-
-/**
- * Accounts the existing comparison already allows the steward to accept.
- * Order follows the vault account list. Unlinked, unknown, matching, hidden,
- * and ineligible currents are omitted.
- */
-export function listActionableObservedBalances(
-  input: ObservedBalanceLink & {
-    accounts: readonly FinancialAccount[];
-    enabled: boolean;
-    settled: boolean;
-  }
-): ActionableObservedBalance[] {
-  if (!input.enabled || !input.settled) return [];
-  const rows: ActionableObservedBalance[] = [];
-  for (const account of input.accounts) {
-    const linked = observedBalanceLink(account.id, input);
-    const view = describeAccountBalance({
-      account,
-      associatedPlaidAccountId: linked.associatedPlaidAccountId,
-      accountType: linked.accountType,
-      subtype: linked.subtype,
-      observation: linked.observation,
-    });
-    if (view.status !== "differs" || !view.canAccept) continue;
-    rows.push({
-      accountId: account.id,
-      accountName: account.name,
-      recordedBalance: account.balance,
-      currentCents: view.currentCents,
-      differenceCents: view.differenceCents,
-      observedAt: view.observedAt,
-    });
-  }
-  return rows;
-}
-
-/**
- * The existing Accept write for one account.
- * Returns null when that account is not eligible.
- */
-export function observedBalanceUpdate(
-  input: ObservedBalanceLink & {
-    account: FinancialAccount;
-    today: string;
-  }
-): FinancialAccountInput | null {
-  const linked = observedBalanceLink(input.account.id, input);
-  return acceptObservedBalance({
-    account: input.account,
-    associated: linked.associatedPlaidAccountId !== null,
-    accountType: linked.accountType,
-    subtype: linked.subtype,
-    observation: linked.observation,
-    today: input.today,
-  });
 }
 
 export function describeAccountBalance(input: {
@@ -632,6 +529,37 @@ export function deriveEffectiveAccountPosition(input: {
     source: "declared",
     asOf: input.account.asOf,
   };
+}
+
+/**
+ * One effective position per account, in vault order.
+ * Eligibility stays inside deriveEffectiveAccountPosition.
+ */
+export function deriveEffectiveAccountPositions(
+  input: ObservedBalanceLink & { accounts: readonly FinancialAccount[] }
+): EffectiveAccountPosition[] {
+  return input.accounts.map((account) => {
+    const linked = observedBalanceLink(account.id, input);
+    return deriveEffectiveAccountPosition({
+      account,
+      associatedPlaidAccountId: linked.associatedPlaidAccountId,
+      accountType: linked.accountType,
+      subtype: linked.subtype,
+      observation: linked.observation,
+    });
+  });
+}
+
+/** Rounded sum of effective positions. Does not write an account. */
+export function deriveEffectiveMoneyAvailable(
+  input: ObservedBalanceLink & { accounts: readonly FinancialAccount[] }
+): number {
+  return roundMoney(
+    deriveEffectiveAccountPositions(input).reduce(
+      (sum, position) => sum + position.balance,
+      0
+    )
+  );
 }
 
 export function depositoryChoiceLabel(input: {

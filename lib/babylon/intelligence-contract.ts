@@ -15,6 +15,12 @@ import {
   totalRemainingDebt,
   upcomingNeedsTotal,
 } from "@/lib/babylon/engine";
+import {
+  deriveEffectiveAccountPosition,
+  deriveEffectiveAccountPositions,
+  deriveEffectiveMoneyAvailable,
+  type BalanceObservationPublic,
+} from "@/lib/babylon/balance-observation";
 import { sumAccountBalances } from "@/lib/babylon/financial-position";
 import { civilDateInTimeZone } from "@/lib/babylon/notification-delivery";
 import {
@@ -27,13 +33,13 @@ import { materializeRecurringObligations } from "@/lib/babylon/recurring-obligat
 import type { ExpenseEntry, PersistedState } from "@/types/babylon";
 
 /** Machine-readable contract. Not the vault and not a Muse API. */
-export const INTELLIGENCE_CONTRACT_VERSION = "1";
+export const INTELLIGENCE_CONTRACT_VERSION = "2";
 
 const STANDING_UNKNOWNS = [
   "no_expected_payday",
-  "balances_are_manual",
-  "no_reconciliation",
   "plaid_is_not_vault_truth",
+  "cached_accounts_get_balance",
+  "balance_change_cause_unknown",
   // The reasoners exist. This contract does not include their outputs.
   "internal_observational_reasoners_excluded",
 ] as const;
@@ -41,7 +47,28 @@ const STANDING_UNKNOWNS = [
 export type IntelligenceUnknown =
   | (typeof STANDING_UNKNOWNS)[number]
   | "apr_unverified"
-  | "civil_date_unknown";
+  | "civil_date_unknown"
+  | "balance_evidence_unavailable";
+
+/**
+ * Stored balance evidence for this read.
+ * `ready` may be empty. `unavailable` is a failed read, not an empty one.
+ */
+export type IntelligenceBalanceEvidence =
+  | {
+      status: "ready";
+      plaidAccounts: readonly {
+        plaidAccountId: string;
+        accountType: string | null;
+        subtype: string | null;
+      }[];
+      observations: readonly BalanceObservationPublic[];
+      associations: readonly {
+        financialAccountId: string;
+        plaidAccountId: string;
+      }[];
+    }
+  | { status: "unavailable" };
 
 export interface IntelligenceContractInput {
   state: PersistedState;
@@ -49,6 +76,7 @@ export interface IntelligenceContractInput {
   ianaTimeZone: string | null;
   now: Date;
   generatedAt: string;
+  balanceEvidence: IntelligenceBalanceEvidence;
 }
 
 /**
@@ -122,7 +150,33 @@ export function assembleIntelligenceContract(input: IntelligenceContractInput) {
         );
 
   const upcomingNeeds = upcomingNeedsTotal(readingExpenses);
-  const moneyAvailable = sumAccountBalances(state.accounts);
+  const balanceEvidence = input.balanceEvidence;
+  const positions =
+    balanceEvidence.status === "ready"
+      ? deriveEffectiveAccountPositions({
+          accounts: state.accounts,
+          plaidAccounts: balanceEvidence.plaidAccounts,
+          observations: balanceEvidence.observations,
+          associations: balanceEvidence.associations,
+        })
+      : state.accounts.map((account) =>
+          deriveEffectiveAccountPosition({
+            account,
+            associatedPlaidAccountId: null,
+            accountType: null,
+            subtype: null,
+            observation: null,
+          })
+        );
+  const moneyAvailable =
+    balanceEvidence.status === "ready"
+      ? deriveEffectiveMoneyAvailable({
+          accounts: state.accounts,
+          plaidAccounts: balanceEvidence.plaidAccounts,
+          observations: balanceEvidence.observations,
+          associations: balanceEvidence.associations,
+        })
+      : sumAccountBalances(state.accounts);
   const openingProtected = totalProtectedMoney(
     state.openingWealthBuilding,
     state.openingEmergencyFund
@@ -160,6 +214,9 @@ export function assembleIntelligenceContract(input: IntelligenceContractInput) {
     unknowns.push("apr_unverified");
   }
   if (!civilDate) unknowns.push("civil_date_unknown");
+  if (balanceEvidence.status === "unavailable") {
+    unknowns.push("balance_evidence_unavailable");
+  }
 
   const attention: Array<
     | { kind: "due_obligation"; civil_date: string; subject_ref: string }
@@ -270,12 +327,33 @@ export function assembleIntelligenceContract(input: IntelligenceContractInput) {
         state.openingEmergencyFund,
         moneyAvailable
       ),
-      accounts: state.accounts.map((account) => ({
-        name: account.name,
-        kind: account.kind,
-        balance_cents: intelligenceCents(account.balance),
-        as_of: account.asOf,
-      })),
+      accounts: state.accounts.map((account, index) => {
+        const position = positions[index];
+        const declared = {
+          name: account.name,
+          kind: account.kind,
+          declared_balance_cents: intelligenceCents(account.balance),
+          declared_as_of: account.asOf,
+        };
+        if (position?.source === "observed") {
+          return {
+            ...declared,
+            effective_balance_cents: intelligenceCents(position.balance),
+            effective_source: "observed" as const,
+            observed_current_cents: position.currentCents,
+            observed_at: position.observedAt,
+            observation_kind: "cached_accounts_get" as const,
+          };
+        }
+        return {
+          ...declared,
+          effective_balance_cents: intelligenceCents(position?.balance ?? account.balance),
+          effective_source: "declared" as const,
+          observed_current_cents: null,
+          observed_at: null,
+          observation_kind: null,
+        };
+      }),
     },
     available_after_planned_needs: {
       available_cents: intelligenceCents(available.availableAfterPlannedNeeds),

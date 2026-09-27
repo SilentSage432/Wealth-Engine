@@ -5,12 +5,15 @@
  */
 
 import {
+  deriveEffectiveAccountPosition,
+  deriveEffectiveAccountPositions,
+  deriveEffectiveMoneyAvailable,
   describeAccountBalance,
-  listActionableObservedBalances,
   type AccountAssociationPublic,
-  type ActionableObservedBalance,
   type BalanceObservationPublic,
+  type EffectiveAccountPosition,
 } from "@/lib/babylon/balance-observation";
+import { sumAccountBalances } from "@/lib/babylon/financial-position";
 import type { PlaidAccountPublic } from "@/lib/babylon/plaid-schema";
 import type { FinancialAccount } from "@/types/babylon";
 
@@ -166,37 +169,63 @@ export function presentAccountObservation(input: {
   return { status: "ready", evidence: input.load.evidence };
 }
 
-/** Update balance rows. Only a ready load can establish an eligible difference. */
-export function actionableObservedBalancesForLoad(input: {
+/**
+ * Evidence that may establish effective position.
+ * Ready evidence and a retained successful snapshot qualify.
+ * Loading, signed-out, and a failure with nothing retained do not.
+ */
+export function evidenceForOperationalPosition(
+  load: BalanceObservationLoad | undefined
+): BalanceObservationEvidence | null {
+  if (!load) return null;
+  if (load.status === "ready") return load.evidence;
+  if (load.status === "unavailable") return load.evidence;
+  return null;
+}
+
+/** Operational Money Available. Declarations until usable evidence exists. */
+export function operationalMoneyAvailable(input: {
   accounts: readonly FinancialAccount[];
-  load: BalanceObservationLoad;
-}): ActionableObservedBalance[] {
-  if (input.load.status !== "ready") return [];
-  return listActionableObservedBalances({
+  load: BalanceObservationLoad | undefined;
+}): number {
+  const evidence = evidenceForOperationalPosition(input.load);
+  if (!evidence) return sumAccountBalances(input.accounts);
+  return deriveEffectiveMoneyAvailable({
     accounts: input.accounts,
-    enabled: true,
-    settled: true,
-    plaidAccounts: input.load.evidence.plaidAccounts,
-    observations: input.load.evidence.observations,
-    associations: input.load.evidence.associations,
+    plaidAccounts: evidence.plaidAccounts,
+    observations: evidence.observations,
+    associations: evidence.associations,
   });
 }
 
-/**
- * Retained differences after a failed refresh.
- * These rows keep their original observedAt. They are not an accept action.
- */
-export function retainedObservedBalanceRows(input: {
-  accounts: readonly FinancialAccount[];
-  load: BalanceObservationLoad;
-}): ActionableObservedBalance[] {
-  if (input.load.status !== "unavailable" || !input.load.evidence) return [];
-  return listActionableObservedBalances({
-    accounts: input.accounts,
-    enabled: true,
-    settled: true,
-    plaidAccounts: input.load.evidence.plaidAccounts,
-    observations: input.load.evidence.observations,
-    associations: input.load.evidence.associations,
-  });
+/** One account's operational position under the same load rule. */
+export function operationalAccountPosition(input: {
+  account: FinancialAccount;
+  load: BalanceObservationLoad | undefined;
+}): EffectiveAccountPosition {
+  const evidence = evidenceForOperationalPosition(input.load);
+  if (!evidence) {
+    return deriveEffectiveAccountPosition({
+      account: input.account,
+      associatedPlaidAccountId: null,
+      accountType: null,
+      subtype: null,
+      observation: null,
+    });
+  }
+  return (
+    deriveEffectiveAccountPositions({
+      accounts: [input.account],
+      plaidAccounts: evidence.plaidAccounts,
+      observations: evidence.observations,
+      associations: evidence.associations,
+    })[0] ??
+    deriveEffectiveAccountPosition({
+      account: input.account,
+      associatedPlaidAccountId: null,
+      accountType: null,
+      subtype: null,
+      observation: null,
+    })
+  );
 }

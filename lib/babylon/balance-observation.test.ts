@@ -3,11 +3,8 @@ import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { deriveDueAttention } from "@/lib/babylon/attention";
 import {
-  acceptObservedBalance,
   applyBalanceObservations,
   associateFinancialAccount,
-  listActionableObservedBalances,
-  observedBalanceUpdate,
   BALANCE_OBSERVATION_SOURCE,
   compareRecordedBalance,
   currentBalanceObservation,
@@ -28,10 +25,7 @@ import {
 } from "@/lib/babylon/balance-observation";
 import { EMPTY_STATE } from "@/lib/babylon/constants";
 import { sumAccountBalances } from "@/lib/babylon/financial-position";
-import {
-  assembleIntelligenceContract,
-  intelligenceCents,
-} from "@/lib/babylon/intelligence-contract";
+import { intelligenceCents } from "@/lib/babylon/intelligence-contract";
 import { parsePlaidAccountsGetResponse } from "@/lib/babylon/plaid-transaction-sync";
 import type { FinancialAccount } from "@/types/babylon";
 
@@ -302,20 +296,6 @@ describe("balance observation", () => {
       observation: observation({ currentCents: 8_000, availableCents: 1_000 }),
     });
     expect(compared).toEqual({ status: "match", currentCents: 8_000 });
-    const accepted = acceptObservedBalance({
-      account: checkingAccount(0),
-      associated: true,
-      accountType: "depository",
-      subtype: "checking",
-      observation: {
-        currentCents: 1_000,
-        isoCurrencyCode: "USD",
-        unofficialCurrencyCode: null,
-      },
-      today: "2026-09-26",
-    });
-    expect(accepted?.balance).toBe(10);
-    expect(accepted?.balance).not.toBe(75);
   });
 
   it("refreshes the stored time when evidence is unchanged and does not add history", () => {
@@ -618,14 +598,6 @@ describe("deterministic comparison and accept", () => {
         },
       }).status
     ).toBe("match");
-    expect(
-      acceptObservedBalance({
-        account: checkingAccount(80),
-        ...linked,
-        observation: observation({ currentCents: 8_000 }),
-        today: "2026-09-26",
-      })
-    ).toBeNull();
   });
 
   it("reports a signed cent difference without changing the vault balance", () => {
@@ -664,47 +636,7 @@ describe("deterministic comparison and accept", () => {
     expect(account.asOf).toBe("2026-09-01");
   });
 
-  it("accepts the observed current into only that account and sets the local civil date", () => {
-    const checking = checkingAccount(80);
-    const savings: FinancialAccount = {
-      id: "acct-savings",
-      name: "Reserve",
-      kind: "savings",
-      balance: 20,
-      asOf: "2026-09-01",
-    };
-    const accepted = acceptObservedBalance({
-      account: checking,
-      ...linked,
-      observation: observation({ currentCents: 12_550 }),
-      today: "2026-09-26",
-    });
-    expect(accepted).toEqual({
-      name: "Everyday",
-      kind: "checking",
-      balance: 125.5,
-      asOf: "2026-09-26",
-    });
-    const nextAccounts = [savings, { ...checking, ...accepted! }];
-    expect(sumAccountBalances(nextAccounts)).toBe(145.5);
-    expect(savings.balance).toBe(20);
-    expect(
-      compareRecordedBalance({
-        ...linked,
-        recordedBalance: accepted!.balance,
-        observation: observation({ currentCents: 12_550 }),
-      }).status
-    ).toBe("match");
-  });
-
-  it("refuses a negative observed current and never accepts available", () => {
-    const negative = acceptObservedBalance({
-      account: checkingAccount(80),
-      ...linked,
-      observation: observation({ currentCents: -50, availableCents: 100 }),
-      today: "2026-09-26",
-    });
-    expect(negative).toBeNull();
+  it("keeps a negative observed current ineligible", () => {
     expect(
       describeAccountBalance({
         account: checkingAccount(80),
@@ -724,17 +656,6 @@ describe("deterministic comparison and accept", () => {
         },
       })
     ).toMatchObject({ status: "differs", canAccept: false, differenceCents: -8_050 });
-    const fromAvailable = acceptObservedBalance({
-      account: checkingAccount(0),
-      ...linked,
-      observation: {
-        currentCents: 2_500,
-        isoCurrencyCode: "USD",
-        unofficialCurrencyCode: null,
-      },
-      today: "2026-09-26",
-    });
-    expect(fromAvailable?.balance).toBe(25);
   });
 
   it("hides association on cash and leaves Financial Position math on vault balances", () => {
@@ -757,51 +678,11 @@ describe("deterministic comparison and accept", () => {
     expect(sumAccountBalances([checkingAccount(80), cash])).toBe(95);
   });
 
-  it("leaves Attention, confirmed meaning, repetition, movement, and the contract untouched", () => {
-    const expenses = EMPTY_STATE.expenses;
-    expect(deriveDueAttention(expenses, "2026-09-26")).toEqual([]);
-    const state = {
-      ...EMPTY_STATE,
-      accounts: [checkingAccount(80)],
-    };
-    const before = assembleIntelligenceContract({
-      state,
-      ianaTimeZone: "America/Boise",
-      now: new Date("2026-09-26T18:00:00.000Z"),
-      generatedAt: "2026-09-26T18:00:00.000Z",
-    });
-    expect(before.position.money_available_cents).toBe(8_000);
-    expect(before.boundaries.unknowns).toContain("balances_are_manual");
-    expect(before.boundaries.unknowns).toContain("no_reconciliation");
-    expect(before.boundaries.unknowns).toContain("plaid_is_not_vault_truth");
-    expect(before.attention.items).toEqual([]);
-    expect(JSON.stringify(before)).not.toContain("plaid-checking");
-    expect(JSON.stringify(before)).not.toContain("accounts_get");
-
-    const accepted = acceptObservedBalance({
-      account: state.accounts[0]!,
-      ...linked,
-      observation: observation({ currentCents: 9_000 }),
-      today: "2026-09-26",
-    });
-    const after = assembleIntelligenceContract({
-      state: {
-        ...state,
-        accounts: [{ ...state.accounts[0]!, balance: accepted!.balance, asOf: accepted!.asOf }],
-      },
-      ianaTimeZone: "America/Boise",
-      now: new Date("2026-09-26T18:00:00.000Z"),
-      generatedAt: "2026-09-26T18:00:00.000Z",
-    });
-    expect(after.position.money_available_cents).toBe(9_000);
-    expect(after.position.accounts[0]?.as_of).toBe("2026-09-26");
-    expect(after.boundaries.unknowns).toEqual(before.boundaries.unknowns);
-    expect(after.attention.items).toEqual([]);
-
+  it("leaves Attention, confirmed meaning, repetition, and movement untouched", () => {
+    expect(deriveDueAttention(EMPTY_STATE.expenses, "2026-09-26")).toEqual([]);
     const untouched = [
       "lib/babylon/attention.ts",
       "lib/babylon/confirmed-meaning.ts",
-      "lib/babylon/intelligence-contract.ts",
       "lib/babylon/notification-evaluator.ts",
       "vercel.json",
       `lib/babylon/${["observed", "repetition"].join("-")}.ts`,
@@ -832,238 +713,6 @@ function publicObservation(
     ...partial,
   };
 }
-
-describe("home balance update", () => {
-  const checking = checkingAccount(80);
-  const savings: FinancialAccount = {
-    id: "acct-savings",
-    name: "Reserve",
-    kind: "savings",
-    balance: 20,
-    asOf: "2026-09-01",
-  };
-  const plaidAccounts = [
-    {
-      plaidAccountId: "plaid-checking",
-      accountType: "depository",
-      subtype: "checking",
-    },
-    {
-      plaidAccountId: "plaid-savings",
-      accountType: "depository",
-      subtype: "savings",
-    },
-  ];
-  const associations = [
-    { financialAccountId: checking.id, plaidAccountId: "plaid-checking" },
-    { financialAccountId: savings.id, plaidAccountId: "plaid-savings" },
-  ];
-
-  function listed(
-    accounts: readonly FinancialAccount[],
-    observations: readonly BalanceObservationPublic[],
-    extra: { enabled?: boolean; settled?: boolean; linked?: boolean } = {}
-  ) {
-    return listActionableObservedBalances({
-      accounts,
-      enabled: extra.enabled ?? true,
-      settled: extra.settled ?? true,
-      plaidAccounts,
-      observations,
-      associations: extra.linked === false ? [] : associations,
-    });
-  }
-
-  it("lists only an eligible differs row, in vault order", () => {
-    const rows = listed(
-      [checking, savings],
-      [
-        publicObservation({ currentCents: 12_550 }),
-        publicObservation({
-          id: "obs-savings",
-          plaidAccountId: "plaid-savings",
-          currentCents: 5_000,
-        }),
-      ]
-    );
-    expect(rows).toEqual([
-      {
-        accountId: checking.id,
-        accountName: "Everyday",
-        recordedBalance: 80,
-        currentCents: 12_550,
-        differenceCents: 4_550,
-        observedAt: AT,
-      },
-      {
-        accountId: savings.id,
-        accountName: "Reserve",
-        recordedBalance: 20,
-        currentCents: 5_000,
-        differenceCents: 3_000,
-        observedAt: AT,
-      },
-    ]);
-  });
-
-  it("omits match, unknown, unlinked, negative, cash, and a quiet observation", () => {
-    const cash: FinancialAccount = {
-      id: "acct-cash",
-      name: "Wallet",
-      kind: "cash",
-      balance: 15,
-      asOf: "2026-09-01",
-    };
-    expect(
-      listed([checking], [publicObservation({ currentCents: 8_000 })]).map(
-        (row) => row.accountId
-      )
-    ).toEqual([]);
-    expect(
-      listed(
-        [checking],
-        [publicObservation({ isoCurrencyCode: "EUR", currentCents: 12_550 })]
-      )
-    ).toEqual([]);
-    expect(
-      listed([checking], [publicObservation({ currentCents: null })])
-    ).toEqual([]);
-    expect(
-      listed([checking], [publicObservation()], { linked: false })
-    ).toEqual([]);
-    expect(
-      listed([checking], [publicObservation({ currentCents: -50 })])
-    ).toEqual([]);
-    expect(
-      listActionableObservedBalances({
-        accounts: [cash],
-        enabled: true,
-        settled: true,
-        plaidAccounts,
-        observations: [publicObservation()],
-        associations: [
-          { financialAccountId: cash.id, plaidAccountId: "plaid-checking" },
-        ],
-      })
-    ).toEqual([]);
-    expect(
-      listed([checking], [publicObservation()], { enabled: false })
-    ).toEqual([]);
-    expect(
-      listed([checking], [publicObservation()], { settled: false })
-    ).toEqual([]);
-  });
-
-  it("updates one account through the existing accept path and drops only that row", () => {
-    const observations = [
-      publicObservation({ currentCents: 12_550 }),
-      publicObservation({
-        id: "obs-savings",
-        plaidAccountId: "plaid-savings",
-        currentCents: 5_000,
-      }),
-    ];
-    const context = {
-      associations,
-      plaidAccounts,
-      observations,
-      today: "2026-09-26",
-    };
-    const accepted = observedBalanceUpdate({ account: checking, ...context });
-    expect(accepted).toEqual(
-      acceptObservedBalance({
-        account: checking,
-        associated: true,
-        accountType: "depository",
-        subtype: "checking",
-        observation: observations[0],
-        today: "2026-09-26",
-      })
-    );
-    expect(accepted).toEqual({
-      name: "Everyday",
-      kind: "checking",
-      balance: 125.5,
-      asOf: "2026-09-26",
-    });
-    expect(
-      observedBalanceUpdate({
-        account: checking,
-        ...context,
-        observations: [publicObservation({ currentCents: -50 })],
-      })
-    ).toBeNull();
-
-    const next = [
-      { ...checking, ...accepted! },
-      savings,
-    ];
-    expect(sumAccountBalances(next)).toBe(145.5);
-    expect(
-      listed(next, observations).map((row) => row.accountId)
-    ).toEqual([savings.id]);
-    const bothUpdated = [
-      next[0]!,
-      { ...savings, balance: 50, asOf: "2026-09-26" },
-    ];
-    expect(listed(bothUpdated, observations)).toEqual([]);
-  });
-
-  it("places the same update under Money Available and keeps one acceptance path", () => {
-    const home = readFileSync("components/babylon/mobile-home.tsx", "utf8");
-    const position = readFileSync(
-      "components/babylon/financial-position.tsx",
-      "utf8"
-    );
-    const prompt = readFileSync(
-      "components/babylon/observed-balance-update.tsx",
-      "utf8"
-    );
-    const domain = readFileSync("lib/babylon/balance-observation.ts", "utf8");
-
-    expect(home.indexOf("Money Available")).toBeLessThan(
-      home.indexOf("<ObservedBalanceUpdates")
-    );
-    expect(home.indexOf("<ObservedBalanceUpdates")).toBeLessThan(
-      home.indexOf("Protected Money")
-    );
-    expect(position.indexOf("Money Available")).toBeLessThan(
-      position.indexOf("<ObservedBalanceUpdates")
-    );
-    expect(position.indexOf("<ObservedBalanceUpdates")).toBeLessThan(
-      position.indexOf("Protected Money")
-    );
-    expect(position.indexOf('presentation === "full"')).toBeLessThan(
-      position.indexOf("<ObservedBalanceUpdates")
-    );
-    expect(position.indexOf("<ObservedBalanceUpdates")).toBeLessThan(
-      position.indexOf('presentation === "manage"')
-    );
-    expect(prompt).toContain("observedBalanceUpdate");
-    expect(prompt).toContain("Recorded ");
-    expect(prompt).toContain("Observed ");
-    expect(prompt).toContain("Difference ");
-    expect(prompt).toContain("formatObservedAt");
-    expect(prompt).not.toContain("Update all");
-    expect(prompt).not.toContain("Sync");
-    expect(prompt).not.toContain("acceptObservedBalance");
-    expect(position).toContain("{UPDATE_BALANCE_LABEL}");
-    expect(position).toContain("observedBalanceUpdate");
-    expect(position).not.toContain("acceptObservedBalance");
-    expect(position).not.toContain("Accept observed balance");
-    const updateBody = domain.slice(
-      domain.indexOf("export function observedBalanceUpdate"),
-      domain.indexOf("export function describeAccountBalance")
-    );
-    expect(updateBody).toContain("acceptObservedBalance");
-    const listBody = domain.slice(
-      domain.indexOf("export function listActionableObservedBalances"),
-      domain.indexOf("export function observedBalanceUpdate")
-    );
-    expect(listBody).toContain("describeAccountBalance");
-    expect(listBody).toContain('view.status !== "differs" || !view.canAccept');
-  });
-});
 
 function storedObservationRow(
   partial: Record<string, unknown> = {}
@@ -1293,30 +942,19 @@ describe("effective account position", () => {
     expect(evidence).toEqual(evidenceBefore);
   });
 
-  it("stays unwired from Money Available, the contract, and Update balance", () => {
-    const readers = [
-      "hooks/useBabylonEngine.ts",
-      "lib/babylon/financial-position.ts",
-      "lib/babylon/intelligence-contract.ts",
-      "components/babylon/financial-position.tsx",
-      "components/babylon/mobile-home.tsx",
-      "components/babylon/observed-balance-update.tsx",
-      "components/babylon/wealth-engine-dashboard.tsx",
-    ];
-    for (const file of readers) {
-      const source = readFileSync(resolve(process.cwd(), file), "utf8");
-      expect(source).not.toContain("deriveEffectiveAccountPosition");
-      expect(source).not.toContain("EffectiveAccountPosition");
-    }
+  it("does not copy an observation into the account declaration", () => {
     const domain = readFileSync(
       resolve(process.cwd(), "lib/babylon/balance-observation.ts"),
       "utf8"
     );
+    expect(domain).not.toContain("acceptObservedBalance");
+    expect(domain).not.toContain("observedBalanceUpdate");
     const body = domain.slice(
       domain.indexOf("export function deriveEffectiveAccountPosition"),
       domain.indexOf("export function depositoryChoiceLabel")
     );
     expect(body).toContain("describeAccountBalance");
+    expect(body).toContain("deriveEffectiveMoneyAvailable");
     expect(body).not.toContain("acceptObservedBalance");
     expect(body).not.toContain("availableCents");
     expect(body).not.toContain("superseded");
