@@ -6,9 +6,10 @@ import type { Json } from "@/lib/supabase/database.types";
 import type { BabylonServerSupabase } from "@/lib/supabase/server";
 
 /**
- * After a successful observation sync, store cached depository balances.
+ * Store cached depository balances for one owned Item.
  * Runs whether or not identity descriptors already exist. Failure is logged
- * and swallowed. The transaction cursor is not read or written here.
+ * and swallowed, and the previous observation stays in place.
+ * The transaction cursor is not read or written here.
  */
 export async function recordPlaidBalanceObservations(args: {
   service: BabylonServerSupabase;

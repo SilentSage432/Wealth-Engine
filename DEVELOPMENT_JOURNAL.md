@@ -1,5 +1,12 @@
 # Development Journal
 
+## 2026-09-27 — WE-ATTENTION-008 daily cached balance observation
+
+### What changed
+- WE-BALANCE-001 production acceptance succeeded. A real associated account showed the observed balance, the storage time, the deterministic cent difference, and the Accept action. Financial Position changed only when the steward accepted.
+- Wealth Engine can now store that same cached `/accounts/get` reading once a day without a signed-in browser. `GET /api/plaid/observe-balances` reuses cron authorization, the canonical Wealth_Engine project check, and the service-role client. It lists `plaid_items` as `id, user_id` and calls the existing balance recorder. Vercel cron is `0 15 * * *`, beside the notification cron and not inside it.
+- A failed Item leaves the previous observation in place. Other Items are still attempted. The response is counts only. There is no transaction sync, no live balance pull, no vault write, no Accept, and no new Attention or notification. No new table or migration. WE-ATTENTION-008 is not production accepted.
+
 ## 2026-09-26 — WE-BALANCE-001 minimum balance observation
 
 ### What changed

@@ -3,6 +3,10 @@
     {
       "path": "/api/notifications/evaluate",
       "schedule": "0 15 * * *"
+    },
+    {
+      "path": "/api/plaid/observe-balances",
+      "schedule": "0 15 * * *"
     }
   ]
 }
