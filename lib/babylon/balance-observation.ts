@@ -86,6 +86,27 @@ export type AccountBalanceView =
       canAccept: boolean;
     };
 
+/**
+ * Read-time position for one account.
+ * `declared` is the steward fallback. `observed` is an eligible cached current.
+ */
+export type EffectiveAccountPosition =
+  | {
+      accountId: string;
+      balance: number;
+      source: "declared";
+      asOf: string;
+    }
+  | {
+      accountId: string;
+      balance: number;
+      source: "observed";
+      currentCents: number;
+      observedAt: string;
+      observationId: string;
+      observationSource: typeof BALANCE_OBSERVATION_SOURCE;
+    };
+
 type VaultAccountRef = {
   id: string;
   kind: string;
@@ -443,6 +464,104 @@ export function acceptObservedBalance(input: {
   };
 }
 
+type ObservedBalanceLink = {
+  associations: readonly { financialAccountId: string; plaidAccountId: string }[];
+  plaidAccounts: readonly {
+    plaidAccountId: string;
+    accountType: string | null;
+    subtype: string | null;
+  }[];
+  observations: readonly BalanceObservationPublic[];
+};
+
+/** One associated account whose existing Accept action is available. */
+export type ActionableObservedBalance = {
+  accountId: string;
+  accountName: string;
+  recordedBalance: number;
+  currentCents: number;
+  differenceCents: number;
+  observedAt: string;
+};
+
+function observedBalanceLink(accountId: string, input: ObservedBalanceLink) {
+  const association =
+    input.associations.find((row) => row.financialAccountId === accountId) ?? null;
+  const plaidAccount = association
+    ? (input.plaidAccounts.find(
+        (row) => row.plaidAccountId === association.plaidAccountId
+      ) ?? null)
+    : null;
+  const observation = association
+    ? (input.observations.find(
+        (row) => row.plaidAccountId === association.plaidAccountId
+      ) ?? null)
+    : null;
+  return {
+    associatedPlaidAccountId: association?.plaidAccountId ?? null,
+    accountType: plaidAccount?.accountType ?? null,
+    subtype: plaidAccount?.subtype ?? null,
+    observation,
+  };
+}
+
+/**
+ * Accounts the existing comparison already allows the steward to accept.
+ * Order follows the vault account list. Unlinked, unknown, matching, hidden,
+ * and ineligible currents are omitted.
+ */
+export function listActionableObservedBalances(
+  input: ObservedBalanceLink & {
+    accounts: readonly FinancialAccount[];
+    enabled: boolean;
+    settled: boolean;
+  }
+): ActionableObservedBalance[] {
+  if (!input.enabled || !input.settled) return [];
+  const rows: ActionableObservedBalance[] = [];
+  for (const account of input.accounts) {
+    const linked = observedBalanceLink(account.id, input);
+    const view = describeAccountBalance({
+      account,
+      associatedPlaidAccountId: linked.associatedPlaidAccountId,
+      accountType: linked.accountType,
+      subtype: linked.subtype,
+      observation: linked.observation,
+    });
+    if (view.status !== "differs" || !view.canAccept) continue;
+    rows.push({
+      accountId: account.id,
+      accountName: account.name,
+      recordedBalance: account.balance,
+      currentCents: view.currentCents,
+      differenceCents: view.differenceCents,
+      observedAt: view.observedAt,
+    });
+  }
+  return rows;
+}
+
+/**
+ * The existing Accept write for one account.
+ * Returns null when that account is not eligible.
+ */
+export function observedBalanceUpdate(
+  input: ObservedBalanceLink & {
+    account: FinancialAccount;
+    today: string;
+  }
+): FinancialAccountInput | null {
+  const linked = observedBalanceLink(input.account.id, input);
+  return acceptObservedBalance({
+    account: input.account,
+    associated: linked.associatedPlaidAccountId !== null,
+    accountType: linked.accountType,
+    subtype: linked.subtype,
+    observation: linked.observation,
+    today: input.today,
+  });
+}
+
 export function describeAccountBalance(input: {
   account: FinancialAccount;
   associatedPlaidAccountId: string | null;
@@ -476,6 +595,42 @@ export function describeAccountBalance(input: {
     observedAt: input.observation.observedAt,
     differenceCents: comparison.differenceCents,
     canAccept: comparison.currentCents >= 0,
+  };
+}
+
+/**
+ * Effective position from the evidence already comparable for this account.
+ * A matching eligible current stays observed. Ineligible evidence keeps the
+ * declaration. This reads. It does not write the account or the observation.
+ */
+export function deriveEffectiveAccountPosition(input: {
+  account: FinancialAccount;
+  associatedPlaidAccountId: string | null;
+  accountType: string | null;
+  subtype: string | null;
+  observation: BalanceObservationPublic | null;
+}): EffectiveAccountPosition {
+  const view = describeAccountBalance(input);
+  const observation = input.observation;
+  if (
+    observation &&
+    (view.status === "match" || (view.status === "differs" && view.canAccept))
+  ) {
+    return {
+      accountId: input.account.id,
+      balance: dollarsFromCents(view.currentCents),
+      source: "observed",
+      currentCents: view.currentCents,
+      observedAt: view.observedAt,
+      observationId: observation.id,
+      observationSource: observation.source,
+    };
+  }
+  return {
+    accountId: input.account.id,
+    balance: input.account.balance,
+    source: "declared",
+    asOf: input.account.asOf,
   };
 }
 

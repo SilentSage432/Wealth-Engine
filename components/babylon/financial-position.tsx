@@ -32,9 +32,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  acceptObservedBalance,
+  formatObservedAt,
+  formatSignedDifference,
+  ObservedBalanceUpdates,
+  UPDATE_BALANCE_LABEL,
+} from "@/components/babylon/observed-balance-update";
+import {
   depositoryChoiceLabel,
   describeAccountBalance,
+  observedBalanceUpdate,
   unassociatedDepositoryAccountIds,
   type AccountAssociationPublic,
   type AccountBalanceView,
@@ -94,24 +100,6 @@ const EMPTY_DRAFT = {
   balance: "",
   asOf: "",
 };
-
-function formatStoredAt(iso: string): string {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return "time unknown";
-  return date.toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
-
-function signedDifference(cents: number, money: (value: number) => string): string {
-  const amount = money(Math.abs(cents) / 100);
-  if (cents > 0) return `+${amount}`;
-  if (cents < 0) return `−${amount}`;
-  return amount;
-}
 
 function AccountObservation({
   account,
@@ -232,19 +220,24 @@ function AccountObservation({
       ) : null}
       {view.status === "match" ? (
         <p className="text-[11px] leading-relaxed text-slate-500">
-          Observed {money(view.currentCents / 100)}. Stored {formatStoredAt(view.observedAt)}.
+          Observed {money(view.currentCents / 100)}. Stored {formatObservedAt(view.observedAt)}.
         </p>
       ) : null}
       {view.status === "differs" ? (
         <div className="flex flex-wrap items-center gap-2">
           <p className="text-[11px] leading-relaxed text-slate-400">
             Observed {money(view.currentCents / 100)}. Stored{" "}
-            {formatStoredAt(view.observedAt)}. Difference{" "}
-            {signedDifference(view.differenceCents, money)}.
+            {formatObservedAt(view.observedAt)}. Difference{" "}
+            {formatSignedDifference(view.differenceCents, money)}.
           </p>
           {view.canAccept ? (
-            <Button type="button" size="sm" onClick={onAccept}>
-              Accept observed balance
+            <Button
+              type="button"
+              size="sm"
+              onClick={onAccept}
+              aria-label={`Update ${account.name} balance`}
+            >
+              {UPDATE_BALANCE_LABEL}
             </Button>
           ) : (
             <p className="text-[11px] leading-relaxed text-amber-200">
@@ -452,25 +445,11 @@ export function FinancialPosition({
               }}
               onAccept={() => {
                 if (!balanceObservation) return;
-                const association = balanceObservation.associations.find(
-                  (row) => row.financialAccountId === account.id
-                );
-                const plaidAccount = association
-                  ? balanceObservation.plaidAccounts.find(
-                      (row) => row.plaidAccountId === association.plaidAccountId
-                    )
-                  : undefined;
-                const observation = association
-                  ? balanceObservation.observations.find(
-                      (row) => row.plaidAccountId === association.plaidAccountId
-                    )
-                  : undefined;
-                const accepted = acceptObservedBalance({
+                const accepted = observedBalanceUpdate({
                   account,
-                  associated: Boolean(association),
-                  accountType: plaidAccount?.accountType ?? null,
-                  subtype: plaidAccount?.subtype ?? null,
-                  observation: observation ?? null,
+                  associations: balanceObservation.associations,
+                  plaidAccounts: balanceObservation.plaidAccounts,
+                  observations: balanceObservation.observations,
                   today: todayIso(),
                 });
                 if (!accepted) return;
@@ -487,6 +466,7 @@ export function FinancialPosition({
       <Card className="border-slate-800/80">
         <CardContent className="space-y-4 p-4 sm:p-5">
           {presentation === "full" ? (
+          <>
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
@@ -509,6 +489,19 @@ export function FinancialPosition({
               Add Account
             </Button>
           </div>
+          {balanceObservation ? (
+            <ObservedBalanceUpdates
+              accounts={accounts}
+              enabled={balanceObservation.enabled}
+              settled={balanceObservation.settled}
+              plaidAccounts={balanceObservation.plaidAccounts}
+              observations={balanceObservation.observations}
+              associations={balanceObservation.associations}
+              discreet={discreet}
+              onUpdateAccount={onUpdateAccount}
+            />
+          ) : null}
+          </>
           ) : (
           <div className="flex items-center justify-between gap-3">
             <h3 className="text-sm font-medium text-slate-100">Accounts</h3>

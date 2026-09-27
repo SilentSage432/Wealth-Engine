@@ -1,5 +1,12 @@
 # Development Journal
 
+## 2026-09-27 — Home balance update
+
+### What changed
+- An associated checking or savings account whose observed current already differs, and whose existing Accept action is eligible, now appears under Money Available on desktop Overview and phone Home. The steward still authorizes the write. The action is labeled Update balance. Each account is separate. There is no update-all action.
+- The row shows the vault account name, the recorded balance, the observed current, the signed difference, and the stored observation time. Unlinked, unknown, matching, cash, and negative currents are omitted. An empty list takes no space.
+- Update balance and the account-row control both call `observedBalanceUpdate`, which calls `acceptObservedBalance`. Financial Position, comparison rules, Attention, Plaid observation, and the vault schema are unchanged.
+
 ## 2026-09-27 — WE-ATTENTION-008 production acceptance
 
 ### What changed

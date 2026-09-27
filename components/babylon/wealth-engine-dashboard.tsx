@@ -328,6 +328,18 @@ export function WealthEngineDashboard() {
                 recentActivity={engine.recentActivity}
                 discreet={discreet}
                 onNavigate={setMobileDestination}
+                accounts={engine.accounts}
+                onUpdateAccount={engine.updateAccount}
+                balanceObservation={{
+                  enabled: hydrated && isCloudSynced,
+                  settled: balanceObservation.settled,
+                  plaidAccounts: balanceObservation.plaidAccounts,
+                  institutions: plaid.items,
+                  observations: balanceObservation.observations,
+                  associations: balanceObservation.associations,
+                  onAssociate: balanceObservation.associate,
+                  onRemoveAssociation: balanceObservation.removeAssociation,
+                }}
               />
             )}
 
