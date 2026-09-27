@@ -517,6 +517,8 @@ describe("deriveCorrelatedInternalMovements", () => {
       "utf8"
     );
     expect(source).not.toContain("isProcessed");
+    expect(source).not.toContain("confirmed-meaning");
+    expect(source).not.toContain("plaid_observation_confirmations");
     expect(source).not.toMatch(/from ["']@\/lib\/supabase/);
     expect(source).not.toMatch(/from ["']react/);
     expect(source).not.toContain("localStorage");

@@ -1,5 +1,16 @@
 # Development Journal
 
+## 2026-09-26 — WE-MEANING-001 confirmed meaning
+
+### What changed
+- A posted Plaid observation had no durable place to remember that the steward said it corresponded to an existing budget category. `is_processed` is not that fact, and the vault does not store Plaid identity.
+- `plaid_observation_confirmations` stores one owner-scoped confirmation beside the observations. The current row points at a `BudgetTarget` id and keeps the category name and observation evidence from the moment of confirmation. A different category supersedes that row. Revoking leaves no current row. Earlier snapshots stay.
+- Only a current posted observation can be taught. Pending and removed observations cannot. A posted observation does not inherit a pending observation's confirmation. Later changes to the observation, and later renames or deletions of the category, do not rewrite the snapshot.
+- The steward opens this from the connected-bank surface on desktop and on phone Connections. The same confirmation path serves both. It does not create an expense, settle an obligation, change a cap, set `is_processed`, classify another observation, or enter Attention or the Intelligence Contract.
+
+### Not in this tranche
+- No production migration, commit, or deploy. No automatic matching. No new Attention kind. No contract field.
+
 ## 2026-09-26 — WE-OBLIGATION-001 non-monthly declared obligations
 
 ### What changed

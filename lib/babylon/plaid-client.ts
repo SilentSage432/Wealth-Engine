@@ -1,5 +1,11 @@
 "use client";
 
+import {
+  isTeachableObservation,
+  PLAID_CONFIRMATION_COLUMNS,
+  toObservationConfirmation,
+  type ObservationConfirmation,
+} from "@/lib/babylon/confirmed-meaning";
 import { plaidUserMessage } from "@/lib/babylon/plaid-errors";
 import {
   isPlaidClientConfigured,
@@ -278,4 +284,143 @@ export async function listPlaidObservations(): Promise<PlaidObservationPublic[]>
     console.error("[plaid] list observations crashed.", err);
     return [];
   }
+}
+
+/**
+ * Current posted observations the steward can teach.
+ * Pending and removed rows are excluded. This does not classify them.
+ */
+export async function listTeachablePlaidObservations(): Promise<
+  PlaidObservationPublic[]
+> {
+  const observations = await listPlaidObservations();
+  return observations.filter((observation) =>
+    isTeachableObservation(observation)
+  );
+}
+
+/** Owner confirmations, including superseded and revoked history. */
+export async function listPlaidObservationConfirmations(): Promise<
+  ObservationConfirmation[]
+> {
+  try {
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) return [];
+
+    const { data, error } = await supabase
+      .from("plaid_observation_confirmations")
+      .select(PLAID_CONFIRMATION_COLUMNS)
+      .order("confirmed_at", { ascending: false });
+
+    if (error || !data) {
+      console.error("[plaid] list confirmations failed.", error);
+      return [];
+    }
+
+    return data.flatMap((row) => {
+      const confirmation = toObservationConfirmation(row);
+      return confirmation ? [confirmation] : [];
+    });
+  } catch (err) {
+    console.error("[plaid] list confirmations crashed.", err);
+    return [];
+  }
+}
+
+export type ConfirmationWriteResult = {
+  status: string;
+  reason?: string;
+  id?: string;
+};
+
+function confirmationFailureMessage(reason: string | undefined): string {
+  if (reason === "not_teachable") return "Only a posted transaction can be taught.";
+  if (reason === "unknown_category") return "That category is not in the vault.";
+  if (reason === "unauthenticated") return plaidUserMessage("unauthorized");
+  return "Wealth Engine could not record that meaning.";
+}
+
+function readConfirmationResult(value: unknown): ConfirmationWriteResult | null {
+  if (!value || typeof value !== "object") return null;
+  const status = "status" in value ? value.status : null;
+  if (typeof status !== "string" || !status) return null;
+  const reason = "reason" in value ? value.reason : undefined;
+  const id = "id" in value ? value.id : undefined;
+  return {
+    status,
+    reason: typeof reason === "string" ? reason : undefined,
+    id: typeof id === "string" ? id : undefined,
+  };
+}
+
+/**
+ * The signed-in session is the owner. Evidence and the category name are
+ * read inside the database function. The caller sends only the two ids.
+ */
+async function writeConfirmation(
+  call: () => Promise<{ data: unknown; error: { message: string } | null }>
+): Promise<ConfirmationWriteResult | null> {
+  try {
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) {
+      emitVaultToast({
+        tone: "error",
+        message: plaidUserMessage("unauthorized"),
+      });
+      return null;
+    }
+    const { data, error } = await call();
+    if (error) {
+      console.error("[plaid] confirmation write failed.", error);
+      emitVaultToast({
+        tone: "error",
+        message: "Wealth Engine could not record that meaning.",
+      });
+      return null;
+    }
+    const result = readConfirmationResult(data);
+    if (!result || result.status === "rejected") {
+      emitVaultToast({
+        tone: "error",
+        message: confirmationFailureMessage(result?.reason),
+      });
+      return result;
+    }
+    return result;
+  } catch (err) {
+    console.error("[plaid] confirmation write crashed.", err);
+    emitVaultToast({
+      tone: "error",
+      message: plaidUserMessage("network"),
+    });
+    return null;
+  }
+}
+
+/** Confirm, or supersede, one observation as an existing budget category. */
+export async function confirmPlaidObservationMeaning(
+  plaidTransactionId: string,
+  budgetTargetId: string
+): Promise<ConfirmationWriteResult | null> {
+  return writeConfirmation(async () => {
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) return { data: null, error: { message: "no session" } };
+    return supabase.rpc("confirm_plaid_observation", {
+      target_plaid_transaction_id: plaidTransactionId,
+      target_budget_id: budgetTargetId,
+    });
+  });
+}
+
+/** Revoke the current confirmation. Historical rows stay. */
+export async function revokePlaidObservationMeaning(
+  plaidTransactionId: string
+): Promise<ConfirmationWriteResult | null> {
+  return writeConfirmation(async () => {
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) return { data: null, error: { message: "no session" } };
+    return supabase.rpc("revoke_plaid_observation_confirmation", {
+      target_plaid_transaction_id: plaidTransactionId,
+    });
+  });
 }

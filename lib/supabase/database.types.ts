@@ -9,6 +9,8 @@
  * - `supabase/migrations/20260927_plaid_accounts.sql`
  * - `supabase/migrations/20260928_plaid_account_identity.sql`
  * - `supabase/migrations/20260929_notification_foundation.sql`
+ * - `supabase/migrations/20260930_notification_deliveries.sql`
+ * - `supabase/migrations/20261001_plaid_confirmed_meaning.sql`
  */
 
 export type IncomeStreamKindDb =
@@ -378,6 +380,54 @@ export interface Database {
         };
         Relationships: [];
       };
+      plaid_observation_confirmations: {
+        Row: {
+          id: string;
+          user_id: string;
+          plaid_transaction_id: string;
+          budget_target_id: string;
+          category_name: string;
+          signed_cents: number;
+          posted_date: string;
+          transaction_name: string;
+          category_text: string | null;
+          account_id: string;
+          pending: boolean;
+          confirmed_at: string;
+          state: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          plaid_transaction_id: string;
+          budget_target_id: string;
+          category_name: string;
+          signed_cents: number;
+          posted_date: string;
+          transaction_name: string;
+          category_text?: string | null;
+          account_id: string;
+          pending: boolean;
+          confirmed_at?: string;
+          state: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          plaid_transaction_id?: string;
+          budget_target_id?: string;
+          category_name?: string;
+          signed_cents?: number;
+          posted_date?: string;
+          transaction_name?: string;
+          category_text?: string | null;
+          account_id?: string;
+          pending?: boolean;
+          confirmed_at?: string;
+          state?: string;
+        };
+        Relationships: [];
+      };
       notification_preferences: {
         Row: {
           user_id: string;
@@ -542,6 +592,19 @@ export interface Database {
           actor_user_id: string;
           target_item_id: string;
           accounts: Json;
+        };
+        Returns: Json;
+      };
+      confirm_plaid_observation: {
+        Args: {
+          target_plaid_transaction_id: string;
+          target_budget_id: string;
+        };
+        Returns: Json;
+      };
+      revoke_plaid_observation_confirmation: {
+        Args: {
+          target_plaid_transaction_id: string;
         };
         Returns: Json;
       };

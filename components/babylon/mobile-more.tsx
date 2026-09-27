@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { CalendarCheck } from "lucide-react";
 import { ConnectedBanksCard } from "@/components/babylon/connected-banks-card";
+import { ObservationTeaching } from "@/components/babylon/observation-teaching";
 import { DeviceNotifications } from "@/components/babylon/device-notifications";
 import { FinancialPosition } from "@/components/babylon/financial-position";
 import {
@@ -18,6 +19,7 @@ import type { AvailableAfterPlannedNeeds } from "@/lib/babylon/available-after-p
 import { GREETING_NAME_FALLBACK } from "@/lib/babylon/constants";
 import type { VaultSyncView } from "@/lib/babylon/vault-sync";
 import type {
+  BudgetTarget,
   FinancialAccount,
   FinancialAccountInput,
 } from "@/types/babylon";
@@ -36,6 +38,7 @@ interface MobileMoreProps {
   isCloudSynced: boolean;
   onConnectBank: () => void;
   onRequireAuth: () => void;
+  budgetTargets: readonly BudgetTarget[];
   onExportBackup: () => void;
   onImportBackup: (raw: unknown) => string | null;
   onClearAllData: () => void;
@@ -85,6 +88,7 @@ export function MobileMore({
   isCloudSynced,
   onConnectBank,
   onRequireAuth,
+  budgetTargets,
   onExportBackup,
   onImportBackup,
   onClearAllData,
@@ -172,6 +176,11 @@ export function MobileMore({
           isCloudSynced={isCloudSynced}
           onConnect={onConnectBank}
           onRequireAuth={onRequireAuth}
+        />
+        <ObservationTeaching
+          enabled={isCloudSynced}
+          budgetTargets={budgetTargets}
+          discreet={discreet}
         />
       </section>
 

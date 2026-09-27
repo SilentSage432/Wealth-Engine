@@ -6,6 +6,7 @@ import { AnalyticsHub } from "@/components/babylon/analytics-hub";
 import { AppSidebar } from "@/components/babylon/app-sidebar";
 import { CommandBar } from "@/components/babylon/command-bar";
 import { ConnectedBanksCard } from "@/components/babylon/connected-banks-card";
+import { ObservationTeaching } from "@/components/babylon/observation-teaching";
 import { DebtFreedomEngine } from "@/components/babylon/debt-freedom-engine";
 import { FinancialPosition } from "@/components/babylon/financial-position";
 import { UpcomingNeeds } from "@/components/babylon/upcoming-needs";
@@ -220,6 +221,7 @@ export function WealthEngineDashboard() {
   );
 
   const banksCard = (
+    <>
     <ConnectedBanksCard
       connectedCount={connectedCount}
       isLoading={isLoading}
@@ -229,6 +231,12 @@ export function WealthEngineDashboard() {
       onConnect={handleLinkBank}
       onRequireAuth={() => setAuthOpen(true)}
     />
+    <ObservationTeaching
+      enabled={isCloudSynced}
+      budgetTargets={engine.budgetTargets}
+      discreet={discreet}
+    />
+    </>
   );
 
   return (
@@ -378,6 +386,7 @@ export function WealthEngineDashboard() {
                 isCloudSynced={isCloudSynced}
                 onConnectBank={handleLinkBank}
                 onRequireAuth={() => setAuthOpen(true)}
+                budgetTargets={engine.budgetTargets}
                 onExportBackup={engine.exportBackup}
                 onImportBackup={engine.importBackup}
                 onClearAllData={engine.clearAllData}

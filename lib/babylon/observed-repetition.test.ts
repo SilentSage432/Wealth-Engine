@@ -460,6 +460,8 @@ describe("deriveObservedRepetitions", () => {
     expect(source).not.toContain("plaid-server");
     expect(source).not.toContain("wealth_engine_vaults");
     expect(source).not.toContain("recurring-obligations");
+    expect(source).not.toContain("confirmed-meaning");
+    expect(source).not.toContain("plaid_observation_confirmations");
   });
 
   it("is not imported outside its module and test", () => {
