@@ -112,11 +112,13 @@ function account(id: string, subtype = "checking") {
 
 describe("recordPlaidRealtimeBalanceObservations", () => {
   const errorLog = vi.spyOn(console, "error").mockImplementation(() => {});
+  const infoLog = vi.spyOn(console, "info").mockImplementation(() => {});
 
   afterEach(() => {
     fetchPlaidRealtimeBalances.mockReset();
     fetchPlaidAccountBalances.mockReset();
     errorLog.mockClear();
+    infoLog.mockClear();
   });
 
   async function record(gateway: ReturnType<typeof serviceFor>) {
@@ -126,6 +128,23 @@ describe("recordPlaidRealtimeBalanceObservations", () => {
       itemRowId: ITEM,
       nowMs: NOW,
     });
+  }
+
+  function infoStages() {
+    return infoLog.mock.calls
+      .filter((call) => call[0] === "[plaid] realtime observe")
+      .map((call) => call[1] as Record<string, unknown>);
+  }
+
+  function assertPrivateLogs() {
+    const joined = [...errorLog.mock.calls, ...infoLog.mock.calls]
+      .map((call) => call.map((part) => JSON.stringify(part)).join(" "))
+      .join("\n");
+    expect(joined).not.toContain(TOKEN);
+    expect(joined).not.toContain("access_token");
+    expect(joined).not.toContain("secret");
+    expect(joined).not.toContain("9000");
+    expect(joined).not.toContain("Bearer");
   }
 
   it("makes zero Balance requests when nothing is associated", async () => {
@@ -139,6 +158,22 @@ describe("recordPlaidRealtimeBalanceObservations", () => {
     expect(fetchPlaidAccountBalances).not.toHaveBeenCalled();
     expect(gateway.rpc).not.toHaveBeenCalled();
     expect(gateway.calls).not.toContain("plaid_items");
+    expect(infoStages()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          stage: "targets-derived",
+          descriptors: 2,
+          associated: 0,
+          eligible: 0,
+        }),
+        expect.objectContaining({
+          stage: "balance-skipped",
+          reason: "no-eligible-targets",
+          result: "applied",
+        }),
+      ])
+    );
+    assertPrivateLogs();
   });
 
   it("requests one Balance call for every associated account on the Item", async () => {
@@ -173,9 +208,27 @@ describe("recordPlaidRealtimeBalanceObservations", () => {
       accountIds: ["checking", "savings"],
     });
     expect(gateway.rpc.mock.calls[0]?.[1].observations[0].source).toBe("balance_get");
-    const logged = errorLog.mock.calls.map((call) => call.map(String).join(" ")).join("\n");
-    expect(logged).not.toContain(TOKEN);
-    expect(logged).not.toContain("9000");
+    expect(infoStages()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          stage: "targets-derived",
+          eligible: 2,
+        }),
+        expect.objectContaining({
+          stage: "balance-request-start",
+          eligible: 2,
+        }),
+        expect.objectContaining({
+          stage: "balance-parsed",
+          accounts: 1,
+        }),
+        expect.objectContaining({
+          stage: "rpc-result",
+          result: "applied",
+        }),
+      ])
+    );
+    assertPrivateLogs();
   });
 
   it("does not call Plaid again inside the stored 60-second window", async () => {
@@ -195,6 +248,16 @@ describe("recordPlaidRealtimeBalanceObservations", () => {
     expect(fetchPlaidRealtimeBalances).not.toHaveBeenCalled();
     expect(gateway.rpc).not.toHaveBeenCalled();
     expect(gateway.calls).not.toContain("plaid_items");
+    expect(infoStages()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          stage: "balance-skipped",
+          reason: "fresh-balance-get",
+          result: "applied",
+        }),
+      ])
+    );
+    assertPrivateLogs();
   });
 
   it("leaves stored evidence in place when the real-time read fails", async () => {
@@ -210,12 +273,23 @@ describe("recordPlaidRealtimeBalanceObservations", () => {
       ],
       token: TOKEN,
     });
-    fetchPlaidRealtimeBalances.mockResolvedValue({ ok: false });
+    fetchPlaidRealtimeBalances.mockResolvedValue({
+      ok: false,
+      reason: "plaid_request",
+    });
     await expect(record(gateway)).resolves.toBe("not-applied");
     expect(fetchPlaidAccountBalances).not.toHaveBeenCalled();
     expect(gateway.rpc).not.toHaveBeenCalled();
+    expect(infoStages()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          stage: "balance-request-failed",
+          reason: "plaid_request",
+        }),
+      ])
+    );
     const logged = errorLog.mock.calls.map((call) => String(call[0])).join("\n");
     expect(logged).toBe("[plaid] balance observation failed.");
-    expect(logged).not.toContain(TOKEN);
+    assertPrivateLogs();
   });
 });

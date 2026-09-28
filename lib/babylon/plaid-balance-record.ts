@@ -6,6 +6,7 @@ import {
   type BalanceObservationSource,
 } from "@/lib/babylon/balance-observation";
 import { realtimeBalanceRequestNeeded } from "@/lib/babylon/foreground-balance-refresh";
+import { logRealtimeBalanceStage } from "@/lib/babylon/realtime-balance-diagnostics";
 import {
   fetchPlaidAccountBalances,
   fetchPlaidRealtimeBalances,
@@ -142,18 +143,35 @@ async function commitBalanceObservations(args: {
   userId: string;
   drafts: Parameters<typeof toBalanceObservationJson>[0];
   source: BalanceObservationSource;
+  diagnose?: boolean;
 }): Promise<BalanceObservationRecordResult> {
   const { data, error } = await args.service.rpc("apply_plaid_balance_observations", {
     actor_user_id: args.userId,
     observations: toBalanceObservationJson(args.drafts, args.source) as Json,
   });
   if (error || !data || typeof data !== "object" || Array.isArray(data)) {
+    if (args.diagnose) {
+      logRealtimeBalanceStage("rpc-result", {
+        result: "failed",
+        reason: error ? "rpc_error" : "rpc_shape",
+      });
+    }
     console.error("[plaid] balance observation failed.");
     return "not-applied";
   }
-  if (data.status !== "applied") {
+  const status = typeof data.status === "string" ? data.status : "unknown";
+  if (status !== "applied") {
+    if (args.diagnose) {
+      logRealtimeBalanceStage("rpc-result", { result: "not-applied", status });
+    }
     console.error("[plaid] balance observation failed.");
     return "not-applied";
+  }
+  if (args.diagnose) {
+    logRealtimeBalanceStage("rpc-result", {
+      result: "applied",
+      drafts: args.drafts.length,
+    });
   }
   return "applied";
 }
@@ -177,6 +195,10 @@ export async function recordPlaidRealtimeBalanceObservations(args: {
       .eq("user_id", args.userId)
       .eq("plaid_item_id", args.itemRowId);
     if (accountsResult.error) {
+      logRealtimeBalanceStage("targets-derived", {
+        result: "not-applied",
+        reason: "descriptors_query",
+      });
       console.error("[plaid] balance observation failed.");
       return "not-applied";
     }
@@ -186,11 +208,19 @@ export async function recordPlaidRealtimeBalanceObservations(args: {
       .select("plaid_account_id")
       .eq("user_id", args.userId);
     if (linksResult.error) {
+      logRealtimeBalanceStage("targets-derived", {
+        result: "not-applied",
+        reason: "associations_query",
+      });
       console.error("[plaid] balance observation failed.");
       return "not-applied";
     }
     const associatedIds = readAssociatedIds(linksResult.data);
     if (!accounts || !associatedIds) {
+      logRealtimeBalanceStage("targets-derived", {
+        result: "not-applied",
+        reason: "targets_parse",
+      });
       console.error("[plaid] balance observation failed.");
       return "not-applied";
     }
@@ -198,7 +228,18 @@ export async function recordPlaidRealtimeBalanceObservations(args: {
       accounts,
       associatedPlaidAccountIds: associatedIds,
     });
-    if (accountIds.length === 0) return "applied";
+    logRealtimeBalanceStage("targets-derived", {
+      descriptors: accounts.length,
+      associated: associatedIds.length,
+      eligible: accountIds.length,
+    });
+    if (accountIds.length === 0) {
+      logRealtimeBalanceStage("balance-skipped", {
+        reason: "no-eligible-targets",
+        result: "applied",
+      });
+      return "applied";
+    }
 
     const storedResult = await args.service
       .from("plaid_balance_observations")
@@ -207,11 +248,19 @@ export async function recordPlaidRealtimeBalanceObservations(args: {
       .eq("state", "current")
       .in("plaid_account_id", accountIds);
     if (storedResult.error) {
+      logRealtimeBalanceStage("balance-skipped", {
+        reason: "stored_query",
+        result: "not-applied",
+      });
       console.error("[plaid] balance observation failed.");
       return "not-applied";
     }
     const stored = readStoredBalances(storedResult.data);
     if (!stored) {
+      logRealtimeBalanceStage("balance-skipped", {
+        reason: "stored_parse",
+        result: "not-applied",
+      });
       console.error("[plaid] balance observation failed.");
       return "not-applied";
     }
@@ -223,6 +272,10 @@ export async function recordPlaidRealtimeBalanceObservations(args: {
         nowMs,
       })
     ) {
+      logRealtimeBalanceStage("balance-skipped", {
+        reason: "fresh-balance-get",
+        result: "applied",
+      });
       return "applied";
     }
 
@@ -233,26 +286,40 @@ export async function recordPlaidRealtimeBalanceObservations(args: {
       .eq("user_id", args.userId)
       .maybeSingle();
     if (loaded.error || !loaded.data?.access_token.trim()) {
+      logRealtimeBalanceStage("balance-request-failed", {
+        reason: "missing_access_token",
+      });
       console.error("[plaid] balance observation failed.");
       return "not-applied";
     }
 
+    logRealtimeBalanceStage("balance-request-start", {
+      eligible: accountIds.length,
+    });
     const fetched = await fetchPlaidRealtimeBalances({
       accessToken: loaded.data.access_token,
       accountIds,
     });
     if (!fetched.ok) {
+      logRealtimeBalanceStage("balance-request-failed", {
+        reason: fetched.reason,
+      });
       console.error("[plaid] balance observation failed.");
       return "not-applied";
     }
+    logRealtimeBalanceStage("balance-parsed", {
+      accounts: fetched.accounts.length,
+    });
 
     return commitBalanceObservations({
       service: args.service,
       userId: args.userId,
       drafts: fetched.accounts,
       source: "balance_get",
+      diagnose: true,
     });
   } catch {
+    logRealtimeBalanceStage("balance-request-failed", { reason: "thrown" });
     console.error("[plaid] balance observation failed.");
     return "not-applied";
   }

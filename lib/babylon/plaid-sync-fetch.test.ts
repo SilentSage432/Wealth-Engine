@@ -174,7 +174,31 @@ describe("Plaid real-time balance fetch", () => {
       accessToken: ACCESS_TOKEN,
       accountIds: [],
     });
-    expect(fetched).toEqual({ ok: false });
+    expect(fetched).toEqual({ ok: false, reason: "empty_account_ids" });
     expect(vi.mocked(plaidFetch)).not.toHaveBeenCalled();
+  });
+
+  it("names a parse failure without calling again", async () => {
+    vi.mocked(plaidFetch).mockResolvedValue({
+      ok: true,
+      data: { accounts: { account_id: "checking" } },
+    });
+    const fetched = await fetchPlaidRealtimeBalances({
+      accessToken: ACCESS_TOKEN,
+      accountIds: ["checking"],
+    });
+    expect(fetched).toEqual({ ok: false, reason: "parse" });
+  });
+
+  it("names an upstream Plaid failure", async () => {
+    vi.mocked(plaidFetch).mockResolvedValue({
+      ok: false,
+      response: { status: 502 } as never,
+    });
+    const fetched = await fetchPlaidRealtimeBalances({
+      accessToken: ACCESS_TOKEN,
+      accountIds: ["checking"],
+    });
+    expect(fetched).toEqual({ ok: false, reason: "plaid_request" });
   });
 });

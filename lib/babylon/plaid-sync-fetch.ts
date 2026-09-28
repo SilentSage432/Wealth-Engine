@@ -57,6 +57,12 @@ export async function fetchPlaidAccountBalances(args: {
   return { ok: true, accounts };
 }
 
+/** Safe failure category for the institution Balance request. No payload text. */
+export type RealtimeBalanceFetchFailure =
+  | "empty_account_ids"
+  | "plaid_request"
+  | "parse";
+
 /**
  * Institution-refreshed balances.
  * The response uses the same accounts[].balances fields as the cached read.
@@ -65,16 +71,19 @@ export async function fetchPlaidAccountBalances(args: {
 export async function fetchPlaidRealtimeBalances(args: {
   accessToken: string;
   accountIds: readonly string[];
-}): Promise<{ ok: true; accounts: PlaidBalanceDraft[] } | { ok: false }> {
+}): Promise<
+  | { ok: true; accounts: PlaidBalanceDraft[] }
+  | { ok: false; reason: RealtimeBalanceFetchFailure }
+> {
   const accountIds = args.accountIds.map((id) => id.trim()).filter((id) => id.length > 0);
-  if (accountIds.length === 0) return { ok: false };
+  if (accountIds.length === 0) return { ok: false, reason: "empty_account_ids" };
   const result = await plaidFetch<unknown>("/accounts/balance/get", {
     access_token: args.accessToken,
     options: { account_ids: accountIds },
   });
-  if (!result.ok) return { ok: false };
+  if (!result.ok) return { ok: false, reason: "plaid_request" };
   const accounts = parsePlaidBalanceGetResponse(result.data);
-  if (!accounts) return { ok: false };
+  if (!accounts) return { ok: false, reason: "parse" };
   const allowed = new Set(accountIds);
   return { ok: true, accounts: accounts.filter((account) => allowed.has(account.plaidAccountId)) };
 }

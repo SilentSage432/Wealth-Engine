@@ -11,6 +11,7 @@ import {
   authorizeCronRequest,
   isCanonicalSupabaseUrl,
 } from "@/lib/babylon/notification-delivery";
+import { logRealtimeBalanceStage } from "@/lib/babylon/realtime-balance-diagnostics";
 import {
   getSupabaseServiceClient,
   requireAuthenticatedUser,
@@ -71,18 +72,38 @@ export async function GET(request: Request) {
  * This does not sync transactions, accept a balance, or write the vault.
  */
 export async function POST(request: Request) {
+  logRealtimeBalanceStage("post-entered");
   const auth = await requireAuthenticatedUser(request);
-  if (auth instanceof NextResponse) return auth;
+  if (auth instanceof NextResponse) {
+    logRealtimeBalanceStage("post-complete", {
+      status: auth.status,
+      reason: "unauthorized",
+    });
+    return auth;
+  }
+  logRealtimeBalanceStage("authenticated");
 
   const raw = await request.text();
   if (raw.trim()) {
+    logRealtimeBalanceStage("post-complete", {
+      status: 400,
+      reason: "body_rejected",
+    });
     return json({ error: "This request does not accept a body." }, 400);
   }
   if (!isCanonicalSupabaseUrl(process.env.NEXT_PUBLIC_SUPABASE_URL)) {
+    logRealtimeBalanceStage("post-complete", {
+      status: 503,
+      reason: "non_canonical",
+    });
     return json({ error: "Balance observation is unavailable." }, 503);
   }
   const service = getSupabaseServiceClient();
   if (!service) {
+    logRealtimeBalanceStage("post-complete", {
+      status: 503,
+      reason: "service_unavailable",
+    });
     return json({ error: "Balance observation is unavailable." }, 503);
   }
 
@@ -92,13 +113,22 @@ export async function POST(request: Request) {
     .eq("user_id", auth.user.id);
   if (listed.error || !listed.data) {
     console.error("[plaid] foreground balance observation failed.");
+    logRealtimeBalanceStage("post-complete", {
+      status: 503,
+      reason: "items_query",
+    });
     return json({ error: "Balance observation is unavailable." }, 503);
   }
   const items = readPlaidItemOwners(listed.data);
   if (!items || items.some((item) => item.userId !== auth.user.id)) {
     console.error("[plaid] foreground balance observation failed.");
+    logRealtimeBalanceStage("post-complete", {
+      status: 503,
+      reason: "items_parse",
+    });
     return json({ error: "Balance observation is unavailable." }, 503);
   }
+  logRealtimeBalanceStage("items-discovered", { items: items.length });
 
   const summary = await observeBackgroundBalances({
     items,
@@ -108,6 +138,13 @@ export async function POST(request: Request) {
         userId: item.userId,
         itemRowId: item.id,
       }),
+  });
+  logRealtimeBalanceStage("post-complete", {
+    status: 200,
+    items: summary.items,
+    attempted: summary.attempted,
+    applied: summary.applied,
+    notApplied: summary.notApplied,
   });
   return json(summary, 200);
 }

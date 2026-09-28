@@ -275,6 +275,7 @@ describe("POST /api/plaid/observe-balances", () => {
   }
 
   it("records every owned Item and does not sync transactions", async () => {
+    const info = vi.spyOn(console, "info").mockImplementation(() => {});
     signedIn();
     items([
       { id: ITEM_A, user_id: OWNER },
@@ -299,6 +300,29 @@ describe("POST /api/plaid/observe-balances", () => {
       userId: OWNER,
       itemRowId: ITEM_B,
     });
+    const stages = info.mock.calls
+      .filter((call) => call[0] === "[plaid] realtime observe")
+      .map((call) => (call[1] as { stage: string }).stage);
+    expect(stages).toEqual([
+      "post-entered",
+      "authenticated",
+      "items-discovered",
+      "post-complete",
+    ]);
+    const complete = info.mock.calls.find(
+      (call) =>
+        call[0] === "[plaid] realtime observe" &&
+        (call[1] as { stage?: string }).stage === "post-complete"
+    )?.[1] as Record<string, unknown>;
+    expect(complete).toMatchObject({
+      status: 200,
+      items: 2,
+      attempted: 2,
+      applied: 2,
+      notApplied: 0,
+    });
+    expect(JSON.stringify(info.mock.calls)).not.toContain("access_token");
+    info.mockRestore();
   });
 
   it("rejects a body that tries to choose an Item", async () => {
