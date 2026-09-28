@@ -93,7 +93,7 @@ describe("phone Ledger composition", () => {
     expect(selectPhoneLedgerSection("income", "Enter")).toBeNull();
   });
 
-  it("leaves the accepted Home and Budget order in place", () => {
+  it("leaves Home in place and keeps Budget ordered through the monthly plan", () => {
     expect(PHONE_HOME_SECTION_ORDER).toEqual([
       "attention",
       "financial-position",
@@ -104,6 +104,7 @@ describe("phone Ledger composition", () => {
     expect(PHONE_BUDGET_SECTION_ORDER).toEqual([
       "living-budget",
       "allocation-purpose",
+      "monthly-plan",
       "category-plan",
       "debt-payoff",
       "deeper-analysis",

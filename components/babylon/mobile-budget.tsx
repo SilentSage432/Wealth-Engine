@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { AffordabilityAnchor } from "@/components/babylon/affordability-anchor";
 import { AnalyticsHub } from "@/components/babylon/analytics-hub";
 import { DebtFreedomEngine } from "@/components/babylon/debt-freedom-engine";
@@ -56,6 +56,7 @@ interface MobileBudgetProps {
   tributeSnapshot: TributeEngineSnapshot;
   desiresPoolRemaining: number;
   hourlyLaborRate: number;
+  monthlyPlan?: ReactNode;
 }
 
 function SectionLabel({ children }: { children: string }) {
@@ -94,6 +95,7 @@ export function MobileBudget({
   tributeSnapshot,
   desiresPoolRemaining,
   hourlyLaborRate,
+  monthlyPlan,
 }: MobileBudgetProps) {
   const [deeper, setDeeper] = useState<PhoneBudgetDeeper | null>(null);
   const [showDebtChart, setShowDebtChart] = useState(false);
@@ -179,6 +181,8 @@ export function MobileBudget({
           </CardContent>
         </Card>
       </section>
+
+      {monthlyPlan}
 
       <BudgetBlueprint
         layout="phone"

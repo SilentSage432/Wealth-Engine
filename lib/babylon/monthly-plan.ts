@@ -12,6 +12,8 @@ import {
   obligationIntervalMonths,
 } from "@/lib/babylon/recurring-obligations";
 import type {
+  AllocationSplit,
+  BudgetTarget,
   DebtEntry,
   ExpenseKind,
   MonthlyPlanCategoryPurpose,
@@ -92,14 +94,21 @@ function cents(value: number): number {
   return Math.round(roundMoney(value) * 100);
 }
 
+/** Integer cents using the same rounding as finalization. */
+export function monthlyPlanCents(value: number): number {
+  return cents(value);
+}
+
 function moneyLabel(centValue: number): string {
   return (centValue / 100).toFixed(2);
 }
 
+type MonthlyPlanFailure = Extract<MonthlyPlanFinalizeResult, { ok: false }>;
+
 function reject(
   reason: MonthlyPlanRejectReason,
   message: string
-): MonthlyPlanFinalizeResult {
+): MonthlyPlanFailure {
   return { ok: false, reason, message };
 }
 
@@ -201,6 +210,333 @@ function snapshotObligations(
   return evidence;
 }
 
+function prepareCategories(
+  input: readonly MonthlyPlanCategoryPurpose[]
+):
+  | { ok: true; categories: MonthlyPlanCategoryPurpose[] }
+  | { ok: false; failure: MonthlyPlanFailure } {
+  const categories: MonthlyPlanCategoryPurpose[] = [];
+  const categoryIds = new Set<string>();
+  for (const category of input) {
+    if (!category.id.trim() || !category.categoryName.trim()) {
+      return {
+        ok: false,
+        failure: reject("malformed_category", "A planned purpose is incomplete."),
+      };
+    }
+    if (typeof category.isEssential !== "boolean") {
+      return {
+        ok: false,
+        failure: reject("malformed_category", "A planned purpose is incomplete."),
+      };
+    }
+    if (!Number.isFinite(category.plannedAmount)) {
+      return {
+        ok: false,
+        failure: reject("malformed_category", "A planned purpose is incomplete."),
+      };
+    }
+    if (category.plannedAmount < 0) {
+      return {
+        ok: false,
+        failure: reject(
+          "negative_planned_amount",
+          "A planned purpose cannot be negative."
+        ),
+      };
+    }
+    const id = category.id.trim();
+    if (categoryIds.has(id)) {
+      return {
+        ok: false,
+        failure: reject(
+          "duplicate_category",
+          "Each planned purpose uses one category."
+        ),
+      };
+    }
+    categoryIds.add(id);
+    categories.push({
+      id,
+      categoryName: category.categoryName.trim(),
+      plannedAmount: roundMoney(category.plannedAmount),
+      isEssential: category.isEssential,
+    });
+  }
+  return { ok: true, categories };
+}
+
+function prepareDebts(
+  input: readonly DebtEntry[]
+):
+  | { ok: true; debts: MonthlyPlanDebtIntent[] }
+  | { ok: false; failure: MonthlyPlanFailure } {
+  const debts: MonthlyPlanDebtIntent[] = [];
+  const debtIds = new Set<string>();
+  for (const debt of input) {
+    if (!debt.id.trim() || !debt.creditor.trim()) {
+      return {
+        ok: false,
+        failure: reject("malformed_debt", "A debt snapshot is incomplete."),
+      };
+    }
+    if (
+      !isNonNegativeMoney(debt.monthlyAllocation) ||
+      !isNonNegativeMoney(debt.remainingDebt)
+    ) {
+      return {
+        ok: false,
+        failure: reject("malformed_debt", "A debt snapshot is incomplete."),
+      };
+    }
+    const id = debt.id.trim();
+    if (debtIds.has(id)) {
+      return {
+        ok: false,
+        failure: reject("duplicate_debt", "Each debt is snapshotted once."),
+      };
+    }
+    debtIds.add(id);
+    debts.push({
+      id,
+      creditor: debt.creditor.trim(),
+      monthlyAllocation: roundMoney(debt.monthlyAllocation),
+      remainingDebt: roundMoney(debt.remainingDebt),
+    });
+  }
+  return { ok: true, debts };
+}
+
+function livingAssignment(
+  planningBasis: number,
+  hasActiveDebt: boolean,
+  categories: readonly MonthlyPlanCategoryPurpose[]
+): {
+  split: AllocationSplit;
+  purposeCents: number;
+  livingCents: number;
+  remainingCents: number;
+  failure: MonthlyPlanFailure | null;
+} {
+  const split = allocateIncome(planningBasis, hasActiveDebt);
+  const purposeCents = categories.reduce(
+    (sum, category) => sum + cents(category.plannedAmount),
+    0
+  );
+  const livingCents = cents(split.expenditureShare);
+  const remainingCents = livingCents - purposeCents;
+  if (purposeCents < livingCents) {
+    return {
+      split,
+      purposeCents,
+      livingCents,
+      remainingCents,
+      failure: reject(
+        "living_under_allocated",
+        `Planned purposes total ${moneyLabel(purposeCents)}. The Living Budget share is ${moneyLabel(livingCents)}.`
+      ),
+    };
+  }
+  if (purposeCents > livingCents) {
+    return {
+      split,
+      purposeCents,
+      livingCents,
+      remainingCents,
+      failure: reject(
+        "living_over_allocated",
+        `Planned purposes total ${moneyLabel(purposeCents)}. The Living Budget share is ${moneyLabel(livingCents)}.`
+      ),
+    };
+  }
+  return {
+    split,
+    purposeCents,
+    livingCents,
+    remainingCents,
+    failure: null,
+  };
+}
+
+function debtMinimumFailure(
+  debts: readonly MonthlyPlanDebtIntent[],
+  debtShare: number
+): { minimumCents: number; debtCents: number; failure: MonthlyPlanFailure | null } {
+  const minimumCents = debts.reduce(
+    (sum, debt) => sum + cents(debt.monthlyAllocation),
+    0
+  );
+  const debtCents = cents(debtShare);
+  if (minimumCents > debtCents) {
+    return {
+      minimumCents,
+      debtCents,
+      failure: reject(
+        "debt_minimums_exceed_debt_share",
+        `Debt minimums total ${moneyLabel(minimumCents)}. The Debt share is ${moneyLabel(debtCents)}.`
+      ),
+    };
+  }
+  return { minimumCents, debtCents, failure: null };
+}
+
+function obligationCentsByCategory(
+  obligations: readonly MonthlyPlanObligationEvidence[]
+): Record<string, number> {
+  const totals: Record<string, number> = {};
+  for (const obligation of obligations) {
+    totals[obligation.budgetCategoryId] =
+      (totals[obligation.budgetCategoryId] ?? 0) + cents(obligation.amount);
+  }
+  return totals;
+}
+
+/** Latest finalized revision for one explicit period. Null when none exists. */
+export function latestMonthlyPlanRevision(
+  plans: readonly MonthlyPlanRevision[],
+  periodKey: string
+): MonthlyPlanRevision | null {
+  return plans.reduce<MonthlyPlanRevision | null>((current, plan) => {
+    if (plan.periodKey !== periodKey) return current;
+    if (current === null || plan.revision > current.revision) return plan;
+    return current;
+  }, null);
+}
+
+/** Revision number the next finalize for this period would store. */
+export function nextMonthlyPlanRevisionNumber(
+  plans: readonly MonthlyPlanRevision[],
+  periodKey: string
+): number {
+  const latest = latestMonthlyPlanRevision(plans, periodKey);
+  return latest ? latest.revision + 1 : 1;
+}
+
+/**
+ * Copy live category rows into a first-plan draft.
+ * The returned objects are not the BudgetTarget records.
+ */
+export function seedMonthlyPlanFromTargets(
+  targets: readonly BudgetTarget[]
+): MonthlyPlanCategoryPurpose[] {
+  return targets.map((target) => ({
+    id: target.id,
+    categoryName: target.categoryName,
+    isEssential: target.isEssential,
+    plannedAmount: target.plannedAmount,
+  }));
+}
+
+/**
+ * Copy a finalized revision into the next draft.
+ * Live caps are not read.
+ */
+export function seedMonthlyPlanFromRevision(revision: MonthlyPlanRevision): {
+  planningBasis: number;
+  categories: MonthlyPlanCategoryPurpose[];
+} {
+  return {
+    planningBasis: revision.planningBasis,
+    categories: revision.categories.map((category) => ({
+      id: category.id,
+      categoryName: category.categoryName,
+      isEssential: category.isEssential,
+      plannedAmount: category.plannedAmount,
+    })),
+  };
+}
+
+export interface MonthlyPlanPreviewInput {
+  periodKey: string;
+  planningBasis: number;
+  categories: readonly MonthlyPlanCategoryPurpose[];
+  debts: readonly DebtEntry[];
+  obligations: readonly RecurringObligation[];
+}
+
+/** Read-only plan picture. Does not append a revision or change any input. */
+export interface MonthlyPlanPreview {
+  periodValid: boolean;
+  basisValid: boolean;
+  categoriesValid: boolean;
+  debtsValid: boolean;
+  split: AllocationSplit | null;
+  assignedCents: number | null;
+  livingCents: number | null;
+  remainingCents: number | null;
+  debtMinimumCents: number | null;
+  debtShareCents: number | null;
+  obligations: MonthlyPlanObligationEvidence[];
+  obligationCentsByCategoryId: Readonly<Record<string, number>>;
+  basisMessage: string | null;
+  categoryMessage: string | null;
+  assignmentMessage: string | null;
+  debtMessage: string | null;
+  canFinalize: boolean;
+}
+
+/**
+ * Preview the same Living cents, debt-minimum check, and due-rule snapshot
+ * finalization uses. Planning Basis is passed through allocateIncome.
+ * Protected Money is not an input.
+ */
+export function previewMonthlyPlan(
+  input: MonthlyPlanPreviewInput
+): MonthlyPlanPreview {
+  const periodValid = isMonthlyPlanPeriodKey(input.periodKey);
+  const basisValid = isNonNegativeMoney(input.planningBasis);
+  const preparedCategories = prepareCategories(input.categories);
+  const preparedDebts = prepareDebts(input.debts);
+  const obligations = periodValid
+    ? snapshotObligations(input.obligations, input.periodKey)
+    : [];
+  const debts = preparedDebts.ok ? preparedDebts.debts : [];
+  const hasActiveDebt = debts.some((debt) => debt.remainingDebt > 0);
+  const split = basisValid
+    ? allocateIncome(input.planningBasis, hasActiveDebt)
+    : null;
+  const assignment =
+    split && preparedCategories.ok
+      ? livingAssignment(input.planningBasis, hasActiveDebt, preparedCategories.categories)
+      : null;
+  const debtCheck =
+    split && preparedDebts.ok ? debtMinimumFailure(debts, split.debtShare) : null;
+  const minimumCents = preparedDebts.ok
+    ? debts.reduce((sum, debt) => sum + cents(debt.monthlyAllocation), 0)
+    : null;
+  const canFinalize =
+    periodValid &&
+    basisValid &&
+    preparedCategories.ok &&
+    preparedDebts.ok &&
+    assignment !== null &&
+    assignment.failure === null &&
+    debtCheck !== null &&
+    debtCheck.failure === null;
+
+  return {
+    periodValid,
+    basisValid,
+    categoriesValid: preparedCategories.ok,
+    debtsValid: preparedDebts.ok,
+    split,
+    assignedCents: assignment?.purposeCents ?? null,
+    livingCents: assignment?.livingCents ?? (split ? cents(split.expenditureShare) : null),
+    remainingCents: assignment?.remainingCents ?? null,
+    debtMinimumCents: minimumCents,
+    debtShareCents: debtCheck?.debtCents ?? (split ? cents(split.debtShare) : null),
+    obligations,
+    obligationCentsByCategoryId: obligationCentsByCategory(obligations),
+    basisMessage: basisValid
+      ? null
+      : "Planning basis must be zero or a positive amount.",
+    categoryMessage: preparedCategories.ok ? null : preparedCategories.failure.message,
+    assignmentMessage: assignment?.failure?.message ?? null,
+    debtMessage: debtCheck?.failure?.message ?? null,
+    canFinalize,
+  };
+}
+
 /**
  * Append one finalized revision.
  * The returned list keeps every previous revision object as it was.
@@ -238,64 +574,12 @@ export function finalizeMonthlyPlanRevision(
     );
   }
 
-  const categories: MonthlyPlanCategoryPurpose[] = [];
-  const categoryIds = new Set<string>();
-  for (const category of input.categories) {
-    if (!category.id.trim() || !category.categoryName.trim()) {
-      return reject("malformed_category", "A planned purpose is incomplete.");
-    }
-    if (typeof category.isEssential !== "boolean") {
-      return reject("malformed_category", "A planned purpose is incomplete.");
-    }
-    if (!Number.isFinite(category.plannedAmount)) {
-      return reject("malformed_category", "A planned purpose is incomplete.");
-    }
-    if (category.plannedAmount < 0) {
-      return reject(
-        "negative_planned_amount",
-        "A planned purpose cannot be negative."
-      );
-    }
-    const id = category.id.trim();
-    if (categoryIds.has(id)) {
-      return reject(
-        "duplicate_category",
-        "Each planned purpose uses one category."
-      );
-    }
-    categoryIds.add(id);
-    categories.push({
-      id,
-      categoryName: category.categoryName.trim(),
-      plannedAmount: roundMoney(category.plannedAmount),
-      isEssential: category.isEssential,
-    });
-  }
-
-  const debts: MonthlyPlanDebtIntent[] = [];
-  const debtIds = new Set<string>();
-  for (const debt of input.debts) {
-    if (!debt.id.trim() || !debt.creditor.trim()) {
-      return reject("malformed_debt", "A debt snapshot is incomplete.");
-    }
-    if (
-      !isNonNegativeMoney(debt.monthlyAllocation) ||
-      !isNonNegativeMoney(debt.remainingDebt)
-    ) {
-      return reject("malformed_debt", "A debt snapshot is incomplete.");
-    }
-    const id = debt.id.trim();
-    if (debtIds.has(id)) {
-      return reject("duplicate_debt", "Each debt is snapshotted once.");
-    }
-    debtIds.add(id);
-    debts.push({
-      id,
-      creditor: debt.creditor.trim(),
-      monthlyAllocation: roundMoney(debt.monthlyAllocation),
-      remainingDebt: roundMoney(debt.remainingDebt),
-    });
-  }
+  const preparedCategories = prepareCategories(input.categories);
+  if (!preparedCategories.ok) return preparedCategories.failure;
+  const preparedDebts = prepareDebts(input.debts);
+  if (!preparedDebts.ok) return preparedDebts.failure;
+  const categories = preparedCategories.categories;
+  const debts = preparedDebts.debts;
 
   const history = revisionHistoryError(plans);
   if (history) return history;
@@ -307,43 +591,17 @@ export function finalizeMonthlyPlanRevision(
   }
 
   const hasActiveDebt = debts.some((debt) => debt.remainingDebt > 0);
-  const split = allocateIncome(input.planningBasis, hasActiveDebt);
-  const purposeCents = categories.reduce(
-    (sum, category) => sum + cents(category.plannedAmount),
-    0
+  const assignment = livingAssignment(
+    input.planningBasis,
+    hasActiveDebt,
+    categories
   );
-  const livingCents = cents(split.expenditureShare);
-  if (purposeCents < livingCents) {
-    return reject(
-      "living_under_allocated",
-      `Planned purposes total ${moneyLabel(purposeCents)}. The Living Budget share is ${moneyLabel(livingCents)}.`
-    );
-  }
-  if (purposeCents > livingCents) {
-    return reject(
-      "living_over_allocated",
-      `Planned purposes total ${moneyLabel(purposeCents)}. The Living Budget share is ${moneyLabel(livingCents)}.`
-    );
-  }
+  if (assignment.failure) return assignment.failure;
+  const split = assignment.split;
+  const debtCheck = debtMinimumFailure(debts, split.debtShare);
+  if (debtCheck.failure) return debtCheck.failure;
 
-  const minimumCents = debts.reduce(
-    (sum, debt) => sum + cents(debt.monthlyAllocation),
-    0
-  );
-  const debtCents = cents(split.debtShare);
-  if (minimumCents > debtCents) {
-    return reject(
-      "debt_minimums_exceed_debt_share",
-      `Debt minimums total ${moneyLabel(minimumCents)}. The Debt share is ${moneyLabel(debtCents)}.`
-    );
-  }
-
-  const periodPlans = plans.filter((plan) => plan.periodKey === input.periodKey);
-  const latest = periodPlans.reduce<MonthlyPlanRevision | null>(
-    (current, plan) =>
-      current === null || plan.revision > current.revision ? plan : current,
-    null
-  );
+  const latest = latestMonthlyPlanRevision(plans, input.periodKey);
   const protectedContext: MonthlyPlanProtectedContext = {
     openingWealthBuilding: roundMoney(input.openingWealthBuilding),
     openingEmergencyFund: roundMoney(input.openingEmergencyFund),

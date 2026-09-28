@@ -7,6 +7,7 @@
 export const PHONE_BUDGET_SECTION_ORDER = [
   "living-budget",
   "allocation-purpose",
+  "monthly-plan",
   "category-plan",
   "debt-payoff",
   "deeper-analysis",

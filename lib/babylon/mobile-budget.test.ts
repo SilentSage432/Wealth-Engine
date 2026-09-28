@@ -8,10 +8,11 @@ import {
 } from "@/lib/babylon/mobile-budget";
 
 describe("phone Budget composition", () => {
-  it("orders Budget as living budget, purpose, categories, debt, then deeper analysis", () => {
+  it("orders Budget as living budget, purpose, monthly plan, categories, debt, then deeper analysis", () => {
     expect(PHONE_BUDGET_SECTION_ORDER).toEqual([
       "living-budget",
       "allocation-purpose",
+      "monthly-plan",
       "category-plan",
       "debt-payoff",
       "deeper-analysis",

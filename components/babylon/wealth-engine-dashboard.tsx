@@ -17,6 +17,7 @@ import { MobileBudget } from "@/components/babylon/mobile-budget";
 import { MobileHeader } from "@/components/babylon/mobile-header";
 import { MobileHome } from "@/components/babylon/mobile-home";
 import { MobileLedger } from "@/components/babylon/mobile-ledger";
+import { MonthlyPlanPanel } from "@/components/babylon/monthly-plan-panel";
 import { MobileMore } from "@/components/babylon/mobile-more";
 import { QuickStats } from "@/components/babylon/quick-stats";
 import { SecurityGate } from "@/components/babylon/security-gate.client";
@@ -196,6 +197,20 @@ export function WealthEngineDashboard() {
     />
   );
 
+  const monthlyPlan = (
+    <MonthlyPlanPanel
+      suggestedPeriodKey={engine.currentMonthKey}
+      plans={engine.monthlyPlans}
+      budgetTargets={engine.budgetTargets}
+      debts={engine.debts}
+      obligations={engine.recurringObligations}
+      openingWealthBuilding={engine.openingWealthBuilding}
+      openingEmergencyFund={engine.openingEmergencyFund}
+      discreet={discreet}
+      onFinalize={engine.finalizeMonthlyPlan}
+    />
+  );
+
   const budgetBlueprint = (
     <BudgetBlueprint
       variances={engine.budgetVariances}
@@ -355,6 +370,7 @@ export function WealthEngineDashboard() {
                 currentMonthNeed={engine.currentMonthNeed}
                 currentMonthDesire={engine.currentMonthDesire}
                 currentMonthRemaining={engine.currentMonthRemaining}
+                monthlyPlan={monthlyPlan}
                 tributeSnapshot={engine.tributeEngines}
                 desiresPoolRemaining={engine.desiresPoolRemaining}
                 hourlyLaborRate={engine.hourlyLaborRate}
@@ -443,6 +459,7 @@ export function WealthEngineDashboard() {
                         hourlyLaborRate={engine.hourlyLaborRate}
                       />
                       <TributeEnginesPanel snapshot={engine.tributeEngines} />
+                      {monthlyPlan}
                       {budgetBlueprint}
                       <AnalyticsHub
                         chartData={engine.chartData}

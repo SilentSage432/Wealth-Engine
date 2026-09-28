@@ -1,5 +1,21 @@
 # Development Journal
 
+## 2026-09-27 — WE-PLAN-UI-001 monthly planning ritual
+
+### What changed
+- Implementation candidate. Production acceptance is pending. Desktop Overview and phone Budget now open one Monthly Planning ritual. There is no new navigation item.
+- A Monthly Plan remains historical intention. `BudgetTarget` remains live operating capacity. The first draft copies current category id, name, Need/Want, and planned amount into local state. Revise copies the latest revision for that period, not caps that have since drifted. Finalize calls `finalizeMonthlyPlan` and appends a revision. It does not update live caps. There is no apply-to-caps action.
+- `previewMonthlyPlan` is a pure read. It uses the same cent comparison, `allocateIncome` split, debt-minimum sum, and due-rule snapshot as finalization. Planning Basis is an assumption for that split. It is not Income. Protected Money is shown as context and is not part of the basis. A purpose smaller than its due bills is visible and does not block. Drafts are not stored.
+- Month Close and the Honesty Report are unchanged. No schema or cloud-vault generation change.
+
+### Validation
+- Focused tests passed, including `lib/babylon/monthly-plan-ui.test.ts` and the existing monthly-plan, phone Budget, and phone Ledger suites.
+- The full suite passed: 37 files, 506 tests.
+- `tsc --noEmit`, lint, the production build, and `git diff --check` passed.
+
+### Not in this tranche
+- No Month Close, Honesty Report, draft persistence, category editor inside the ritual, plan-to-live cap write, revision browser, schema change, or production acceptance.
+
 ## 2026-09-27 — WE-PLAN-001A schema 5 cloud vault becomes schema 6
 
 ### What changed
