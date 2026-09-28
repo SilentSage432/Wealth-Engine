@@ -112,6 +112,7 @@ Canonical map: [`ARCHITECTURE.md`](./ARCHITECTURE.md) (layers, dependency rules,
 | Balance observation and account association | `lib/babylon/balance-observation.ts` |
 | Existing protected money | `lib/babylon/protected-money.ts` |
 | Monthly recurring obligations | `lib/babylon/recurring-obligations.ts` |
+| Finalized monthly intent | `lib/babylon/monthly-plan.ts` (`finalizeMonthlyPlan` on `hooks/useBabylonEngine.ts`). Schema 5 cloud rows become schema 6 only through `upgrade_wealth_engine_vault_schema_5`, which is not applied. |
 | Available After Planned Needs | `lib/babylon/available-after-planned-needs.ts` |
 | In-app attention eligibility | `lib/babylon/attention.ts` |
 | Intelligence Contract | `lib/babylon/intelligence-contract.ts`, `GET /api/intelligence` |

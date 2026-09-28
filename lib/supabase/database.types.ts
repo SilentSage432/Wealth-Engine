@@ -621,6 +621,12 @@ export interface Database {
         };
         Returns: Json;
       };
+      upgrade_wealth_engine_vault_schema_5: {
+        Args: {
+          expected_revision: number;
+        };
+        Returns: Json;
+      };
       claim_plaid_transaction_sync: {
         Args: {
           actor_user_id: string;

@@ -1,5 +1,39 @@
 # Development Journal
 
+## 2026-09-27 — WE-PLAN-001A schema 5 cloud vault becomes schema 6
+
+### What changed
+- A signed-in schema-6 client can read a valid schema-5 cloud vault. `getCloudVault` recognizes schema 5, refuses any other foreign generation, and calls `upgrade_wealth_engine_vault_schema_5`.
+- The function is owner-scoped. It copies the stored document, sets `monthlyPlans` to `[]`, sets schema 6, and advances the revision by one when the expected revision still matches. It does not accept a replacement document. No historical plan is inferred.
+- `cas_update_wealth_engine_vault` is unchanged. A schema-5 client still cannot write a schema-6 row. An invalid schema-5 document is not upgraded. Two racing upgrades leave one revision advance.
+- Unsupported-vault copy no longer says the vault is newer.
+- `supabase/migrations/20261003_wealth_engine_vault_schema_5_to_6.sql` is repository source only. It was not applied.
+
+### Validation
+- Focused schema-transition tests passed: `lib/babylon/cloud-vault-schema-upgrade.test.ts`, 15 tests. Monthly-plan, cloud-vault, and vault-sync tests passed with them.
+- The full suite passed: 36 files, 489 tests.
+- `tsc --noEmit`, lint, the production build, and `git diff --check` passed.
+
+### Not in this tranche
+- No Monthly Plan behavior change, no planning UI, no generic migration framework, and no production mutation.
+
+## 2026-09-27 — WE-PLAN-001 finalized monthly intent
+
+### What changed
+- Implementation candidate. Production acceptance is pending. Wealth Engine can now store a steward-finalized Monthly Plan revision: historical intent for one explicit period, kept apart from later financial reality.
+- `monthlyPlans` lives on the vault document. Revision 1 has no predecessor. A later approval for the same period appends the next revision and leaves the earlier revision unchanged. Drafts are not stored. The period is supplied by the caller. Nothing detects a new month, and Month Close does not write a plan.
+- Planning Basis is an assumption. `allocateIncome` derives the canonical 10/20/70 shares, including the debt-free redirect into Wealth Building, and those shares are copied onto the revision. Finalization does not create income, allocation events, debt payments, or protected-money changes. Live category caps stay as they were.
+- A revision finalizes only when the planned category purposes equal the derived Living Budget share in cents. Debt minimums and the remaining balance are copied as context. Minimums above the derived debt share reject the revision. Due recurring rules for that period are copied. Existing Wealth Building and Emergency Fund designations are copied as context and are not added to the Planning Basis.
+- Older vaults and backup versions 1–5 load `monthlyPlans: []`. Nothing is inferred from current settings. Backup version 6 and cloud schema version 6 require the list. The schema-5 cloud unreadability from this tranche is the subject of WE-PLAN-001A. No historical plans were backfilled.
+
+### Validation
+- Focused tests passed: `lib/babylon/monthly-plan.test.ts`, 21 tests. Allocation, recurrence, vault, and intelligence tests were included in the full run.
+- The full suite passed: 35 files, 474 tests.
+- `tsc --noEmit`, lint, the production build, and `git diff --check` passed.
+
+### Not in this tranche
+- No planning UI, persisted drafts, Honesty Report, Month Close change, time awareness, maturity flag, Intelligence Contract change, or automatic funding.
+
 ## 2026-09-27 — WE-BALANCE-FRESHNESS-002 foreground cached balance refresh
 
 ### What changed

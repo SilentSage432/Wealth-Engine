@@ -577,7 +577,7 @@ describe("GET /api/intelligence", () => {
               data: [
                 {
                   user_id: "steward-1",
-                  schema_version: 5,
+                  schema_version: 6,
                   vault_data: { displayName: "Hidden Name", balance: 999999 },
                 },
               ],
@@ -610,7 +610,7 @@ describe("GET /api/intelligence", () => {
                 data: [
                   {
                     user_id: "steward-1",
-                    schema_version: 5,
+                    schema_version: 6,
                     vault_data: serializeCloudVaultData(state()),
                   },
                 ],
@@ -668,7 +668,7 @@ describe("GET /api/intelligence", () => {
                 data: [
                   {
                     user_id: "steward-1",
-                    schema_version: 5,
+                    schema_version: 6,
                     vault_data: serializeCloudVaultData(state({ accounts: [account()] })),
                   },
                 ],
@@ -764,7 +764,7 @@ describe("GET /api/intelligence", () => {
                 data: [
                   {
                     user_id: "steward-1",
-                    schema_version: 5,
+                    schema_version: 6,
                     vault_data: serializeCloudVaultData(state({ accounts: [account()] })),
                   },
                 ],

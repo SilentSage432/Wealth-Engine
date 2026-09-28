@@ -58,7 +58,7 @@ function state(amount = 20): PersistedState {
 function present(vault: PersistedState, revision: number): CloudVaultGetResult {
   return {
     status: "present",
-    schemaVersion: 5,
+    schemaVersion: 6,
     revision,
     updatedAt: "2026-09-25T00:00:00.000Z",
     vaultData: vault,
@@ -70,7 +70,7 @@ function updated(
 ): Extract<CloudVaultUpdateResult, { status: "updated" }> {
   return {
     status: "updated",
-    schemaVersion: 5,
+    schemaVersion: 6,
     revision,
     updatedAt: "2026-09-25T00:00:00.000Z",
   };
@@ -295,7 +295,7 @@ describe("revision sync", () => {
       pushCloud: async () => ({
         status: "conflict",
         storedRevision: 4,
-        schemaVersion: 5,
+        schemaVersion: 6,
       }),
     });
     const result = await runCloudRevisionCycle(harness.deps);
@@ -398,7 +398,7 @@ describe("revision sync", () => {
       baseline: { revision: 1, fingerprint: financialVaultFingerprint(local) },
       readCloud: async () => ({
         status: "unsupported_schema",
-        schemaVersion: 6,
+        schemaVersion: 7,
         revision: 2,
         updatedAt: "2026-09-25T00:00:00.000Z",
       }),
@@ -414,7 +414,7 @@ describe("revision sync", () => {
       baseline: { revision: 1, fingerprint: financialVaultFingerprint(local) },
       readCloud: async () => ({
         status: "invalid_vault",
-        schemaVersion: 5,
+        schemaVersion: 6,
         revision: 2,
         updatedAt: "2026-09-25T00:00:00.000Z",
       }),
@@ -628,8 +628,8 @@ describe("revision sync", () => {
     expect(readCloudSyncBaseline(store)?.revision).toBe(1);
     expect(CLOUD_SYNC_STORAGE_KEY).not.toBe("wealth-engine-babylon-v2");
     const backup = buildLedgerBackup(local);
-    expect(backup.version).toBe(5);
-    expect(LEDGER_BACKUP_VERSION).toBe(5);
+    expect(backup.version).toBe(6);
+    expect(LEDGER_BACKUP_VERSION).toBe(6);
     expect(backup).not.toHaveProperty("fingerprint");
     expect(backup).not.toHaveProperty("revision");
     expect(CLOUD_VAULT_DATA_KEYS).not.toContain("fingerprint");

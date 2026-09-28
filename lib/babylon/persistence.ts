@@ -5,6 +5,7 @@ import {
   USERNAME_STORAGE_KEY,
 } from "@/lib/babylon/constants";
 import { roundMoney } from "@/lib/babylon/engine";
+import { parseMonthlyPlanRevision } from "@/lib/babylon/monthly-plan";
 import { parseRecurringObligation } from "@/lib/babylon/recurring-obligations";
 import {
   isFinancialAccountKind,
@@ -23,14 +24,15 @@ import type {
   IncomeInterval,
   IncomeStreamKind,
   LedgerBackup,
+  MonthlyPlanRevision,
   PeriodArchive,
   PersistedState,
   RecurringObligation,
   SurplusDisposition,
 } from "@/types/babylon";
 
-/** Current export version. Version 5 adds monthly recurring obligations. */
-export const LEDGER_BACKUP_VERSION = 5 as const;
+/** Current export version. Version 6 adds finalized monthly plan revisions. */
+export const LEDGER_BACKUP_VERSION = 6 as const;
 
 /** Local vault marker. 2 means `isSettled: false` is an Upcoming obligation. */
 export const EXPENSE_SEMANTICS_VERSION = 2 as const;
@@ -446,6 +448,13 @@ export function normalizePersistedState(raw: unknown): PersistedState {
         .filter((rule): rule is RecurringObligation => rule !== null)
     : [];
 
+  // Older vaults omit plans. Never infer a plan from current caps or rules.
+  const monthlyPlans = Array.isArray(raw.monthlyPlans)
+    ? raw.monthlyPlans
+        .map(parseMonthlyPlanRevision)
+        .filter((plan): plan is MonthlyPlanRevision => plan !== null)
+    : [];
+
   return {
     incomes,
     expenses,
@@ -462,6 +471,7 @@ export function normalizePersistedState(raw: unknown): PersistedState {
     openingWealthBuilding,
     openingEmergencyFund,
     recurringObligations,
+    monthlyPlans,
   };
 }
 
@@ -477,7 +487,8 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
     raw.version !== 2 &&
     raw.version !== 3 &&
     raw.version !== 4 &&
-    raw.version !== 5
+    raw.version !== 5 &&
+    raw.version !== 6
   ) {
     return null;
   }
@@ -489,10 +500,13 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
   if (!incomes || !expenses || !debts) return null;
 
   // Versions 1 and 2 counted unsettled rows as spent. Mark them paid on import
-  // so a later save does not turn old spending into Upcoming. Versions 3–5
+  // so a later save does not turn old spending into Upcoming. Versions 3–6
   // keep Upcoming unpaid.
   const settledExpenses =
-    raw.version === 3 || raw.version === 4 || raw.version === 5
+    raw.version === 3 ||
+    raw.version === 4 ||
+    raw.version === 5 ||
+    raw.version === 6
       ? expenses
       : settleLegacyExpenses(expenses);
 
@@ -549,14 +563,15 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
     typeof raw.displayName === "string" ? raw.displayName : "";
 
   // Version 1 has no account contract. Ignore any stray `accounts` field so a
-  // version-1 file cannot smuggle balances. Versions 2–5 require a valid list;
+  // version-1 file cannot smuggle balances. Versions 2–6 require a valid list;
   // one bad row rejects the whole backup.
   let accounts: FinancialAccount[] = [];
   if (
     raw.version === 2 ||
     raw.version === 3 ||
     raw.version === 4 ||
-    raw.version === 5
+    raw.version === 5 ||
+    raw.version === 6
   ) {
     if (raw.accounts === undefined) return null;
     const parsed = parseArray(raw.accounts, parseFinancialAccount);
@@ -565,11 +580,11 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
   }
 
   // Versions 1–3 have no protected-designation contract. Force zero even if
-  // stray fields are present. Versions 4 and 5 must include both amounts; a
+  // stray fields are present. Versions 4, 5, and 6 must include both amounts; a
   // missing field rejects the backup instead of silently dropping a designation.
   let openingWealthBuilding = 0;
   let openingEmergencyFund = 0;
-  if (raw.version === 4 || raw.version === 5) {
+  if (raw.version === 4 || raw.version === 5 || raw.version === 6) {
     const wealth = nonNegativeMoney(raw.openingWealthBuilding);
     const emergency = nonNegativeMoney(raw.openingEmergencyFund);
     if (wealth === null || emergency === null) return null;
@@ -578,14 +593,25 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
   }
 
   // Versions 1–4 have no recurring-rule contract. Force an empty list even if
-  // stray rules are present. Version 5 must include the list; a missing list
-  // rejects the backup instead of silently dropping recurrence.
+  // stray rules are present. Versions 5 and 6 must include the list; a missing
+  // list rejects the backup instead of silently dropping recurrence.
   let recurringObligations: RecurringObligation[] = [];
-  if (raw.version === 5) {
+  if (raw.version === 5 || raw.version === 6) {
     if (raw.recurringObligations === undefined) return null;
     const parsed = parseArray(raw.recurringObligations, parseRecurringObligation);
     if (!parsed) return null;
     recurringObligations = parsed;
+  }
+
+  // Versions 1–5 have no monthly-plan contract. Force an empty list even if
+  // stray revisions are present. Version 6 must include the list; a missing
+  // or corrupt list rejects the backup instead of dropping historical intent.
+  let monthlyPlans: MonthlyPlanRevision[] = [];
+  if (raw.version === 6) {
+    if (raw.monthlyPlans === undefined) return null;
+    const parsed = parseArray(raw.monthlyPlans, parseMonthlyPlanRevision);
+    if (!parsed) return null;
+    monthlyPlans = parsed;
   }
 
   return {
@@ -605,6 +631,7 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
     openingWealthBuilding,
     openingEmergencyFund,
     recurringObligations,
+    monthlyPlans,
   };
 }
 
@@ -626,6 +653,7 @@ export function buildLedgerBackup(state: PersistedState): LedgerBackup {
     openingWealthBuilding: state.openingWealthBuilding,
     openingEmergencyFund: state.openingEmergencyFund,
     recurringObligations: state.recurringObligations,
+    monthlyPlans: state.monthlyPlans,
   };
 }
 

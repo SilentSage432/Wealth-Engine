@@ -13,10 +13,13 @@ import type { Json } from "@/lib/supabase/database.types";
 import type { PersistedState } from "@/types/babylon";
 
 /**
- * Financial document generation. This is backup version 5.
+ * Financial document generation. This is backup version 6.
  * The localStorage key suffix "v2" is not a schema version.
  */
-export const CLOUD_VAULT_SCHEMA_VERSION = 5 as const;
+export const CLOUD_VAULT_SCHEMA_VERSION = 6 as const;
+
+/** The only cloud generation this client may advance, and only to schema 6. */
+export const CLOUD_VAULT_PREDECESSOR_SCHEMA_VERSION = 5 as const;
 
 export const CLOUD_VAULT_DATA_KEYS = [
   "incomes",
@@ -34,6 +37,7 @@ export const CLOUD_VAULT_DATA_KEYS = [
   "openingWealthBuilding",
   "openingEmergencyFund",
   "recurringObligations",
+  "monthlyPlans",
 ] as const satisfies readonly (keyof PersistedState)[];
 
 export type CloudVaultData = Pick<
@@ -134,6 +138,13 @@ export type CloudVaultGateway = {
     schemaVersion: number,
     vaultData: CloudVaultData
   ): Promise<{ ok: true; body: unknown } | { ok: false; message: string }>;
+  /**
+   * Atomic schema 5 → 6. The server copies the stored document and adds
+   * monthlyPlans: []. The client does not send a replacement document.
+   */
+  upgradeSchema5Vault(
+    expectedRevision: number
+  ): Promise<{ ok: true; body: unknown } | { ok: false; message: string }>;
 };
 
 /**
@@ -212,6 +223,69 @@ export function specifiedVaultWriteOutcome(input: {
   };
 }
 
+/**
+ * Specification for the schema-5 upgrade function. A result other than
+ * "updated" does not describe a changed row. The database applies the same
+ * rule in one UPDATE. This is not a general migration.
+ */
+export function specifiedSchema5To6Upgrade(input: {
+  stored: {
+    revision: number;
+    schemaVersion: number;
+    vaultData: unknown;
+  } | null;
+  expectedRevision: number;
+}):
+  | { status: "rejected"; reason: "invalid_revision" | "monthly_plans_present" }
+  | { status: "absent" }
+  | { status: "unsupported_schema"; schemaVersion: number; revision: number }
+  | { status: "already_current"; schemaVersion: number; revision: number }
+  | { status: "conflict"; storedRevision: number; schemaVersion: number }
+  | {
+      status: "updated";
+      schemaVersion: typeof CLOUD_VAULT_SCHEMA_VERSION;
+      revision: number;
+      vaultData: Record<string, unknown>;
+    } {
+  if (!Number.isInteger(input.expectedRevision) || input.expectedRevision < 1) {
+    return { status: "rejected", reason: "invalid_revision" };
+  }
+  if (!input.stored) return { status: "absent" };
+  if (input.stored.schemaVersion === CLOUD_VAULT_SCHEMA_VERSION) {
+    return {
+      status: "already_current",
+      schemaVersion: input.stored.schemaVersion,
+      revision: input.stored.revision,
+    };
+  }
+  if (input.stored.schemaVersion !== CLOUD_VAULT_PREDECESSOR_SCHEMA_VERSION) {
+    return {
+      status: "unsupported_schema",
+      schemaVersion: input.stored.schemaVersion,
+      revision: input.stored.revision,
+    };
+  }
+  if (
+    !isRecord(input.stored.vaultData) ||
+    Object.prototype.hasOwnProperty.call(input.stored.vaultData, "monthlyPlans")
+  ) {
+    return { status: "rejected", reason: "monthly_plans_present" };
+  }
+  if (input.stored.revision !== input.expectedRevision) {
+    return {
+      status: "conflict",
+      storedRevision: input.stored.revision,
+      schemaVersion: input.stored.schemaVersion,
+    };
+  }
+  return {
+    status: "updated",
+    schemaVersion: CLOUD_VAULT_SCHEMA_VERSION,
+    revision: input.expectedRevision + 1,
+    vaultData: { ...input.stored.vaultData, monthlyPlans: [] },
+  };
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -253,11 +327,12 @@ export function serializeCloudVaultData(state: PersistedState): CloudVaultData {
     openingWealthBuilding: state.openingWealthBuilding,
     openingEmergencyFund: state.openingEmergencyFund,
     recurringObligations: state.recurringObligations,
+    monthlyPlans: state.monthlyPlans,
   };
 }
 
 /**
- * Accept a schema-5 document only when normalization would not change it.
+ * Accept a schema-6 document only when normalization would not change it.
  * A failure is null. It is not an empty vault.
  */
 export function parseCloudVaultData(raw: unknown): PersistedState | null {
@@ -271,6 +346,32 @@ export function parseCloudVaultData(raw: unknown): PersistedState | null {
 
   const normalized = normalizePersistedState(raw);
   for (const key of CLOUD_VAULT_DATA_KEYS) {
+    if (canonicalJson(raw[key]) !== canonicalJson(normalized[key])) return null;
+  }
+  return normalized;
+}
+
+const SCHEMA_5_DATA_KEYS = CLOUD_VAULT_DATA_KEYS.filter(
+  (key) => key !== "monthlyPlans"
+);
+
+/**
+ * Accept a schema-5 document only when adding monthlyPlans: [] is the entire
+ * difference from a schema-6 document. A failure is null.
+ */
+export function parseSchema5VaultData(raw: unknown): PersistedState | null {
+  if (!isRecord(raw)) return null;
+  if (Object.prototype.hasOwnProperty.call(raw, "monthlyPlans")) return null;
+  const keys = Object.keys(raw);
+  if (keys.length !== SCHEMA_5_DATA_KEYS.length) return null;
+  for (const key of SCHEMA_5_DATA_KEYS) {
+    if (!Object.prototype.hasOwnProperty.call(raw, key)) return null;
+  }
+  if (raw.expenseSemanticsVersion !== EXPENSE_SEMANTICS_VERSION) return null;
+
+  const normalized = normalizePersistedState(raw);
+  if (normalized.monthlyPlans.length !== 0) return null;
+  for (const key of SCHEMA_5_DATA_KEYS) {
     if (canonicalJson(raw[key]) !== canonicalJson(normalized[key])) return null;
   }
   return normalized;
@@ -316,6 +417,13 @@ function browserGateway(): CloudVaultGateway | null {
         expected_revision: expectedRevision,
         known_schema_version: schemaVersion,
         next_vault_data: vaultData as unknown as Json,
+      });
+      if (error) return { ok: false, message: error.message };
+      return { ok: true, body: data };
+    },
+    async upgradeSchema5Vault(expectedRevision) {
+      const { data, error } = await client.rpc("upgrade_wealth_engine_vault_schema_5", {
+        expected_revision: expectedRevision,
       });
       if (error) return { ok: false, message: error.message };
       return { ok: true, body: data };
@@ -366,22 +474,8 @@ function readTimestamp(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value : null;
 }
 
-export async function getCloudVault(
-  userId: string,
-  gateway: CloudVaultGateway | null = browserGateway()
-): Promise<CloudVaultGetResult> {
-  if (!gateway) return { status: "unconfigured" };
-  const owner = await requireOwner(gateway, userId);
-  if (!owner.ok) return owner.status;
-
-  const read = await gateway.readVault(userId);
-  if (!read.ok) return { status: "error", message: read.message };
-  if (!read.row) return { status: "absent" };
-
-  const { schemaVersion, revision, updatedAt, vaultData } = read.row;
-  if (!readPositiveInt(schemaVersion) || !readPositiveInt(revision) || !updatedAt) {
-    return { status: "error", message: "Cloud vault row is incomplete." };
-  }
+function presentCurrentSchema(row: VaultRow): CloudVaultGetResult {
+  const { schemaVersion, revision, updatedAt, vaultData } = row;
   if (schemaVersion !== CLOUD_VAULT_SCHEMA_VERSION) {
     return { status: "unsupported_schema", schemaVersion, revision, updatedAt };
   }
@@ -396,6 +490,141 @@ export async function getCloudVault(
     updatedAt,
     vaultData: parsed,
   };
+}
+
+function interpretSchema5Upgrade(body: unknown):
+  | { status: "updated"; revision: number; schemaVersion: number }
+  | { status: "already_current"; revision: number; schemaVersion: number }
+  | { status: "conflict"; storedRevision: number; schemaVersion: number }
+  | { status: "unsupported_schema"; schemaVersion: number; revision: number }
+  | { status: "absent" }
+  | { status: "rejected"; reason: string }
+  | null {
+  if (!isRecord(body) || typeof body.status !== "string") return null;
+  if (body.status === "updated" || body.status === "already_current") {
+    const revision = readPositiveInt(body.revision);
+    const schemaVersion = readPositiveInt(body.schema_version);
+    if (!revision || schemaVersion !== CLOUD_VAULT_SCHEMA_VERSION) return null;
+    return { status: body.status, revision, schemaVersion };
+  }
+  if (body.status === "conflict") {
+    const storedRevision = readPositiveInt(body.stored_revision);
+    const schemaVersion = readPositiveInt(body.schema_version);
+    if (!storedRevision || !schemaVersion) return null;
+    return { status: "conflict", storedRevision, schemaVersion };
+  }
+  if (body.status === "unsupported_schema") {
+    const schemaVersion = readPositiveInt(body.schema_version);
+    const revision = readPositiveInt(body.revision);
+    if (!schemaVersion || !revision) return null;
+    return { status: "unsupported_schema", schemaVersion, revision };
+  }
+  if (body.status === "absent") return { status: "absent" };
+  if (body.status === "rejected" && typeof body.reason === "string") {
+    return { status: "rejected", reason: body.reason };
+  }
+  return null;
+}
+
+/**
+ * One owner-scoped schema-5 row becomes schema 6 by the server adding
+ * monthlyPlans: []. A failed attempt leaves the stored row unread as current.
+ * Two attempts cover one concurrent schema-5 write; a second miss stops.
+ */
+async function adoptSchema5Vault(
+  userId: string,
+  gateway: CloudVaultGateway,
+  initial: VaultRow
+): Promise<CloudVaultGetResult> {
+  let row = initial;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    if (row.schemaVersion === CLOUD_VAULT_SCHEMA_VERSION) {
+      return presentCurrentSchema(row);
+    }
+    if (row.schemaVersion !== CLOUD_VAULT_PREDECESSOR_SCHEMA_VERSION) {
+      return {
+        status: "unsupported_schema",
+        schemaVersion: row.schemaVersion,
+        revision: row.revision,
+        updatedAt: row.updatedAt,
+      };
+    }
+    if (!parseSchema5VaultData(row.vaultData)) {
+      return {
+        status: "invalid_vault",
+        schemaVersion: row.schemaVersion,
+        revision: row.revision,
+        updatedAt: row.updatedAt,
+      };
+    }
+
+    const expectedRevision = row.revision;
+    const result = await gateway.upgradeSchema5Vault(expectedRevision);
+    if (!result.ok) return { status: "error", message: result.message };
+    const body = interpretSchema5Upgrade(result.body);
+    if (!body) {
+      return { status: "error", message: "Cloud schema upgrade returned an unreadable result." };
+    }
+    if (body.status === "updated" && body.revision !== expectedRevision + 1) {
+      return { status: "error", message: "Cloud schema upgrade did not advance the revision by one." };
+    }
+    if (
+      body.status === "updated" ||
+      body.status === "already_current" ||
+      body.status === "conflict"
+    ) {
+      const read = await gateway.readVault(userId);
+      if (!read.ok) return { status: "error", message: read.message };
+      if (!read.row) return { status: "absent" };
+      if (!readPositiveInt(read.row.schemaVersion) || !readPositiveInt(read.row.revision) || !read.row.updatedAt) {
+        return { status: "error", message: "Cloud vault row is incomplete." };
+      }
+      row = read.row;
+      if (row.schemaVersion === CLOUD_VAULT_SCHEMA_VERSION) {
+        return presentCurrentSchema(row);
+      }
+      if (body.status === "conflict" && attempt === 0) continue;
+      return { status: "error", message: "Cloud schema upgrade did not finish." };
+    }
+    if (body.status === "unsupported_schema") {
+      return {
+        status: "unsupported_schema",
+        schemaVersion: body.schemaVersion,
+        revision: body.revision,
+        updatedAt: row.updatedAt,
+      };
+    }
+    if (body.status === "absent") return { status: "absent" };
+    return {
+      status: "invalid_vault",
+      schemaVersion: row.schemaVersion,
+      revision: row.revision,
+      updatedAt: row.updatedAt,
+    };
+  }
+  return { status: "error", message: "Cloud schema upgrade did not finish." };
+}
+
+export async function getCloudVault(
+  userId: string,
+  gateway: CloudVaultGateway | null = browserGateway()
+): Promise<CloudVaultGetResult> {
+  if (!gateway) return { status: "unconfigured" };
+  const owner = await requireOwner(gateway, userId);
+  if (!owner.ok) return owner.status;
+
+  const read = await gateway.readVault(userId);
+  if (!read.ok) return { status: "error", message: read.message };
+  if (!read.row) return { status: "absent" };
+
+  const { schemaVersion, revision, updatedAt } = read.row;
+  if (!readPositiveInt(schemaVersion) || !readPositiveInt(revision) || !updatedAt) {
+    return { status: "error", message: "Cloud vault row is incomplete." };
+  }
+  if (schemaVersion === CLOUD_VAULT_PREDECESSOR_SCHEMA_VERSION) {
+    return adoptSchema5Vault(userId, gateway, read.row);
+  }
+  return presentCurrentSchema(read.row);
 }
 
 export async function initializeCloudVault(

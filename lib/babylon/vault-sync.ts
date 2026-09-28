@@ -228,7 +228,7 @@ export function vaultSyncCopy(view: VaultSyncView): {
           };
     case "unsupported_schema":
       return {
-        title: "Cloud schema is newer than this app",
+        title: "Cloud vault generation is not supported",
         detail: "Nothing was changed.",
       };
     case "invalid_vault":

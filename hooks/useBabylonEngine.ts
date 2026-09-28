@@ -22,6 +22,7 @@ import {
   type CloudSyncBaseline,
   type VaultSyncView,
 } from "@/lib/babylon/vault-sync";
+import { finalizeMonthlyPlanOnState } from "@/lib/babylon/monthly-plan";
 import { emitVaultToast } from "@/lib/babylon/vault-toast";
 import {
   allocateIncome,
@@ -104,6 +105,8 @@ import type {
   IncomeEntry,
   IncomeInput,
   MonthlyCloseSummary,
+  MonthlyPlanCategoryPurpose,
+  MonthlyPlanRevision,
   NavSection,
   PeriodArchive,
   PersistedState,
@@ -136,6 +139,7 @@ export function useBabylonEngine() {
   const [recurringObligations, setRecurringObligations] = useState<
     RecurringObligation[]
   >([]);
+  const [monthlyPlans, setMonthlyPlans] = useState<MonthlyPlanRevision[]>([]);
   /** Profile name input value — may be empty; greeting uses a visual fallback. */
   const [username, setUsernameState] = useState("");
   /** Auth user id when a verified Supabase session is present; null = local-only. */
@@ -209,6 +213,7 @@ export function useBabylonEngine() {
     setOpeningWealthBuilding(stored.openingWealthBuilding);
     setOpeningEmergencyFund(stored.openingEmergencyFund);
     setRecurringObligations(stored.recurringObligations);
+    setMonthlyPlans(stored.monthlyPlans);
     setUsernameState(loadUsername(stored.displayName));
     try {
       setIsDiscreetMode(
@@ -290,6 +295,7 @@ export function useBabylonEngine() {
       openingWealthBuilding,
       openingEmergencyFund,
       recurringObligations,
+      monthlyPlans,
     };
     savePersistedState(payload);
   }, [
@@ -309,6 +315,7 @@ export function useBabylonEngine() {
     openingWealthBuilding,
     openingEmergencyFund,
     recurringObligations,
+    monthlyPlans,
   ]);
 
   const vaultSnapshot = useMemo<PersistedState>(
@@ -328,6 +335,7 @@ export function useBabylonEngine() {
       openingWealthBuilding,
       openingEmergencyFund,
       recurringObligations,
+      monthlyPlans,
     }),
     [
       incomes,
@@ -345,6 +353,7 @@ export function useBabylonEngine() {
       openingWealthBuilding,
       openingEmergencyFund,
       recurringObligations,
+      monthlyPlans,
     ]
   );
   const vaultRef = useRef(vaultSnapshot);
@@ -373,6 +382,7 @@ export function useBabylonEngine() {
     setOpeningWealthBuilding(next.openingWealthBuilding);
     setOpeningEmergencyFund(next.openingEmergencyFund);
     setRecurringObligations(next.recurringObligations);
+    setMonthlyPlans(next.monthlyPlans);
     setUsernameState(next.displayName);
   }, []);
 
@@ -1400,6 +1410,7 @@ export function useBabylonEngine() {
     setOpeningWealthBuilding(0);
     setOpeningEmergencyFund(0);
     setRecurringObligations([]);
+    setMonthlyPlans([]);
     setUsernameState("");
     setTributeOpen(false);
     setTributeMode("income");
@@ -1425,6 +1436,7 @@ export function useBabylonEngine() {
       openingWealthBuilding,
       openingEmergencyFund,
       recurringObligations,
+      monthlyPlans,
     });
     const blob = new Blob([JSON.stringify(backup, null, 2)], {
       type: "application/json",
@@ -1454,6 +1466,7 @@ export function useBabylonEngine() {
     openingWealthBuilding,
     openingEmergencyFund,
     recurringObligations,
+    monthlyPlans,
   ]);
 
   const importBackup = useCallback((raw: unknown): string | null => {
@@ -1478,6 +1491,7 @@ export function useBabylonEngine() {
       openingWealthBuilding: backup.openingWealthBuilding ?? 0,
       openingEmergencyFund: backup.openingEmergencyFund ?? 0,
       recurringObligations: backup.recurringObligations ?? [],
+      monthlyPlans: backup.monthlyPlans ?? [],
     };
 
     applyVault(next);
@@ -1617,6 +1631,26 @@ export function useBabylonEngine() {
     [hasActiveDebt]
   );
 
+  const finalizeMonthlyPlan = useCallback(
+    (input: {
+      periodKey: string;
+      planningBasis: number;
+      categories: readonly MonthlyPlanCategoryPurpose[];
+    }) => {
+      const outcome = finalizeMonthlyPlanOnState(vaultRef.current, {
+        id: generateId(),
+        periodKey: input.periodKey,
+        finalizedAt: new Date().toISOString(),
+        planningBasis: input.planningBasis,
+        categories: input.categories,
+      });
+      if (!outcome.ok) return outcome;
+      setMonthlyPlans(outcome.state.monthlyPlans);
+      return { ok: true as const, revision: outcome.revision };
+    },
+    []
+  );
+
   const selectNav = useCallback((section: NavSection) => {
     setActiveNav(section);
     setSidebarOpen(false);
@@ -1710,6 +1744,7 @@ export function useBabylonEngine() {
     emergencyShield,
     lastClosedMonthKey,
     periodArchives,
+    monthlyPlans,
     currentMonthKey,
     budgetVariances,
     budgetPlannedTotal,
@@ -1735,6 +1770,7 @@ export function useBabylonEngine() {
     updateRecurringObligation,
     autoScaleBudgetCaps,
     closeMonth,
+    finalizeMonthlyPlan,
     clearAllData,
     exportBackup,
     importBackup,

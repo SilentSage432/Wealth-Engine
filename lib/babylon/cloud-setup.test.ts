@@ -156,7 +156,7 @@ function absent(): CloudVaultGetResult {
 function present(state: PersistedState, revision = 1): CloudVaultGetResult {
   return {
     status: "present",
-    schemaVersion: 5,
+    schemaVersion: 6,
     revision,
     updatedAt: "2026-09-25T00:00:00.000Z",
     vaultData: state,
@@ -200,8 +200,8 @@ describe("cloud setup", () => {
     expect(authBlock).not.toContain("initialize");
     expect(plaid).not.toContain("wealth_engine_vaults");
     expect(plaid).not.toContain("cloud-setup");
-    expect(buildLedgerBackup(richState()).version).toBe(5);
-    expect(LEDGER_BACKUP_VERSION).toBe(5);
+    expect(buildLedgerBackup(richState()).version).toBe(6);
+    expect(LEDGER_BACKUP_VERSION).toBe(6);
   });
 
   it("treats modern financial state as non-empty", () => {
@@ -295,7 +295,7 @@ describe("cloud setup", () => {
         cloud = state;
         return {
           status: "created",
-          schemaVersion: 5,
+          schemaVersion: 6,
           revision: 1,
           updatedAt: "2026-09-25T00:00:00.000Z",
         };
@@ -326,7 +326,7 @@ describe("cloud setup", () => {
       initialize: async () => {
         return {
           status: "created",
-          schemaVersion: 5,
+          schemaVersion: 6,
           revision: 1,
           updatedAt: "2026-09-25T00:00:00.000Z",
         } satisfies CloudVaultInitializeResult;
@@ -352,7 +352,7 @@ describe("cloud setup", () => {
         initializes += 1;
         return {
           status: "already_exists",
-          schemaVersion: 5,
+          schemaVersion: 6,
           revision: 1,
           updatedAt: "2026-09-25T00:00:00.000Z",
         };
@@ -428,7 +428,7 @@ describe("cloud setup", () => {
         initializes += 1;
         return {
           status: "created",
-          schemaVersion: 5,
+          schemaVersion: 6,
           revision: 1,
           updatedAt: "t",
         };
@@ -460,7 +460,7 @@ describe("cloud setup", () => {
         initializes += 1;
         return {
           status: "created",
-          schemaVersion: 5,
+          schemaVersion: 6,
           revision: 1,
           updatedAt: "t",
         };
@@ -499,7 +499,7 @@ describe("cloud setup", () => {
         ownerUserId: null,
         probe: ready({
           status: "unsupported_schema",
-          schemaVersion: 6,
+          schemaVersion: 7,
           revision: 3,
           updatedAt: "t",
         }),
@@ -512,7 +512,7 @@ describe("cloud setup", () => {
         ownerUserId: null,
         probe: ready({
           status: "invalid_vault",
-          schemaVersion: 5,
+          schemaVersion: 6,
           revision: 1,
           updatedAt: "t",
         }),
@@ -525,7 +525,7 @@ describe("cloud setup", () => {
       ownerUserId: null,
       readCloud: async () => ({
         status: "unsupported_schema",
-        schemaVersion: 6,
+        schemaVersion: 7,
         revision: 3,
         updatedAt: "t",
       }),
@@ -533,7 +533,7 @@ describe("cloud setup", () => {
         initializes += 1;
         return {
           status: "created",
-          schemaVersion: 5,
+          schemaVersion: 6,
           revision: 1,
           updatedAt: "t",
         };
@@ -546,7 +546,7 @@ describe("cloud setup", () => {
       ownerUserId: null,
       readCloud: async () => ({
         status: "invalid_vault",
-        schemaVersion: 5,
+        schemaVersion: 6,
         revision: 1,
         updatedAt: "t",
       }),

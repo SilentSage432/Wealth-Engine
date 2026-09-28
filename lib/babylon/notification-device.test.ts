@@ -301,7 +301,7 @@ describe("WE-NOTIFY-003 boundaries", () => {
     expect(readFileSync(".env.example", "utf8")).toContain(
       "NEXT_PUBLIC_VAPID_PUBLIC_KEY"
     );
-    expect(CLOUD_VAULT_SCHEMA_VERSION).toBe(5);
+    expect(CLOUD_VAULT_SCHEMA_VERSION).toBe(6);
     const attention = readFileSync("lib/babylon/attention.ts", "utf8");
     expect(attention).toContain("export function deriveDueAttention");
     expect(attention).not.toContain("PushManager");

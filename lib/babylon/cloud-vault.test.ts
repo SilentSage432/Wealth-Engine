@@ -8,6 +8,7 @@ import {
   initializeCloudVault,
   parseCloudVaultData,
   serializeCloudVaultData,
+  specifiedSchema5To6Upgrade,
   specifiedVaultInitializeOutcome,
   specifiedVaultWriteOutcome,
   updateCloudVault,
@@ -259,6 +260,62 @@ function memoryGateway(options?: {
       if (outcome.status === "absent") return { ok: true, body: { status: "absent" } };
       return { ok: true, body: { status: "rejected", reason: outcome.reason } };
     },
+    async upgradeSchema5Vault(expectedRevision) {
+      calls.push("upgrade");
+      const outcome = specifiedSchema5To6Upgrade({
+        stored: row,
+        expectedRevision,
+      });
+      if (outcome.status === "updated") {
+        row = {
+          schemaVersion: outcome.schemaVersion,
+          revision: outcome.revision,
+          updatedAt: "2026-09-27T00:00:00.000Z",
+          vaultData: outcome.vaultData,
+        };
+        return {
+          ok: true,
+          body: {
+            status: "updated",
+            revision: outcome.revision,
+            schema_version: outcome.schemaVersion,
+            updated_at: row.updatedAt,
+          },
+        };
+      }
+      if (outcome.status === "already_current") {
+        return {
+          ok: true,
+          body: {
+            status: "already_current",
+            revision: outcome.revision,
+            schema_version: outcome.schemaVersion,
+          },
+        };
+      }
+      if (outcome.status === "conflict") {
+        return {
+          ok: true,
+          body: {
+            status: "conflict",
+            stored_revision: outcome.storedRevision,
+            schema_version: outcome.schemaVersion,
+          },
+        };
+      }
+      if (outcome.status === "unsupported_schema") {
+        return {
+          ok: true,
+          body: {
+            status: "unsupported_schema",
+            schema_version: outcome.schemaVersion,
+            revision: outcome.revision,
+          },
+        };
+      }
+      if (outcome.status === "absent") return { ok: true, body: { status: "absent" } };
+      return { ok: true, body: { status: "rejected", reason: outcome.reason } };
+    },
   };
   return {
     gateway,
@@ -304,7 +361,7 @@ describe("cloud vault foundation", () => {
       vault,
       memory.gateway
     );
-    expect(created).toMatchObject({ status: "created", revision: 1, schemaVersion: 5 });
+    expect(created).toMatchObject({ status: "created", revision: 1, schemaVersion: 6 });
     const before = memory.snapshot();
 
     const again = await initializeCloudVault(
@@ -316,15 +373,15 @@ describe("cloud vault foundation", () => {
     expect(again).toMatchObject({ status: "already_exists", revision: 1 });
     expect(memory.snapshot()).toEqual(before);
     expect(specifiedVaultInitializeOutcome({
-      existing: { revision: 1, schemaVersion: 5 },
-      knownSchemaVersion: 5,
+      existing: { revision: 1, schemaVersion: 6 },
+      knownSchemaVersion: 6,
     }).status).toBe("already_exists");
   });
 
   it("does not write or return a newer schema as a usable vault", async () => {
     const memory = memoryGateway({
       seed: {
-        schemaVersion: 6,
+        schemaVersion: 7,
         revision: 4,
         updatedAt: "2026-09-25T00:00:00.000Z",
         vaultData: { secret: true },
@@ -333,7 +390,7 @@ describe("cloud vault foundation", () => {
     const read = await getCloudVault(OWNER_A, memory.gateway);
     expect(read).toEqual({
       status: "unsupported_schema",
-      schemaVersion: 6,
+      schemaVersion: 7,
       revision: 4,
       updatedAt: "2026-09-25T00:00:00.000Z",
     });
@@ -342,13 +399,13 @@ describe("cloud vault foundation", () => {
     const write = await updateCloudVault(
       OWNER_A,
       4,
-      6,
+      7,
       occupiedState(),
       memory.gateway
     );
     expect(write).toEqual({ status: "rejected", reason: "unsupported_schema" });
     expect(memory.calls).toEqual(["read"]);
-    expect(memory.snapshot()?.schemaVersion).toBe(6);
+    expect(memory.snapshot()?.schemaVersion).toBe(7);
   });
 
   it("refuses another user's vault before reading it", async () => {
@@ -362,28 +419,28 @@ describe("cloud vault foundation", () => {
     const vault = occupiedState();
     const stored = {
       revision: 17,
-      schemaVersion: 5,
+      schemaVersion: 6,
     };
     expect(
       specifiedVaultWriteOutcome({
         stored,
         expectedRevision: 17,
-        knownSchemaVersion: 5,
+        knownSchemaVersion: 6,
       })
-    ).toEqual({ status: "updated", revision: 18, schemaVersion: 5 });
-    expect(stored).toEqual({ revision: 17, schemaVersion: 5 });
+    ).toEqual({ status: "updated", revision: 18, schemaVersion: 6 });
+    expect(stored).toEqual({ revision: 17, schemaVersion: 6 });
 
     expect(
       specifiedVaultWriteOutcome({
-        stored: { revision: 18, schemaVersion: 5 },
+        stored: { revision: 18, schemaVersion: 6 },
         expectedRevision: 17,
-        knownSchemaVersion: 5,
+        knownSchemaVersion: 6,
       })
-    ).toEqual({ status: "conflict", storedRevision: 18, schemaVersion: 5 });
+    ).toEqual({ status: "conflict", storedRevision: 18, schemaVersion: 6 });
 
     const memory = memoryGateway({
       seed: {
-        schemaVersion: 5,
+        schemaVersion: 6,
         revision: 17,
         updatedAt: "2026-09-25T00:00:00.000Z",
         vaultData: serializeCloudVaultData(vault),
@@ -409,7 +466,7 @@ describe("cloud vault foundation", () => {
       { ...vault, displayName: "Stale" },
       memory.gateway
     );
-    expect(stale).toEqual({ status: "conflict", storedRevision: 18, schemaVersion: 5 });
+    expect(stale).toEqual({ status: "conflict", storedRevision: 18, schemaVersion: 6 });
     expect(memory.snapshot()).toEqual(staleSeed);
   });
 
@@ -465,11 +522,11 @@ describe("cloud vault foundation", () => {
     expect(parsed?.periodArchives[0]?.surplusDisposition).toBe("emergency_shield");
   });
 
-  it("keeps backup version 5 free of cloud identity", () => {
+  it("keeps backup version 6 free of cloud identity", () => {
     const backup = buildLedgerBackup(occupiedState());
-    expect(LEDGER_BACKUP_VERSION).toBe(5);
-    expect(CLOUD_VAULT_SCHEMA_VERSION).toBe(5);
-    expect(backup.version).toBe(5);
+    expect(LEDGER_BACKUP_VERSION).toBe(6);
+    expect(CLOUD_VAULT_SCHEMA_VERSION).toBe(6);
+    expect(backup.version).toBe(6);
     const keys = Object.keys(backup);
     expect(keys).not.toContain("revision");
     expect(keys).not.toContain("userId");

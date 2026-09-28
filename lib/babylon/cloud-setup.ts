@@ -73,6 +73,7 @@ export function isFinancialVaultEmpty(state: PersistedState): boolean {
     state.emergencyShield === 0 &&
     state.periodArchives.length === 0 &&
     state.recurringObligations.length === 0 &&
+    state.monthlyPlans.length === 0 &&
     state.lastClosedMonthKey === null
   );
 }
@@ -162,7 +163,7 @@ export function cloudSetupCopy(action: CloudSetupAction): {
       };
     case "unsupported_schema":
       return {
-        title: "Cloud vault is newer",
+        title: "Cloud vault generation is not supported",
         detail: "This app cannot read that vault. Nothing was changed.",
       };
     case "invalid_vault":
@@ -221,6 +222,7 @@ export function verifyCloudVaultDocument(
     "budgetTargets",
     "periodArchives",
     "recurringObligations",
+    "monthlyPlans",
   ];
   for (const key of counts) {
     const left = local[key];

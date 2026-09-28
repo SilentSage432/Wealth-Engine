@@ -236,7 +236,7 @@ describe("available after planned needs", () => {
     expect(position.availableAfterPlannedNeeds).toBe(850);
   });
 
-  it("does not store the result in a version 5 backup", () => {
+  it("does not store the result in a version 6 backup", () => {
     const state = {
       ...EMPTY_STATE,
       accounts: [account(2000)],
@@ -245,7 +245,7 @@ describe("available after planned needs", () => {
       expenses: [need({ id: "rent", amount: 650 })],
     };
     const backup = buildLedgerBackup(state);
-    expect(backup.version).toBe(5);
+    expect(backup.version).toBe(6);
     expect(backup.version).toBe(LEDGER_BACKUP_VERSION);
     const serialized = JSON.stringify(backup);
     expect(serialized).not.toContain("availableAfterPlannedNeeds");

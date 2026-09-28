@@ -371,7 +371,7 @@ describe("notification tranche boundaries", () => {
     expect(attention).not.toContain("notification");
     expect(attention).toContain("export function deriveDueAttention");
     expect(attention).toContain("export function deriveMonthCloseAttention");
-    expect(CLOUD_VAULT_SCHEMA_VERSION).toBe(5);
+    expect(CLOUD_VAULT_SCHEMA_VERSION).toBe(6);
     expect(CLOUD_VAULT_DATA_KEYS).not.toContain("ianaTimezone");
     expect(CLOUD_VAULT_DATA_KEYS.join(",")).not.toContain("notification");
   });

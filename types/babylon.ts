@@ -167,6 +167,78 @@ export interface ActivityEvent {
   createdAt: string;
 }
 
+/**
+ * One category purpose copied onto a finalized Monthly Plan.
+ * Same fields as a BudgetTarget. Later edits to the live cap do not rewrite it.
+ */
+export interface MonthlyPlanCategoryPurpose {
+  id: string;
+  categoryName: string;
+  plannedAmount: number;
+  isEssential: boolean;
+}
+
+/**
+ * Debt intent copied at finalization.
+ * monthlyAllocation is the minimum the steward had entered.
+ * It is not a second pool beside the canonical debt share.
+ * remainingDebt is the balance at finalization, not a payment order.
+ */
+export interface MonthlyPlanDebtIntent {
+  id: string;
+  creditor: string;
+  monthlyAllocation: number;
+  remainingDebt: number;
+}
+
+/**
+ * A recurring rule that was due in the plan's period, copied at finalization.
+ * intervalMonths is the effective interval. An omitted rule interval is 1.
+ * dueDate is the due date inside that period.
+ */
+export interface MonthlyPlanObligationEvidence {
+  id: string;
+  name: string;
+  amount: number;
+  category: ExpenseKind;
+  budgetCategoryId: string;
+  dueDay: number;
+  intervalMonths: number;
+  dueDate: string;
+}
+
+/**
+ * Existing protected designations at finalization.
+ * Context only. Not part of the Planning Basis.
+ */
+export interface MonthlyPlanProtectedContext {
+  openingWealthBuilding: number;
+  openingEmergencyFund: number;
+}
+
+/**
+ * One steward-finalized period intention.
+ * Append-only. A later approval for the same period is a new revision.
+ * Planning Basis is an assumption used to derive the canonical split.
+ * It is not Income and it does not allocate the ledger.
+ */
+export interface MonthlyPlanRevision {
+  id: string;
+  periodKey: string;
+  revision: number;
+  finalizedAt: string;
+  supersedesId: string | null;
+  planningBasis: number;
+  wealthShare: number;
+  debtShare: number;
+  expenditureShare: number;
+  debtRedirected: boolean;
+  categories: MonthlyPlanCategoryPurpose[];
+  debts: MonthlyPlanDebtIntent[];
+  obligations: MonthlyPlanObligationEvidence[];
+  protectedContext: MonthlyPlanProtectedContext;
+}
+
 /** Archived snapshot produced by the Monthly Close Ritual. */
 export interface PeriodArchive {
   id: string;
@@ -254,6 +326,11 @@ export interface PersistedState {
   openingEmergencyFund: number;
   /** Monthly obligation rules. Missing on older vaults; loads as []. */
   recurringObligations: RecurringObligation[];
+  /**
+   * Finalized monthly intentions. Missing on older vaults; loads as [].
+   * Not inferred from current caps, debts, or rules.
+   */
+  monthlyPlans: MonthlyPlanRevision[];
 }
 
 export interface ChartMonthPoint {
@@ -312,8 +389,10 @@ export interface ExpenseInput {
  * designations. Older builds reject version 4 instead of dropping them.
  * Version 5 stores monthly recurring rules and skipped months. Older builds
  * reject version 5 instead of dropping them.
+ * Version 6 stores finalized monthly plan revisions. Older builds reject
+ * version 6 instead of dropping them.
  */
-export type LedgerBackupVersion = 1 | 2 | 3 | 4 | 5;
+export type LedgerBackupVersion = 1 | 2 | 3 | 4 | 5 | 6;
 
 export interface LedgerBackup {
   version: LedgerBackupVersion;
@@ -334,8 +413,10 @@ export interface LedgerBackup {
   openingWealthBuilding?: number;
   /** Present on version 4. Earlier versions import as zero. Version 5 keeps them. */
   openingEmergencyFund?: number;
-  /** Present on version 5. Earlier versions import as an empty list. */
+  /** Present on version 5. Earlier versions import as an empty list. Version 6 keeps them. */
   recurringObligations?: RecurringObligation[];
+  /** Present on version 6. Earlier versions import as an empty list. */
+  monthlyPlans?: MonthlyPlanRevision[];
 }
 
 export interface AffordabilitySnapshot {

@@ -126,4 +126,5 @@ export const EMPTY_STATE: PersistedState = {
   openingWealthBuilding: 0,
   openingEmergencyFund: 0,
   recurringObligations: [],
+  monthlyPlans: [],
 };
