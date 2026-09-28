@@ -170,7 +170,7 @@ export async function requestPlaidObservationSync(
 }
 
 /**
- * Ask the signed-in route to store cached balances for this steward's Items.
+ * Ask the signed-in route for an institution balance on this steward's Items.
  * No body. No Item id. Transaction sync is not part of this request.
  * The caller decides success from the returned counts. A failed request is null.
  */

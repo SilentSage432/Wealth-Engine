@@ -340,6 +340,7 @@ export function WealthEngineDashboard() {
                 recentActivity={engine.recentActivity}
                 discreet={discreet}
                 onNavigate={setMobileDestination}
+                accounts={engine.accounts}
                 balanceObservation={balanceObservationView}
               />
             )}

@@ -9,7 +9,16 @@
 import { roundMoney } from "@/lib/babylon/engine";
 import type { FinancialAccount } from "@/types/babylon";
 
+export const BALANCE_OBSERVATION_SOURCES = ["accounts_get", "balance_get"] as const;
+
+export type BalanceObservationSource = (typeof BALANCE_OBSERVATION_SOURCES)[number];
+
+/** Cached /accounts/get. Real-time readings use balance_get. */
 export const BALANCE_OBSERVATION_SOURCE = "accounts_get" as const;
+
+export function isBalanceObservationSource(value: string): value is BalanceObservationSource {
+  return value === "accounts_get" || value === "balance_get";
+}
 
 export const BALANCE_OBSERVATION_COLUMNS =
   "id, user_id, plaid_account_id, current_cents, available_cents, iso_currency_code, unofficial_currency_code, observed_at, source, state" as const;
@@ -30,7 +39,7 @@ export type BalanceObservationRecord = {
   isoCurrencyCode: string | null;
   unofficialCurrencyCode: string | null;
   observedAt: string;
-  source: typeof BALANCE_OBSERVATION_SOURCE;
+  source: BalanceObservationSource;
   state: BalanceObservationState;
 };
 
@@ -43,7 +52,7 @@ export type BalanceObservationPublic = {
   isoCurrencyCode: string | null;
   unofficialCurrencyCode: string | null;
   observedAt: string;
-  source: typeof BALANCE_OBSERVATION_SOURCE;
+  source: BalanceObservationSource;
 };
 
 export type AccountAssociationRecord = {
@@ -104,7 +113,7 @@ export type EffectiveAccountPosition =
       currentCents: number;
       observedAt: string;
       observationId: string;
-      observationSource: typeof BALANCE_OBSERVATION_SOURCE;
+      observationSource: BalanceObservationSource;
     };
 
 type VaultAccountRef = {
@@ -250,7 +259,10 @@ function readStoredBalanceDraft(entry: unknown): PlaidBalanceDraft | null {
   };
 }
 
-export function toBalanceObservationJson(drafts: readonly PlaidBalanceDraft[]): {
+export function toBalanceObservationJson(
+  drafts: readonly PlaidBalanceDraft[],
+  source: BalanceObservationSource
+): {
   plaid_account_id: string;
   account_type: string;
   subtype: string;
@@ -258,6 +270,7 @@ export function toBalanceObservationJson(drafts: readonly PlaidBalanceDraft[]): 
   available_cents: number | null;
   iso_currency_code: string | null;
   unofficial_currency_code: string | null;
+  source: BalanceObservationSource;
 }[] {
   return drafts.map((draft) => ({
     plaid_account_id: draft.plaidAccountId,
@@ -267,7 +280,46 @@ export function toBalanceObservationJson(drafts: readonly PlaidBalanceDraft[]): 
     available_cents: draft.availableCents,
     iso_currency_code: draft.isoCurrencyCode,
     unofficial_currency_code: draft.unofficialCurrencyCode,
+    source,
   }));
+}
+
+/** Eligible comparable current: non-null USD, with no unofficial currency. */
+export function isEligibleBalanceReading(input: {
+  currentCents: number | null;
+  isoCurrencyCode: string | null;
+  unofficialCurrencyCode: string | null;
+}): boolean {
+  return (
+    input.currentCents !== null &&
+    input.isoCurrencyCode === "USD" &&
+    input.unofficialCurrencyCode === null
+  );
+}
+
+/**
+ * Associated depository checking and savings accounts on one Item.
+ * Identity stays the steward association. Unassociated accounts are omitted.
+ */
+export function associatedDepositoryAccountIds(input: {
+  accounts: readonly {
+    plaidAccountId: string;
+    accountType: string | null;
+    subtype: string | null;
+  }[];
+  associatedPlaidAccountIds: readonly string[];
+}): string[] {
+  const associated = new Set(
+    input.associatedPlaidAccountIds.map((id) => id.trim()).filter((id) => id.length > 0)
+  );
+  const ids: string[] = [];
+  for (const account of input.accounts) {
+    const id = account.plaidAccountId.trim();
+    if (!id || !associated.has(id)) continue;
+    if (!isDepositoryCheckingOrSavings(account.accountType, account.subtype)) continue;
+    if (!ids.includes(id)) ids.push(id);
+  }
+  return ids;
 }
 
 function evidenceEqual(
@@ -299,10 +351,13 @@ export function applyBalanceObservations(
   input: {
     userId: string;
     observedAt: string;
+    /** Cached readings stay accounts_get when the caller does not say otherwise. */
+    source?: BalanceObservationSource;
     drafts: readonly PlaidBalanceDraft[];
     foreignAccountIds?: readonly { userId: string; plaidAccountId: string }[];
   }
 ): { status: "applied" | "rejected"; observations: BalanceObservationRecord[] } {
+  const source = input.source ?? "accounts_get";
   const unchanged = rows.map(cloneObservation);
   for (const draft of input.drafts) {
     if (!draftIsStoreable(draft)) continue;
@@ -337,14 +392,26 @@ export function applyBalanceObservations(
         isoCurrencyCode: draft.isoCurrencyCode,
         unofficialCurrencyCode: draft.unofficialCurrencyCode,
         observedAt: input.observedAt,
-        source: BALANCE_OBSERVATION_SOURCE,
+        source,
         state: "current",
       });
       continue;
     }
     const current = next[currentIndex];
+    if (source === "accounts_get" && current.source === "balance_get") continue;
+    if (
+      source === "balance_get" &&
+      !isEligibleBalanceReading(draft) &&
+      isEligibleBalanceReading(current)
+    ) {
+      continue;
+    }
     if (evidenceEqual(current, draft)) {
-      next[currentIndex] = { ...current, observedAt: input.observedAt };
+      next[currentIndex] = {
+        ...current,
+        observedAt: input.observedAt,
+        source: source === "balance_get" ? "balance_get" : current.source,
+      };
       continue;
     }
     const withoutPrior = next.filter(
@@ -372,7 +439,7 @@ export function applyBalanceObservations(
       isoCurrencyCode: draft.isoCurrencyCode,
       unofficialCurrencyCode: draft.unofficialCurrencyCode,
       observedAt: input.observedAt,
-      source: BALANCE_OBSERVATION_SOURCE,
+      source,
       state: "current",
     });
     next.length = 0;
@@ -722,7 +789,7 @@ export function toBalanceObservationPublic(row: {
   state: string;
 }): BalanceObservationPublic | null {
   if (row.state !== "current") return null;
-  if (row.source !== BALANCE_OBSERVATION_SOURCE) return null;
+  if (!isBalanceObservationSource(row.source)) return null;
   if (!row.plaid_account_id.trim() || !row.observed_at) return null;
   const currentCents = row.current_cents;
   const availableCents = row.available_cents;
@@ -741,7 +808,7 @@ export function toBalanceObservationPublic(row: {
     isoCurrencyCode: row.iso_currency_code,
     unofficialCurrencyCode: row.unofficial_currency_code,
     observedAt: row.observed_at,
-    source: BALANCE_OBSERVATION_SOURCE,
+    source: row.source,
   };
 }
 

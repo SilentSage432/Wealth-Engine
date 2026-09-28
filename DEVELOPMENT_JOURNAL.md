@@ -1,5 +1,24 @@
 # Development Journal
 
+## 2026-09-28 — WE-BALANCE-FRESHNESS-005 foreground real-time financial position
+
+### What changed
+- Implementation is complete. Production acceptance is pending. The migration is repository source only and was not applied.
+- A signed-in visible Wealth Engine now asks `/accounts/balance/get` for steward-associated depository checking and savings accounts. The browser cannot choose a user, Item, or account. An Item with no association makes no Balance request. Several associated accounts on one Item share one request. Each qualifying Item is its own request.
+- `accounts_get` remains the cached `/accounts/get` source. `balance_get` is the institution reading. They share one current observation row. A real-time success may replace or upgrade a cached row. A cached write cannot replace, supersede, downgrade, or restamp a current `balance_get` row. A failed or ineligible real-time read leaves the stored row in place and does not call `/accounts/get` as a fallback.
+- Freshness is `REAL_TIME_BALANCE_FRESHNESS_MS`, five minutes, which is five times the existing 60-second duplicate guard. The duplicate guard is also enforced from the stored `balance_get` `observed_at`, so a reload or a second tab inside 60 seconds does not pay for another extraction. Focus, visibility, and a single wake when that five-minute window ends re-evaluate. The wake does not call Plaid by itself. There is no interval.
+- Money Available still uses eligible `balances.current`. While evidence is loading, the screen says the figure is the declared balance. A cached row is labeled cached. A fresh institution row is labeled institution-refreshed. An older institution row is not described as fresh.
+- The Intelligence Contract is version `3`. Operational money remains `money_available_cents` and `effective_balance_cents`. `declared_balance_cents` is provenance and fallback. `institution_reading_age` is `fresh` or `aged` for a real-time reading, and null otherwise. `cached_accounts_get_balance` is present only when an effective observed account is still cached. The route still does not call Plaid.
+- The daily observer stays on `/accounts/get`. Transaction sync and identity bootstrap are unchanged. `available` is still not Money Available. The vault is not written.
+
+### Validation
+- Focused balance, contract, and recorder tests passed.
+- The full suite passed: 39 files, 529 tests.
+- `tsc --noEmit`, lint, the production build, and `git diff --check` passed.
+
+### Not in this tranche
+- No migration apply, commit, push, or deploy. No transaction matching, semantic classification, vault schema change, copy into `FinancialAccount.balance`, paid cron Balance call, Intelligence Plaid call, webhook, refresh button, or switch to `balances.available`.
+
 ## 2026-09-27 — WE-PLAN-UI-001 monthly planning ritual
 
 ### What changed

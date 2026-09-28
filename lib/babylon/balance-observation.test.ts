@@ -122,7 +122,9 @@ describe("balance observation", () => {
       }),
     ]);
     expect(JSON.stringify(parsed)).not.toContain("424242");
-    expect(JSON.stringify(toBalanceObservationJson(parsed ?? []))).not.toContain("limit");
+    expect(JSON.stringify(toBalanceObservationJson(parsed ?? [], "accounts_get"))).not.toContain(
+      "limit"
+    );
     const stored = applyBalanceObservations([], {
       userId: USER,
       observedAt: AT,
@@ -388,9 +390,15 @@ describe("balance observation", () => {
       "utf8"
     );
     expect(record).not.toContain("transactions_cursor");
-    expect(record).not.toContain("/accounts/balance/get");
-    expect(fetch).not.toContain("/accounts/balance/get");
+    expect(record).not.toContain('"/accounts/balance/get"');
     expect(fetch).toContain('"/accounts/get"');
+    expect(fetch).toContain('"/accounts/balance/get"');
+    const cachedFetch = fetch.slice(
+      fetch.indexOf("export async function fetchPlaidAccountBalances"),
+      fetch.indexOf("export async function fetchPlaidRealtimeBalances")
+    );
+    expect(cachedFetch).toContain('"/accounts/get"');
+    expect(cachedFetch).not.toContain("/accounts/balance/get");
     expect(route).not.toContain("recordPlaidBalanceObservations");
     expect(route.indexOf("await bootstrapPlaidAccountIdentityIfAbsent")).toBeLessThan(
       route.indexOf("plaidSyncHttpResult(outcome)")
@@ -913,9 +921,12 @@ describe("effective account position", () => {
     expect(position(toBalanceObservationPublic(predecessor)).balance).toBe(100);
   });
 
-  it("drops a row whose source is not accounts_get or whose state is not current", () => {
+  it("accepts both observation sources and drops a superseded or unknown source", () => {
+    expect(toBalanceObservationPublic(storedObservationRow({ source: "balance_get" }))?.source).toBe(
+      "balance_get"
+    );
     expect(
-      toBalanceObservationPublic(storedObservationRow({ source: "balance_get" }))
+      toBalanceObservationPublic(storedObservationRow({ source: "manual" }))
     ).toBeNull();
     expect(
       toBalanceObservationPublic(storedObservationRow({ state: "superseded" }))

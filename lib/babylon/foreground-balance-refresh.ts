@@ -1,12 +1,88 @@
 import type { BackgroundBalanceSummary } from "@/lib/babylon/background-balance-observation";
 
 /**
- * How long a successful foreground balance recording keeps this page from
- * asking again. Sixty seconds matches the balance-evidence query staleTime:
- * inside that window the screen already treats a successful read as fresh.
- * The mark lives in this page only. It is not stored.
+ * Minimum gap between paid /accounts/balance/get calls.
+ * Page memory and the stored balance_get observed_at both honor it,
+ * including after a reload or a second tab.
  */
 export const FOREGROUND_BALANCE_REFRESH_WINDOW_MS = 60_000;
+
+/**
+ * How long a committed balance_get reading remains fresh evidence.
+ * Five minutes is the initial window for an actively used Wealth Engine.
+ * It is five times the 60-second duplicate guard: long enough that focus,
+ * visibility, and reload do not each become a paid institution extraction,
+ * and short enough that a session left open does not keep treating an older
+ * institution reading as current. A timer may wake the evaluator when this
+ * window ends. The timer does not call Plaid.
+ */
+export const REAL_TIME_BALANCE_FRESHNESS_MS = 5 * FOREGROUND_BALANCE_REFRESH_WINDOW_MS;
+
+export type RealtimeBalanceAge = "fresh" | "aged";
+
+/** Age of one balance_get commit. A missing or unreadable time is not fresh. */
+export function realtimeBalanceAge(
+  observedAt: string,
+  nowMs: number
+): RealtimeBalanceAge | null {
+  const at = Date.parse(observedAt);
+  if (!Number.isFinite(at)) return null;
+  return nowMs - at < REAL_TIME_BALANCE_FRESHNESS_MS ? "fresh" : "aged";
+}
+
+/** Newest current balance_get commit the client already has. */
+export function newestRealtimeObservedAt(
+  observations: readonly { source: string; observedAt: string }[] | null | undefined
+): string | null {
+  let newest: string | null = null;
+  let newestMs = Number.NEGATIVE_INFINITY;
+  for (const row of observations ?? []) {
+    if (row.source !== "balance_get") continue;
+    const at = Date.parse(row.observedAt);
+    if (!Number.isFinite(at) || at < newestMs) continue;
+    newestMs = at;
+    newest = row.observedAt;
+  }
+  return newest;
+}
+
+/**
+ * Delay until a fresh balance_get becomes aged.
+ * An already aged reading returns null so a timer cannot tight-loop.
+ */
+export function realtimeFreshnessWakeDelayMs(input: {
+  now: number;
+  realTimeObservedAt: string | null;
+}): number | null {
+  if (!input.realTimeObservedAt) return null;
+  const at = Date.parse(input.realTimeObservedAt);
+  if (!Number.isFinite(at)) return null;
+  const delay = at + REAL_TIME_BALANCE_FRESHNESS_MS - input.now;
+  if (delay <= 0) return null;
+  return delay;
+}
+
+/**
+ * Whether this Item still needs one institution request.
+ * Empty targets do not. A current balance_get inside the duplicate guard does not.
+ * One aged or missing target is enough, because the Item is one request.
+ */
+export function realtimeBalanceRequestNeeded(input: {
+  accountIds: readonly string[];
+  observations: readonly { plaidAccountId: string; source: string; observedAt: string }[];
+  nowMs: number;
+}): boolean {
+  if (input.accountIds.length === 0) return false;
+  return input.accountIds.some((id) => {
+    const row = input.observations.find(
+      (observation) => observation.plaidAccountId === id && observation.source === "balance_get"
+    );
+    if (!row) return true;
+    const at = Date.parse(row.observedAt);
+    if (!Number.isFinite(at)) return true;
+    return input.nowMs - at >= FOREGROUND_BALANCE_REFRESH_WINDOW_MS;
+  });
+}
 
 /**
  * A recording applied only when every attempted Item committed.
@@ -67,16 +143,18 @@ export function hasUnseenBalanceItem(): boolean {
 }
 
 /**
- * Ask once when a signed-in document is visible and this page has no recent
- * applied recording. Hidden, signed-out, in-flight, and inside the window skip.
- * An unseen Item bypasses only the window. Signing out forgets the window.
- * This does not poll.
+ * Ask once when a signed-in document is visible and the institution reading
+ * is no longer fresh. Hidden, signed-out, in-flight, fresh balance_get, and
+ * the 60-second duplicate window skip. An unseen Item bypasses those windows.
+ * Signing out forgets the page window. This does not poll.
  */
 export function planForegroundBalanceRefresh(input: {
   authenticated: boolean;
   visible: boolean;
   now: number;
   ignoreRecentSuccess?: boolean;
+  /** Newest stored balance_get commit already known to this page. */
+  realTimeObservedAt?: string | null;
 }): RefreshDecision {
   if (!input.authenticated) {
     generation += 1;
@@ -88,6 +166,11 @@ export function planForegroundBalanceRefresh(input: {
   if (!input.visible) return { action: "skip" };
   if (inFlightTicket !== null) return { action: "skip" };
   const bypassWindow = input.ignoreRecentSuccess === true || unseenItemPending;
+  if (!bypassWindow && input.realTimeObservedAt) {
+    if (realtimeBalanceAge(input.realTimeObservedAt, input.now) === "fresh") {
+      return { action: "skip" };
+    }
+  }
   if (
     !bypassWindow &&
     lastAppliedAt !== null &&

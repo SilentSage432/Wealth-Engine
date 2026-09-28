@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ACCOUNT_ASSOCIATION_QUERY_KEY,
@@ -8,14 +8,19 @@ import {
   PLAID_DESCRIPTOR_QUERY_KEY,
 } from "@/hooks/useBalanceObservation";
 import {
+  FOREGROUND_BALANCE_REFRESH_WINDOW_MS,
   foregroundBalanceRefreshApplied,
   hasUnseenBalanceItem,
   markUnseenBalanceItem,
+  newestRealtimeObservedAt,
   noteForegroundBalanceRefreshResult,
   planForegroundBalanceRefresh,
+  realtimeFreshnessWakeDelayMs,
 } from "@/lib/babylon/foreground-balance-refresh";
 import {
   createPlaidLinkTokenOrToast,
+  listAccountAssociations,
+  listCurrentBalanceObservations,
   listPlaidItems,
   requestForegroundBalanceRefresh,
   requestPlaidObservationSync,
@@ -49,7 +54,19 @@ export function usePlaidConnections({ enabled }: UsePlaidConnectionsArgs) {
     queryKey: PLAID_ITEMS_QUERY_KEY,
     queryFn: listPlaidItems,
     enabled,
-    staleTime: 60_000,
+    staleTime: FOREGROUND_BALANCE_REFRESH_WINDOW_MS,
+  });
+  const observationsQuery = useQuery({
+    queryKey: BALANCE_OBSERVATION_QUERY_KEY,
+    queryFn: listCurrentBalanceObservations,
+    enabled,
+    staleTime: FOREGROUND_BALANCE_REFRESH_WINDOW_MS,
+  });
+  const associationsQuery = useQuery({
+    queryKey: ACCOUNT_ASSOCIATION_QUERY_KEY,
+    queryFn: listAccountAssociations,
+    enabled,
+    staleTime: FOREGROUND_BALANCE_REFRESH_WINDOW_MS,
   });
 
   const onSuccess = useCallback(
@@ -119,6 +136,7 @@ export function usePlaidConnections({ enabled }: UsePlaidConnectionsArgs) {
         visible,
         now: Date.now(),
         ignoreRecentSuccess,
+        realTimeObservedAt: newestRealtimeObservedAt(observationsQuery.data),
       });
       if (decision.action !== "request") return;
       void requestForegroundBalanceRefresh().then((summary) => {
@@ -136,18 +154,46 @@ export function usePlaidConnections({ enabled }: UsePlaidConnectionsArgs) {
         if (hasUnseenBalanceItem()) recordVisibleBalances(true);
       });
     },
-    [enabled, queryClient]
+    [enabled, observationsQuery.data, queryClient]
   );
 
   useEffect(() => {
     recordVisibleBalances(false);
-    const onVisibility = () => {
+    const onPresence = () => {
       if (document.visibilityState !== "visible") return;
       recordVisibleBalances(false);
     };
-    document.addEventListener("visibilitychange", onVisibility);
-    return () => document.removeEventListener("visibilitychange", onVisibility);
+    document.addEventListener("visibilitychange", onPresence);
+    window.addEventListener("focus", onPresence);
+    return () => {
+      document.removeEventListener("visibilitychange", onPresence);
+      window.removeEventListener("focus", onPresence);
+    };
   }, [recordVisibleBalances]);
+
+  const realtimeObservedAt = newestRealtimeObservedAt(observationsQuery.data);
+  useEffect(() => {
+    const delay = realtimeFreshnessWakeDelayMs({
+      now: Date.now(),
+      realTimeObservedAt: realtimeObservedAt,
+    });
+    if (delay === null) return;
+    const wake = window.setTimeout(() => {
+      recordVisibleBalances(false);
+    }, delay);
+    return () => window.clearTimeout(wake);
+  }, [realtimeObservedAt, recordVisibleBalances]);
+
+  const knownAssociationIds = useRef<string[] | null>(null);
+  useEffect(() => {
+    if (!associationsQuery.isSuccess || !associationsQuery.data) return;
+    const ids = associationsQuery.data.map((association) => association.id).sort();
+    const previous = knownAssociationIds.current;
+    knownAssociationIds.current = ids;
+    if (previous === null) return;
+    const added = ids.some((id) => !previous.includes(id));
+    if (added) recordVisibleBalances(true);
+  }, [associationsQuery.data, associationsQuery.isSuccess, recordVisibleBalances]);
 
   useEffect(() => {
     const due = startForegroundObservationSync({

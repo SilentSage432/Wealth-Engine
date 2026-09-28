@@ -39,6 +39,8 @@ import {
 } from "@/lib/babylon/balance-observation";
 import {
   BALANCE_EVIDENCE_UNAVAILABLE_LABEL,
+  describeAccountEvidenceLine,
+  describeMoneyAvailableEvidence,
   operationalAccountPosition,
   presentAccountObservation,
   type BalanceObservationLoad,
@@ -49,8 +51,6 @@ import { todayIso } from "@/lib/babylon/engine";
 import type { PlaidItemPublic } from "@/lib/babylon/plaid-schema";
 import {
   FINANCIAL_ACCOUNT_KINDS,
-  formatAsOfLabel,
-  formatObservedAt,
 } from "@/lib/babylon/financial-position";
 import { formatCurrency } from "@/lib/utils";
 import type { AvailableAfterPlannedNeeds } from "@/lib/babylon/available-after-planned-needs";
@@ -369,9 +369,10 @@ export function FinancialPosition({
               <p className="text-[11px] text-slate-500">
                 {ACCOUNT_KIND_LABELS[account.kind]}
                 {" · "}
-                {accountPosition.source === "observed"
-                  ? `Observed · ${formatObservedAt(accountPosition.observedAt)}`
-                  : `Declared · ${formatAsOfLabel(accountPosition.asOf)}`}
+                {describeAccountEvidenceLine({
+                  position: accountPosition,
+                  nowMs: Date.now(),
+                })}
               </p>
             </div>
             <p className="font-[family-name:var(--font-display)] text-lg font-semibold tabular-nums text-slate-100">
@@ -466,8 +467,17 @@ export function FinancialPosition({
                 {money(moneyAvailable)}
               </p>
               <p className="mt-2 max-w-xl text-xs leading-relaxed text-slate-500">
-                Observed eligible balances where Wealth Engine has them.
-                Declared balances otherwise. Separate from your Living Budget.
+                {describeMoneyAvailableEvidence({
+                  load: balanceObservation?.load,
+                  positions: accounts.map((account) =>
+                    operationalAccountPosition({
+                      account,
+                      load: balanceObservation?.load,
+                    })
+                  ),
+                  nowMs: Date.now(),
+                })}{" "}
+                Separate from your Living Budget.
               </p>
               {balanceObservation?.load.status === "unavailable" ? (
                 <p className="mt-2 text-xs leading-relaxed text-slate-500">

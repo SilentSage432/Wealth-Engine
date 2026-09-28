@@ -13,7 +13,8 @@ import {
   type BalanceObservationPublic,
   type EffectiveAccountPosition,
 } from "@/lib/babylon/balance-observation";
-import { sumAccountBalances } from "@/lib/babylon/financial-position";
+import { realtimeBalanceAge } from "@/lib/babylon/foreground-balance-refresh";
+import { formatAsOfLabel, formatObservedAt, sumAccountBalances } from "@/lib/babylon/financial-position";
 import type { PlaidAccountPublic } from "@/lib/babylon/plaid-schema";
 import type { FinancialAccount } from "@/types/babylon";
 
@@ -181,6 +182,67 @@ export function evidenceForOperationalPosition(
   if (load.status === "ready") return load.evidence;
   if (load.status === "unavailable") return load.evidence;
   return null;
+}
+
+/** Account-row provenance. Aged institution evidence is not called fresh. */
+export function describeAccountEvidenceLine(input: {
+  position: EffectiveAccountPosition;
+  nowMs: number;
+}): string {
+  if (input.position.source === "declared") {
+    return `Declared · ${formatAsOfLabel(input.position.asOf)}`;
+  }
+  const when = formatObservedAt(input.position.observedAt);
+  if (input.position.observationSource === "accounts_get") {
+    return `Cached Plaid balance · ${when}`;
+  }
+  if (realtimeBalanceAge(input.position.observedAt, input.nowMs) === "fresh") {
+    return `Institution-refreshed balance · ${when}`;
+  }
+  return `Institution balance from ${when}`;
+}
+
+/**
+ * Money Available caption.
+ * Loading may show the declaration, and it says so.
+ */
+export function describeMoneyAvailableEvidence(input: {
+  load: BalanceObservationLoad | undefined;
+  positions: readonly EffectiveAccountPosition[];
+  nowMs: number;
+}): string {
+  if (!input.load || input.load.status === "loading") {
+    return "Declared balance, while evidence resolves.";
+  }
+  if (input.load.status === "disabled") {
+    return "Declared balances.";
+  }
+  if (input.load.status === "unavailable" && input.load.evidence === null) {
+    return "Declared balance. Stored balance evidence is unavailable.";
+  }
+  const observed = input.positions.filter((position) => position.source === "observed");
+  if (observed.length === 0) {
+    return "Declared balances.";
+  }
+  const kinds = new Set(
+    observed.map((position) => {
+      if (position.observationSource === "accounts_get") return "cached" as const;
+      return realtimeBalanceAge(position.observedAt, input.nowMs) === "fresh"
+        ? ("fresh" as const)
+        : ("aged" as const);
+    })
+  );
+  if (kinds.size === 1 && kinds.has("cached")) {
+    return "Cached Plaid balance where an eligible reading exists. Declared balances otherwise.";
+  }
+  if (kinds.size === 1 && kinds.has("fresh")) {
+    return "Institution-refreshed balance where an eligible reading exists. Declared balances otherwise.";
+  }
+  if (kinds.size === 1 && kinds.has("aged")) {
+    return "Earlier institution balance where an eligible reading exists. Declared balances otherwise.";
+  }
+  if (kinds.has("aged")) return "This figure includes an earlier institution balance.";
+  return "Cached Plaid balance and an institution-refreshed balance are both in this figure.";
 }
 
 /** Operational Money Available. Declarations until usable evidence exists. */

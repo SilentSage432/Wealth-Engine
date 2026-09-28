@@ -21,6 +21,7 @@ import {
   deriveEffectiveMoneyAvailable,
   type BalanceObservationPublic,
 } from "@/lib/babylon/balance-observation";
+import { realtimeBalanceAge } from "@/lib/babylon/foreground-balance-refresh";
 import { sumAccountBalances } from "@/lib/babylon/financial-position";
 import { civilDateInTimeZone } from "@/lib/babylon/notification-delivery";
 import {
@@ -33,12 +34,11 @@ import { materializeRecurringObligations } from "@/lib/babylon/recurring-obligat
 import type { ExpenseEntry, PersistedState } from "@/types/babylon";
 
 /** Machine-readable contract. Not the vault and not a Muse API. */
-export const INTELLIGENCE_CONTRACT_VERSION = "2";
+export const INTELLIGENCE_CONTRACT_VERSION = "3";
 
 const STANDING_UNKNOWNS = [
   "no_expected_payday",
   "plaid_is_not_vault_truth",
-  "cached_accounts_get_balance",
   "balance_change_cause_unknown",
   // The reasoners exist. This contract does not include their outputs.
   "internal_observational_reasoners_excluded",
@@ -46,6 +46,7 @@ const STANDING_UNKNOWNS = [
 
 export type IntelligenceUnknown =
   | (typeof STANDING_UNKNOWNS)[number]
+  | "cached_accounts_get_balance"
   | "apr_unverified"
   | "civil_date_unknown"
   | "balance_evidence_unavailable";
@@ -217,6 +218,14 @@ export function assembleIntelligenceContract(input: IntelligenceContractInput) {
   if (balanceEvidence.status === "unavailable") {
     unknowns.push("balance_evidence_unavailable");
   }
+  if (
+    positions.some(
+      (position) =>
+        position.source === "observed" && position.observationSource === "accounts_get"
+    )
+  ) {
+    unknowns.push("cached_accounts_get_balance");
+  }
 
   const attention: Array<
     | { kind: "due_obligation"; civil_date: string; subject_ref: string }
@@ -322,6 +331,8 @@ export function assembleIntelligenceContract(input: IntelligenceContractInput) {
     },
     position: {
       money_available_cents: intelligenceCents(moneyAvailable),
+      operational_balance_fields: ["money_available_cents", "effective_balance_cents"] as const,
+      declared_balance_role: "provenance_fallback" as const,
       protected_exceeds_money_available: protectedExceedsAvailable(
         state.openingWealthBuilding,
         state.openingEmergencyFund,
@@ -336,13 +347,24 @@ export function assembleIntelligenceContract(input: IntelligenceContractInput) {
           declared_as_of: account.asOf,
         };
         if (position?.source === "observed") {
+          const observationKind =
+            position.observationSource === "balance_get"
+              ? ("real_time_balance_get" as const)
+              : ("cached_accounts_get" as const);
+          const institutionAge =
+            observationKind === "real_time_balance_get"
+              ? realtimeBalanceAge(position.observedAt, input.now.getTime()) === "fresh"
+                ? ("fresh" as const)
+                : ("aged" as const)
+              : null;
           return {
             ...declared,
             effective_balance_cents: intelligenceCents(position.balance),
             effective_source: "observed" as const,
             observed_current_cents: position.currentCents,
             observed_at: position.observedAt,
-            observation_kind: "cached_accounts_get" as const,
+            observation_kind: observationKind,
+            institution_reading_age: institutionAge,
           };
         }
         return {
@@ -352,6 +374,7 @@ export function assembleIntelligenceContract(input: IntelligenceContractInput) {
           observed_current_cents: null,
           observed_at: null,
           observation_kind: null,
+          institution_reading_age: null,
         };
       }),
     },

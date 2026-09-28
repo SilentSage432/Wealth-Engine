@@ -3,7 +3,11 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import type { FinancialPositionBalanceObservation } from "@/components/babylon/financial-position";
-import { BALANCE_EVIDENCE_UNAVAILABLE_LABEL } from "@/lib/babylon/balance-evidence-load";
+import {
+  BALANCE_EVIDENCE_UNAVAILABLE_LABEL,
+  describeMoneyAvailableEvidence,
+  operationalAccountPosition,
+} from "@/lib/babylon/balance-evidence-load";
 import {
   applyDueAttentionDecision,
   type DueAttentionItem,
@@ -18,7 +22,7 @@ import {
   phoneHomeUpcomingPreview,
 } from "@/lib/babylon/mobile-home";
 import { formatCurrency, formatRelativeTime } from "@/lib/utils";
-import type { ActivityEvent, ExpenseEntry } from "@/types/babylon";
+import type { ActivityEvent, ExpenseEntry, FinancialAccount } from "@/types/babylon";
 
 interface MobileHomeProps {
   moneyAvailable: number;
@@ -32,6 +36,7 @@ interface MobileHomeProps {
   recentActivity: readonly ActivityEvent[];
   discreet: boolean;
   onNavigate: (destination: MobileDestination) => void;
+  accounts?: readonly FinancialAccount[];
   balanceObservation?: FinancialPositionBalanceObservation;
 }
 
@@ -64,6 +69,7 @@ export function MobileHome({
   recentActivity,
   discreet,
   onNavigate,
+  accounts = [],
   balanceObservation,
 }: MobileHomeProps) {
   const money = (value: number) =>
@@ -146,8 +152,17 @@ export function MobileHome({
               {money(moneyAvailable)}
             </p>
             <p className="mt-2 text-xs leading-relaxed text-slate-500">
-              Observed eligible balances where available, and balances you
-              entered otherwise. Separate from your Living Budget.
+              {describeMoneyAvailableEvidence({
+                load: balanceObservation?.load,
+                positions: accounts.map((account) =>
+                  operationalAccountPosition({
+                    account,
+                    load: balanceObservation?.load,
+                  })
+                ),
+                nowMs: Date.now(),
+              })}{" "}
+              Separate from your Living Budget.
             </p>
             {balanceObservation?.load.status === "unavailable" ? (
               <p className="mt-2 text-xs leading-relaxed text-slate-500">

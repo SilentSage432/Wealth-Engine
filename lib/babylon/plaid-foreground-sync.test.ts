@@ -291,7 +291,11 @@ describe("foreground observation sync", () => {
     expect(hook.match(/startForegroundObservationSync\(/g)).toHaveLength(1);
     expect(hook).toContain("requestPlaidObservationSync");
     expect(hook).not.toContain("setInterval");
-    expect(hook).not.toContain("setTimeout");
+    expect(hook.match(/setTimeout/g)).toEqual(["setTimeout"]);
+    const wake = hook.slice(hook.indexOf("window.setTimeout"), hook.indexOf("clearTimeout"));
+    expect(wake).toContain("recordVisibleBalances(false)");
+    expect(wake).not.toContain("requestPlaidObservationSync");
+    expect(wake).not.toContain("/accounts/balance/get");
     expect(planner).not.toContain("visibilitychange");
     expect(hook).toContain("planForegroundBalanceRefresh");
     expect(hook).toContain("visibilitychange");

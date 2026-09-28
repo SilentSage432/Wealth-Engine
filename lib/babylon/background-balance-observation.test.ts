@@ -334,7 +334,6 @@ describe("WE-ATTENTION-008 repository boundary", () => {
     expect(route).not.toContain("syncPlaidItemObservations");
     expect(route).not.toContain("bootstrapPlaidAccountIdentityIfAbsent");
     expect(route).not.toContain("/transactions/sync");
-    expect(route).not.toContain("/accounts/balance/get");
     expect(route).not.toContain("/transactions/refresh");
     expect(route).not.toContain("wealth_engine_vaults");
     expect(route).not.toContain("cas_update");
@@ -352,13 +351,21 @@ describe("WE-ATTENTION-008 repository boundary", () => {
     expect(foreground).toContain('.eq("user_id", auth.user.id)');
     expect(foreground).not.toContain("authorizeCronRequest");
     expect(foreground).not.toContain("syncPlaidItemObservations");
-    expect(recorder).not.toContain("/accounts/balance/get");
+    expect(recorder).not.toContain('"/accounts/balance/get"');
     expect(recorder).not.toContain("/transactions/refresh");
+    expect(recorder).toContain("fetchPlaidAccountBalances");
+    expect(recorder).toContain("fetchPlaidRealtimeBalances");
     expect(recorder).not.toContain("transactions_cursor");
     expect(recorder).toContain('.eq("id", args.itemRowId)');
     expect(recorder).toContain('.eq("user_id", args.userId)');
     expect(fetchSource).toContain('"/accounts/get"');
-    expect(fetchSource).not.toContain("/accounts/balance/get");
+    expect(fetchSource).toContain('"/accounts/balance/get"');
+    const cachedFetch = fetchSource.slice(
+      fetchSource.indexOf("export async function fetchPlaidAccountBalances"),
+      fetchSource.indexOf("export async function fetchPlaidRealtimeBalances")
+    );
+    expect(cachedFetch).toContain('"/accounts/get"');
+    expect(cachedFetch).not.toContain("/accounts/balance/get");
     expect(fetchSource).not.toContain("/transactions/refresh");
   });
 

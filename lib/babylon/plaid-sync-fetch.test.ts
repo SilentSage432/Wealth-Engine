@@ -9,6 +9,7 @@ vi.mock("@/lib/babylon/plaid-server", () => ({
 import { plaidFetch } from "@/lib/babylon/plaid-server";
 import {
   fetchPlaidAccountIdentity,
+  fetchPlaidRealtimeBalances,
   fetchPlaidTransactionSyncPage,
 } from "@/lib/babylon/plaid-sync-fetch";
 import {
@@ -104,5 +105,76 @@ describe("Plaid account identity fetch", () => {
 
     expect(fetched).toEqual({ ok: false });
     expect(vi.mocked(plaidFetch)).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("Plaid real-time balance fetch", () => {
+  afterEach(() => {
+    vi.mocked(plaidFetch).mockReset();
+  });
+
+  it("asks /accounts/balance/get for the server-chosen account ids only", async () => {
+    vi.mocked(plaidFetch).mockResolvedValue({
+      ok: true,
+      data: {
+        accounts: [
+          {
+            account_id: "checking",
+            type: "depository",
+            subtype: "checking",
+            balances: {
+              current: 40.5,
+              available: 10,
+              iso_currency_code: "USD",
+              unofficial_currency_code: null,
+            },
+          },
+          {
+            account_id: "not-requested",
+            type: "depository",
+            subtype: "savings",
+            balances: {
+              current: 99,
+              available: 99,
+              iso_currency_code: "USD",
+              unofficial_currency_code: null,
+            },
+          },
+        ],
+      },
+    });
+    const fetched = await fetchPlaidRealtimeBalances({
+      accessToken: ACCESS_TOKEN,
+      accountIds: ["checking"],
+    });
+    expect(vi.mocked(plaidFetch)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(plaidFetch).mock.calls[0]?.[0]).toBe("/accounts/balance/get");
+    expect(vi.mocked(plaidFetch).mock.calls[0]?.[1]).toEqual({
+      access_token: ACCESS_TOKEN,
+      options: { account_ids: ["checking"] },
+    });
+    expect(fetched).toEqual({
+      ok: true,
+      accounts: [
+        {
+          plaidAccountId: "checking",
+          accountType: "depository",
+          subtype: "checking",
+          currentCents: 4_050,
+          availableCents: 1_000,
+          isoCurrencyCode: "USD",
+          unofficialCurrencyCode: null,
+        },
+      ],
+    });
+  });
+
+  it("does not call Plaid when no account id was derived", async () => {
+    const fetched = await fetchPlaidRealtimeBalances({
+      accessToken: ACCESS_TOKEN,
+      accountIds: [],
+    });
+    expect(fetched).toEqual({ ok: false });
+    expect(vi.mocked(plaidFetch)).not.toHaveBeenCalled();
   });
 });

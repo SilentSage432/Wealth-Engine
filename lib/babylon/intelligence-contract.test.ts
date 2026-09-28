@@ -161,7 +161,7 @@ describe("intelligence contract", () => {
       incomes: [income(10.1, "2026-01-02"), income(0.2, "2026-01-03")],
     });
     expect(contract.meta.contract_version).toBe(INTELLIGENCE_CONTRACT_VERSION);
-    expect(contract.meta.contract_version).toBe("2");
+    expect(contract.meta.contract_version).toBe("3");
     expect(contract.purpose.current_month_recorded_income_cents).toBe(1030);
     expect(Number.isInteger(contract.purpose.current_month_recorded_income_cents)).toBe(
       true
@@ -264,6 +264,7 @@ describe("intelligence contract", () => {
       observed_current_cents: null,
       observed_at: null,
       observation_kind: null,
+      institution_reading_age: null,
     });
     expect(contract.position.money_available_cents).toBe(100_000);
   });
@@ -430,11 +431,11 @@ describe("intelligence contract", () => {
       expect.arrayContaining([
         "no_expected_payday",
         "plaid_is_not_vault_truth",
-        "cached_accounts_get_balance",
         "balance_change_cause_unknown",
         "internal_observational_reasoners_excluded",
       ])
     );
+    expect(contract.boundaries.unknowns).not.toContain("cached_accounts_get_balance");
     expect(contract.boundaries.unknowns).not.toContain("balances_are_manual");
     expect(contract.boundaries.unknowns).not.toContain("no_reconciliation");
     expect(contract.boundaries.unknowns).not.toContain("balance_evidence_unavailable");
@@ -645,7 +646,12 @@ describe("GET /api/intelligence", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store");
     const body = await response.json();
-    expect(body.meta.contract_version).toBe("2");
+    expect(body.meta.contract_version).toBe("3");
+    expect(body.position.operational_balance_fields).toEqual([
+      "money_available_cents",
+      "effective_balance_cents",
+    ]);
+    expect(body.position.declared_balance_role).toBe("provenance_fallback");
     expect(body.meta.iana_timezone).toBe("America/Boise");
     expect(body.boundaries.unknowns).not.toContain("balance_evidence_unavailable");
     expect(tables).toEqual([

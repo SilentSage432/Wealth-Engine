@@ -21,10 +21,10 @@ vi.mock("@/lib/supabase/server", () => ({
   getSupabaseServiceClient: () => getSupabaseServiceClient(),
 }));
 
-const recordPlaidBalanceObservations = vi.fn();
+const recordPlaidRealtimeBalanceObservations = vi.fn();
 vi.mock("@/lib/babylon/plaid-balance-record", () => ({
-  recordPlaidBalanceObservations: (...args: unknown[]) =>
-    recordPlaidBalanceObservations(...args),
+  recordPlaidRealtimeBalanceObservations: (...args: unknown[]) =>
+    recordPlaidRealtimeBalanceObservations(...args),
 }));
 
 import { POST } from "@/app/api/plaid/observe-balances/route";
@@ -222,7 +222,7 @@ describe("POST /api/plaid/observe-balances", () => {
   afterEach(() => {
     requireAuthenticatedUser.mockReset();
     getSupabaseServiceClient.mockReset();
-    recordPlaidBalanceObservations.mockReset();
+    recordPlaidRealtimeBalanceObservations.mockReset();
     for (const key of Object.keys(previous)) {
       if (previous[key] === undefined) delete process.env[key];
       else process.env[key] = previous[key];
@@ -280,7 +280,7 @@ describe("POST /api/plaid/observe-balances", () => {
       { id: ITEM_A, user_id: OWNER },
       { id: ITEM_B, user_id: OWNER },
     ]);
-    recordPlaidBalanceObservations.mockResolvedValue("applied");
+    recordPlaidRealtimeBalanceObservations.mockResolvedValue("applied");
 
     const response = await post();
     expect(response.status).toBe(200);
@@ -290,12 +290,12 @@ describe("POST /api/plaid/observe-balances", () => {
       applied: 2,
       notApplied: 0,
     });
-    expect(recordPlaidBalanceObservations).toHaveBeenCalledTimes(2);
-    expect(recordPlaidBalanceObservations.mock.calls[0]?.[0]).toMatchObject({
+    expect(recordPlaidRealtimeBalanceObservations).toHaveBeenCalledTimes(2);
+    expect(recordPlaidRealtimeBalanceObservations.mock.calls[0]?.[0]).toMatchObject({
       userId: OWNER,
       itemRowId: ITEM_A,
     });
-    expect(recordPlaidBalanceObservations.mock.calls[1]?.[0]).toMatchObject({
+    expect(recordPlaidRealtimeBalanceObservations.mock.calls[1]?.[0]).toMatchObject({
       userId: OWNER,
       itemRowId: ITEM_B,
     });
@@ -306,7 +306,7 @@ describe("POST /api/plaid/observe-balances", () => {
     items([]);
     const response = await post(JSON.stringify({ id: ITEM_A }));
     expect(response.status).toBe(400);
-    expect(recordPlaidBalanceObservations).not.toHaveBeenCalled();
+    expect(recordPlaidRealtimeBalanceObservations).not.toHaveBeenCalled();
   });
 
   it("does not record when a row belongs to another owner", async () => {
@@ -317,13 +317,13 @@ describe("POST /api/plaid/observe-balances", () => {
     ]);
     const response = await post();
     expect(response.status).toBe(503);
-    expect(recordPlaidBalanceObservations).not.toHaveBeenCalled();
+    expect(recordPlaidRealtimeBalanceObservations).not.toHaveBeenCalled();
   });
 
   it("returns the summary when the recorder does not apply", async () => {
     signedIn();
     items([{ id: ITEM_A, user_id: OWNER }]);
-    recordPlaidBalanceObservations.mockResolvedValue("not-applied");
+    recordPlaidRealtimeBalanceObservations.mockResolvedValue("not-applied");
     const response = await post();
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({ applied: 0, notApplied: 1 });
@@ -335,6 +335,7 @@ describe("POST /api/plaid/observe-balances", () => {
     );
     const response = await post();
     expect(response.status).toBe(401);
+    expect(recordPlaidRealtimeBalanceObservations).not.toHaveBeenCalled();
     expect(getSupabaseServiceClient).not.toHaveBeenCalled();
   });
 });
@@ -348,9 +349,9 @@ describe("WE-BALANCE-FRESHNESS-002 repository boundary", () => {
     const planner = source("lib/babylon/foreground-balance-refresh.ts");
     const home = source("components/babylon/mobile-home.tsx");
 
-    const refreshEffect = hook.slice(hook.indexOf("planForegroundBalanceRefresh"));
-    expect(refreshEffect.indexOf("foregroundBalanceRefreshApplied")).toBeLessThan(
-      refreshEffect.indexOf("BALANCE_OBSERVATION_QUERY_KEY")
+    const refreshCallback = hook.slice(hook.indexOf("const recordVisibleBalances"));
+    expect(refreshCallback.indexOf("foregroundBalanceRefreshApplied")).toBeLessThan(
+      refreshCallback.indexOf("BALANCE_OBSERVATION_QUERY_KEY")
     );
     expect(hook).toContain("planForegroundBalanceRefresh");
     expect(hook).toContain("requestForegroundBalanceRefresh");
@@ -369,8 +370,16 @@ describe("WE-BALANCE-FRESHNESS-002 repository boundary", () => {
     expect(planner).not.toContain("localStorage");
     expect(planner).not.toContain("setInterval");
     expect(route).not.toContain("/transactions/sync");
-    expect(route).not.toContain("/accounts/balance/get");
     expect(route).not.toContain("/transactions/refresh");
+    const scheduled = route.slice(
+      route.indexOf("export async function GET"),
+      route.indexOf("export async function POST")
+    );
+    const foreground = route.slice(route.indexOf("export async function POST"));
+    expect(scheduled).toContain("recordPlaidBalanceObservations(");
+    expect(scheduled).not.toContain("recordPlaidRealtimeBalanceObservations");
+    expect(foreground).toContain("recordPlaidRealtimeBalanceObservations(");
+    expect(foreground).not.toContain("recordPlaidBalanceObservations(");
     expect(syncRoute).not.toContain("recordPlaidBalanceObservations");
     expect(syncRoute).toContain("bootstrapPlaidAccountIdentityIfAbsent");
     expect(syncRoute).toContain("syncPlaidItemObservations");

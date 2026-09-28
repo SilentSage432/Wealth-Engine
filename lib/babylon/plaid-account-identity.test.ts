@@ -674,7 +674,12 @@ describe("Plaid account identity bootstrap", () => {
     expect(bootstrap).not.toContain("wealth_engine_vaults");
     expect(bootstrap).not.toContain("/accounts/balance/get");
     expect(fetch).toContain('"/accounts/get"');
-    expect(fetch).not.toContain("/accounts/balance/get");
+    const identityFetch = fetch.slice(
+      fetch.indexOf("export async function fetchPlaidAccountIdentity"),
+      fetch.indexOf("export async function fetchPlaidAccountBalances")
+    );
+    expect(identityFetch).toContain('"/accounts/get"');
+    expect(identityFetch).not.toContain("/accounts/balance/get");
     expect(fetch).not.toContain("WE-ATTENTION-ACCOUNT-PROBE");
     expect(fetch).not.toContain("wealth_engine_vaults");
     expect(financialAccounts).not.toContain("plaid_accounts");

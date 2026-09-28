@@ -317,14 +317,14 @@ describe("balance evidence load", () => {
     expect(engine).toContain("operationalMoneyAvailable");
     expect(engine).not.toContain("sumAccountBalances(accounts)");
     expect(engine).not.toContain("acceptObservedBalance");
-    expect(contract).toContain('INTELLIGENCE_CONTRACT_VERSION = "2"');
+    expect(contract).toContain('INTELLIGENCE_CONTRACT_VERSION = "3"');
     expect(contract).not.toContain("balances_are_manual");
     expect(contract).not.toContain("no_reconciliation");
     expect(contract).toContain("plaid_is_not_vault_truth");
     expect(contract).toContain("balance_change_cause_unknown");
     expect(position).toContain("operationalAccountPosition");
-    expect(position).toContain("Observed ·");
-    expect(position).toContain("Declared ·");
+    expect(position).toContain("describeAccountEvidenceLine");
+    expect(position).toContain("describeMoneyAvailableEvidence");
     expect(position).not.toContain("Update balance");
     expect(position).not.toContain("observedBalanceUpdate");
     expect(position).toContain("Associate");

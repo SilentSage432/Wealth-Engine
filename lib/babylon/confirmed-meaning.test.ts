@@ -327,7 +327,7 @@ describe("confirmed meaning", () => {
       },
     });
     const serialized = JSON.stringify(contract);
-    expect(contract.meta.contract_version).toBe("2");
+    expect(contract.meta.contract_version).toBe("3");
     expect(serialized).not.toContain("plaid_observation_confirmations");
     expect(serialized).not.toContain("confirmed_meaning");
     expect(serialized).toContain("plaid_is_not_vault_truth");

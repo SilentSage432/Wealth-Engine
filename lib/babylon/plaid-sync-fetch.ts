@@ -56,3 +56,25 @@ export async function fetchPlaidAccountBalances(args: {
   if (!accounts) return { ok: false };
   return { ok: true, accounts };
 }
+
+/**
+ * Institution-refreshed balances.
+ * The response uses the same accounts[].balances fields as the cached read.
+ * account_ids are chosen by the server. An empty list is not a request.
+ */
+export async function fetchPlaidRealtimeBalances(args: {
+  accessToken: string;
+  accountIds: readonly string[];
+}): Promise<{ ok: true; accounts: PlaidBalanceDraft[] } | { ok: false }> {
+  const accountIds = args.accountIds.map((id) => id.trim()).filter((id) => id.length > 0);
+  if (accountIds.length === 0) return { ok: false };
+  const result = await plaidFetch<unknown>("/accounts/balance/get", {
+    access_token: args.accessToken,
+    options: { account_ids: accountIds },
+  });
+  if (!result.ok) return { ok: false };
+  const accounts = parsePlaidBalanceGetResponse(result.data);
+  if (!accounts) return { ok: false };
+  const allowed = new Set(accountIds);
+  return { ok: true, accounts: accounts.filter((account) => allowed.has(account.plaidAccountId)) };
+}

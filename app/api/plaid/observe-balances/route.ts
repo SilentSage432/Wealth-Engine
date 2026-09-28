@@ -3,7 +3,10 @@ import {
   observeBackgroundBalances,
   readPlaidItemOwners,
 } from "@/lib/babylon/background-balance-observation";
-import { recordPlaidBalanceObservations } from "@/lib/babylon/plaid-balance-record";
+import {
+  recordPlaidBalanceObservations,
+  recordPlaidRealtimeBalanceObservations,
+} from "@/lib/babylon/plaid-balance-record";
 import {
   authorizeCronRequest,
   isCanonicalSupabaseUrl,
@@ -15,7 +18,8 @@ import {
 
 /**
  * GET /api/plaid/observe-balances
- * Daily cached balance observation. Vercel Cron sends Authorization: Bearer CRON_SECRET.
+ * Daily cached balance observation through /accounts/get.
+ * Vercel Cron sends Authorization: Bearer CRON_SECRET.
  * The request cannot choose a user, an Item, or an account.
  * This route stores observations only. It does not accept a balance or write the vault.
  */
@@ -61,8 +65,9 @@ export async function GET(request: Request) {
 
 /**
  * POST /api/plaid/observe-balances
- * Signed-in cached balance observation. The session chooses the owner.
- * The body cannot choose a user, an Item, or an account.
+ * Signed-in real-time balance observation. Account ids stay on the server.
+ * The session chooses the owner. The body cannot choose a user, an Item,
+ * or an account. Associated account ids are derived on the server.
  * This does not sync transactions, accept a balance, or write the vault.
  */
 export async function POST(request: Request) {
@@ -98,7 +103,7 @@ export async function POST(request: Request) {
   const summary = await observeBackgroundBalances({
     items,
     record: (item) =>
-      recordPlaidBalanceObservations({
+      recordPlaidRealtimeBalanceObservations({
         service,
         userId: item.userId,
         itemRowId: item.id,
