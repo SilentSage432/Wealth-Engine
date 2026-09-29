@@ -34,7 +34,7 @@ WE-PLAID-RECOVERY-001 is implemented and not production-accepted. WE-PLAID-RECOV
 
 ## Entry points
 - App surface: `app/page.tsx` → `components/babylon/wealth-engine-dashboard.tsx`
-- Domain hook: `hooks/useBabylonEngine.ts` (state, persistence, auth, actions, metrics). Sign-in does not itself upload or download. Later edits sync through the revision cycle.
+- Domain hook: `hooks/useBabylonEngine.ts` (state, persistence, auth, actions, metrics). Sign-in does not itself upload or download. Later edits sync through the revision cycle. **WE-SYNC-RELIABILITY-002/002B (local):** human-facing checking/syncing is bounded to 25s; underlying `runCurrentVaultCycle` stays single-flight until that Promise settles; see `lib/babylon/cloud-sync-check.ts`.
 - Pure engine: `lib/babylon/engine.ts`
 - Speed-Tribute presets: `lib/babylon/presets.ts` (`QuickPreset`, `DEFAULT_PRESETS`, kind resolvers → domain). Icons are lucide-react components (WE-VISUAL-ICONS-001); no emoji application icons.
 - Quick Add bar: `components/babylon/speed-tribute-bar.tsx` (chips open Add; full 1-tap commit pending)

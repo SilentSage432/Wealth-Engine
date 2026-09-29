@@ -184,7 +184,8 @@ describe("cloud setup", () => {
     expect(existsSync(resolve(process.cwd(), "lib/babylon/cloud-sync.ts"))).toBe(
       false
     );
-    expect(hook).not.toContain("cloud-sync");
+    expect(hook).not.toContain("lib/babylon/cloud-sync.ts");
+    expect(hook).toContain("performCloudSyncCheck");
     expect(hook).not.toContain("cloudUpsert");
     expect(hook).not.toContain("queueCloudWrite");
     expect(hook).not.toContain("income_entries");

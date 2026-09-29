@@ -182,8 +182,9 @@ export function vaultSyncCopy(view: VaultSyncView): {
       return { title: "Syncing…", detail: null };
     case "cloud_unavailable":
       return {
-        title: "Cloud vault unavailable",
-        detail: "This device is still usable. Nothing was changed.",
+        title: "Cloud sync couldn't complete",
+        detail:
+          "Your data on this device is unchanged. Check cloud to try again.",
       };
     case "account_only":
       return { title: "Cloud account connected", detail: null };

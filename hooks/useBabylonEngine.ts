@@ -26,6 +26,10 @@ import {
   hydrateCurrentDevice,
 } from "@/lib/babylon/cloud-setup";
 import { readCloudOwnerId } from "@/lib/babylon/cloud-owner";
+import {
+  logCloudSyncDiagnostic,
+  performCloudSyncCheck,
+} from "@/lib/babylon/cloud-sync-check";
 import { financialVaultFingerprint } from "@/lib/babylon/cloud-vault";
 import {
   clearCloudSyncBaseline,
@@ -195,8 +199,14 @@ export function useBabylonEngine() {
   const [cloudBusy, setCloudBusy] = useState(false);
   const cloudBusyRef = useRef(false);
   const pauseAutoPushRef = useRef(false);
+  /**
+   * Cycle occupancy (single-flight). Held until runCurrentVaultCycle settles,
+   * including after human-facing UI timeout. Not the same as cloudBusy.
+   */
   const syncingRef = useRef(false);
   const rerunSyncRef = useRef(false);
+  /** Monotonic; superseded attempts must not apply React state after UI timeout. */
+  const cloudSyncAttemptIdRef = useRef(0);
   const [checkEpoch, setCheckEpoch] = useState(0);
   const [ownerEpoch, setOwnerEpoch] = useState(0);
   const [ownerUserId, setOwnerUserId] = useState<string | null>(null);
@@ -460,38 +470,52 @@ export function useBabylonEngine() {
       setVaultSync({ kind: "signed_out" });
       return;
     }
+    // Single-flight: coalesce Check cloud / online / visibility / auto-push
+    // into one queued rerun while occupancy is held (including after UI timeout).
     if (syncingRef.current) {
-      rerunSyncRef.current = true;
+      if (!rerunSyncRef.current) {
+        rerunSyncRef.current = true;
+        logCloudSyncDiagnostic({
+          type: "retry_queued",
+          opId: cloudSyncAttemptIdRef.current,
+        });
+      }
       return;
     }
     pauseAutoPushRef.current = false;
     syncingRef.current = true;
     cloudBusyRef.current = true;
     setCloudBusy(true);
-    const baseline = readCloudSyncBaseline();
-    const fingerprint = financialVaultFingerprint(vaultRef.current);
-    setVaultSync(
-      baseline?.pendingRevision
-        ? { kind: "checking" }
-        : baseline && fingerprint !== baseline.fingerprint
-          ? { kind: "syncing", revision: baseline.revision }
-          : { kind: "checking" }
-    );
+    const attemptId = ++cloudSyncAttemptIdRef.current;
     try {
-      const outcome = await runCurrentVaultCycle(userId, () => vaultRef.current);
-      pauseAutoPushRef.current =
-        outcome.view.kind === "offline_pending" ||
-        outcome.view.kind === "pending_verification" ||
-        outcome.view.kind === "conflict" ||
-        outcome.view.kind === "unsupported_schema" ||
-        outcome.view.kind === "invalid_vault" ||
-        outcome.view.kind === "owner_mismatch" ||
-        outcome.view.kind === "unexpected_revision" ||
-        outcome.view.kind === "cloud_unavailable";
-      setSyncBaseline(outcome.baseline);
-      if (outcome.boundOwner) setOwnerUserId(userId);
-      if (outcome.appliedLocal) applyVault(outcome.appliedLocal);
-      setVaultSync(outcome.view);
+      await performCloudSyncCheck(
+        {
+          attemptId,
+          isSuperseded: () => attemptId !== cloudSyncAttemptIdRef.current,
+          supersedeInFlightAttempts: () => {
+            cloudSyncAttemptIdRef.current += 1;
+          },
+          readActiveAttemptId: () => cloudSyncAttemptIdRef.current,
+          readBaseline: readCloudSyncBaseline,
+          readFingerprint: () => financialVaultFingerprint(vaultRef.current),
+          runCycle: () => runCurrentVaultCycle(userId, () => vaultRef.current),
+        },
+        {
+          userId,
+          setVaultSync,
+          setSyncBaseline,
+          setOwnerUserId,
+          applyVault,
+          onPauseAutoPush: (pause) => {
+            pauseAutoPushRef.current = pause;
+          },
+          onUiTimeout: () => {
+            // UI is no longer blocked; cycle occupancy remains until settle.
+            cloudBusyRef.current = false;
+            setCloudBusy(false);
+          },
+        }
+      );
     } finally {
       syncingRef.current = false;
       cloudBusyRef.current = false;

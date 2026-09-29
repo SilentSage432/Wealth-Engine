@@ -847,6 +847,24 @@
 - No webhook, polling, cron, attention UI, or automatic income, bill, or balance changes.
 - WE-SYNC-004 and `vault_data` are unchanged.
 
+## 2026-09-29 — WE-SYNC-RELIABILITY-002 / 002B bounded UI + single-flight occupancy
+
+### What changed
+- `requestCloudCheck` orchestration in `lib/babylon/cloud-sync-check.ts`: human-facing interim UI bounds at **25s** (`cloud_unavailable` copy).
+- **002B:** UI timeout does **not** release sync-cycle occupancy. The original `runCurrentVaultCycle` Promise remains the sole active cycle until it settles. Check cloud / online / visibility / auto-push coalesce to one queued rerun.
+- Late settle after UI timeout does not apply React vault/baseline/success UI; in-cycle baseline/pending side effects may finish naturally.
+- `cloudBusy` clears on UI timeout; occupancy (`syncingRef`) clears only after settle.
+- Privacy-safe `[cloud-sync]` diagnostics. No AbortSignal in this tranche.
+
+### Ownership
+- Orchestration: `lib/babylon/cloud-sync-check.ts`
+- Hook wiring: `hooks/useBabylonEngine.ts`
+- Copy: `lib/babylon/vault-sync.ts` (`vaultSyncCopy`)
+
+### Not in this tranche
+- No Supabase AbortSignal (future transport hygiene only).
+- No revision forcing, merge, or paycheck-domain edits.
+
 ## 2026-09-25 — WE-SYNC-004 revision sync
 
 ### What changed

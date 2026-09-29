@@ -432,7 +432,7 @@ describe("revision sync", () => {
     expect(missing.memory().expenses[0]?.amount).toBe(25);
     expect(missing.baseline()?.revision).toBe(1);
     expect(vaultSyncCopy({ kind: "cloud_unavailable" }).title).toBe(
-      "Cloud vault unavailable"
+      "Cloud sync couldn't complete"
     );
   });
 
@@ -650,7 +650,8 @@ describe("revision sync", () => {
     expect(hook).not.toContain("income_entries");
     expect(hook).not.toContain("expense_entries");
     expect(hook).not.toContain("budget_targets");
-    expect(hook).not.toContain("cloud-sync");
+    expect(hook).not.toContain("lib/babylon/cloud-sync.ts");
+    expect(hook).toContain("performCloudSyncCheck");
     expect(hook).toContain("runCurrentVaultCycle");
     expect(hook).toContain('addEventListener("online"');
     expect(sync).not.toContain("console.");
