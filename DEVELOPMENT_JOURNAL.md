@@ -1,5 +1,23 @@
 # Development Journal
 
+## 2026-09-29 — WE-WEALTH-POSITION-003 account-backed purpose position
+
+### What changed
+- Optional steward `FinancialAccount.purpose`: `wealth_building` | `emergency_fund` (absent = ordinary liquid). Kind does not imply purpose. Plaid does not infer purpose.
+- Purpose position = sum of EffectiveAccountPosition for matching accounts (`lib/babylon/account-purpose.ts`).
+- Already Set Aside = purpose positions + residual openings. First designation with opening > 0 requires keep-remainder / replace-Existing / cancel reconciliation.
+- Purpose set/clear/change preserves MA ($0 delta). goldRetained / emergencyShield / Monthly Plan / allocations unchanged by purpose.
+- Backup version 8 (fail-closed unknown purpose). Cloud schema remains 6 (soft field on accounts[]). No SQL. IC v3 unchanged. Movement and Attention not wired.
+
+### Validation
+- Focused purpose/position/composition/persistence tests passed.
+- Full suite: 47 files, 637 tests passed.
+- `tsc --noEmit`, eslint on touched files, production build, `git diff --check` passed.
+
+### Not in this tranche
+- No commit, push, deploy, or Supabase work.
+- No movement wiring, Attention, IC v4, OPERATING purpose, or temporal purpose history.
+
 ## 2026-09-29 — WE-ALLOCATION-EXECUTION-005 debt purpose vs position transition
 
 ### What changed

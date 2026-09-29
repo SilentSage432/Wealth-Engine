@@ -19,12 +19,33 @@ import { ProfileNameField } from "@/components/babylon/profile-name-field";
 import { WisdomBox } from "@/components/babylon/wisdom-box";
 import { Button } from "@/components/ui/button";
 import type { AvailableAfterPlannedNeeds } from "@/lib/babylon/available-after-planned-needs";
+import type { FirstDesignationReconcileChoice } from "@/lib/babylon/account-purpose";
 import type { VaultSyncView } from "@/lib/babylon/vault-sync";
 import type {
   BudgetTarget,
   FinancialAccount,
   FinancialAccountInput,
+  FinancialAccountPurpose,
 } from "@/types/babylon";
+
+type PurposeActionResult =
+  | { status: "applied" }
+  | {
+      status: "needs_reconcile";
+      purpose: FinancialAccountPurpose;
+      opening: number;
+      accountPosition: number;
+    }
+  | { status: "rejected"; reason: string };
+
+type PurposeClearResult =
+  | { status: "applied" }
+  | {
+      status: "needs_preserve_choice";
+      accountPosition: number;
+      purpose: FinancialAccountPurpose;
+    }
+  | { status: "rejected"; reason: string };
 
 interface MobileMoreProps {
   username: string;
@@ -59,6 +80,8 @@ interface MobileMoreProps {
   openingWealthBuilding: number;
   openingEmergencyFund: number;
   protectedMoney: number;
+  wealthBuildingPosition: number;
+  emergencyFundPosition: number;
   protectedOverAvailable: boolean;
   upcomingNeeds: number;
   availableAfterPlannedNeeds: AvailableAfterPlannedNeeds;
@@ -66,7 +89,19 @@ interface MobileMoreProps {
   discreet: boolean;
   onAddAccount: (input: FinancialAccountInput) => boolean;
   onUpdateAccount: (id: string, input: FinancialAccountInput) => boolean;
-  onRemoveAccount: (id: string) => void;
+  onRemoveAccount: (
+    id: string,
+    preserve?: "allow_drop" | "keep_as_existing" | "cancel"
+  ) => PurposeClearResult | { status: "applied" };
+  onSetAccountPurpose: (
+    accountId: string,
+    purpose: FinancialAccountPurpose,
+    reconcile?: FirstDesignationReconcileChoice | "cancel"
+  ) => PurposeActionResult;
+  onClearAccountPurpose: (
+    accountId: string,
+    preserve?: "allow_drop" | "keep_as_existing" | "cancel"
+  ) => PurposeClearResult;
   onUpdateProtected: (wealth: number, emergency: number) => string | null;
   onEditorOpenChange?: (open: boolean) => void;
   balanceObservation?: FinancialPositionBalanceObservation;
@@ -113,6 +148,8 @@ export function MobileMore({
   openingWealthBuilding,
   openingEmergencyFund,
   protectedMoney,
+  wealthBuildingPosition,
+  emergencyFundPosition,
   protectedOverAvailable,
   upcomingNeeds,
   availableAfterPlannedNeeds,
@@ -121,6 +158,8 @@ export function MobileMore({
   onAddAccount,
   onUpdateAccount,
   onRemoveAccount,
+  onSetAccountPurpose,
+  onClearAccountPurpose,
   onUpdateProtected,
   onEditorOpenChange,
   balanceObservation,
@@ -140,6 +179,8 @@ export function MobileMore({
           openingWealthBuilding={openingWealthBuilding}
           openingEmergencyFund={openingEmergencyFund}
           protectedMoney={protectedMoney}
+          wealthBuildingPosition={wealthBuildingPosition}
+          emergencyFundPosition={emergencyFundPosition}
           protectedOverAvailable={protectedOverAvailable}
           upcomingNeeds={upcomingNeeds}
           availableAfterPlannedNeeds={availableAfterPlannedNeeds}
@@ -148,6 +189,8 @@ export function MobileMore({
           onAddAccount={onAddAccount}
           onUpdateAccount={onUpdateAccount}
           onRemoveAccount={onRemoveAccount}
+          onSetAccountPurpose={onSetAccountPurpose}
+          onClearAccountPurpose={onClearAccountPurpose}
           onUpdateProtected={onUpdateProtected}
           onEditorOpenChange={onEditorOpenChange}
           balanceObservation={balanceObservation}

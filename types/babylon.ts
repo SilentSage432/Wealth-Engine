@@ -101,6 +101,14 @@ export type DebtPayoffStrategy = "snowball" | "avalanche";
 export type FinancialAccountKind = "checking" | "savings" | "cash";
 
 /**
+ * Steward-defined meaning of a FinancialAccount.
+ * Absent = ordinary liquid money. Not inferred from kind, Plaid, or transfers.
+ */
+export type FinancialAccountPurpose =
+  | "wealth_building"
+  | "emergency_fund";
+
+/**
  * Current balance the user says exists in one place.
  * This is financial position. It is not income and it does not allocate.
  */
@@ -111,6 +119,11 @@ export interface FinancialAccount {
   balance: number;
   /** Local calendar date (YYYY-MM-DD) the balance was last known to be accurate. */
   asOf: string;
+  /**
+   * Steward purpose for this liquid place. Optional for legacy vaults.
+   * At most one protected purpose. Not proof of movement or allocation execution.
+   */
+  purpose?: FinancialAccountPurpose;
 }
 
 /**
@@ -439,8 +452,10 @@ export interface ExpenseInput {
  * Version 7 stores debt-position epoch fields and per-creditor purpose
  * attributions. Older builds reject version 7 instead of treating legacy
  * remainingDebt as authoritative without confirmation.
+ * Version 8 stores optional FinancialAccount purpose. Older builds reject
+ * version 8 instead of stripping purpose on round-trip.
  */
-export type LedgerBackupVersion = 1 | 2 | 3 | 4 | 5 | 6 | 7;
+export type LedgerBackupVersion = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
 
 export interface LedgerBackup {
   version: LedgerBackupVersion;

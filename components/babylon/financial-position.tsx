@@ -53,10 +53,16 @@ import {
   FINANCIAL_ACCOUNT_KINDS,
 } from "@/lib/babylon/financial-position";
 import {
+  accountPurposeLabel,
+  FINANCIAL_ACCOUNT_PURPOSES,
+} from "@/lib/babylon/account-purpose";
+import {
   ALREADY_SET_ASIDE_LABEL,
   AVAILABLE_AFTER_PLANNED_NEEDS_LABEL,
   availableAfterPlannedNeedsExplain,
   alreadySetAsideExplain,
+  CURRENTLY_POSITIONED_HINT,
+  EMERGENCY_FUND_POSITIONED_LABEL,
   EXISTING_EMERGENCY_FUND_LABEL,
   EXISTING_WEALTH_BUILDING_LABEL,
   FINANCIAL_POSITION_HEADING,
@@ -65,13 +71,16 @@ import {
   RECORDED_DEBT_LABEL,
   recordedDebtExplain,
   UPCOMING_NEEDS_LABEL,
+  WEALTH_BUILDING_POSITIONED_LABEL,
 } from "@/lib/babylon/financial-position-composition";
 import { formatCurrency } from "@/lib/utils";
 import type { AvailableAfterPlannedNeeds } from "@/lib/babylon/available-after-planned-needs";
+import type { FirstDesignationReconcileChoice } from "@/lib/babylon/account-purpose";
 import type {
   FinancialAccount,
   FinancialAccountInput,
   FinancialAccountKind,
+  FinancialAccountPurpose,
 } from "@/types/babylon";
 
 export interface FinancialPositionBalanceObservation {
@@ -81,12 +90,33 @@ export interface FinancialPositionBalanceObservation {
   onRemoveAssociation: (financialAccountId: string) => Promise<boolean>;
 }
 
+type PurposeActionResult =
+  | { status: "applied" }
+  | {
+      status: "needs_reconcile";
+      purpose: FinancialAccountPurpose;
+      opening: number;
+      accountPosition: number;
+    }
+  | { status: "rejected"; reason: string };
+
+type PurposeClearResult =
+  | { status: "applied" }
+  | {
+      status: "needs_preserve_choice";
+      accountPosition: number;
+      purpose: FinancialAccountPurpose;
+    }
+  | { status: "rejected"; reason: string };
+
 interface FinancialPositionProps {
   accounts: FinancialAccount[];
   moneyAvailable: number;
   openingWealthBuilding: number;
   openingEmergencyFund: number;
   protectedMoney: number;
+  wealthBuildingPosition: number;
+  emergencyFundPosition: number;
   protectedOverAvailable: boolean;
   upcomingNeeds: number;
   availableAfterPlannedNeeds: AvailableAfterPlannedNeeds;
@@ -97,7 +127,19 @@ interface FinancialPositionProps {
   presentation?: "full" | "manage";
   onAddAccount: (input: FinancialAccountInput) => boolean;
   onUpdateAccount: (id: string, input: FinancialAccountInput) => boolean;
-  onRemoveAccount: (id: string) => void;
+  onRemoveAccount: (
+    id: string,
+    preserve?: "allow_drop" | "keep_as_existing" | "cancel"
+  ) => PurposeClearResult | { status: "applied" };
+  onSetAccountPurpose: (
+    accountId: string,
+    purpose: FinancialAccountPurpose,
+    reconcile?: FirstDesignationReconcileChoice | "cancel"
+  ) => PurposeActionResult;
+  onClearAccountPurpose: (
+    accountId: string,
+    preserve?: "allow_drop" | "keep_as_existing" | "cancel"
+  ) => PurposeClearResult;
   onUpdateProtected: (wealth: number, emergency: number) => string | null;
   onEditorOpenChange?: (open: boolean) => void;
   /** Present when the signed-in steward can see cached bank balances. */
@@ -265,6 +307,8 @@ export function FinancialPosition({
   openingWealthBuilding,
   openingEmergencyFund,
   protectedMoney,
+  wealthBuildingPosition,
+  emergencyFundPosition,
   protectedOverAvailable,
   upcomingNeeds,
   availableAfterPlannedNeeds,
@@ -274,6 +318,8 @@ export function FinancialPosition({
   onAddAccount,
   onUpdateAccount,
   onRemoveAccount,
+  onSetAccountPurpose,
+  onClearAccountPurpose,
   onUpdateProtected,
   onEditorOpenChange,
   balanceObservation,
@@ -294,12 +340,43 @@ export function FinancialPosition({
   const [wealthDraft, setWealthDraft] = useState("");
   const [emergencyDraft, setEmergencyDraft] = useState("");
   const [protectedError, setProtectedError] = useState<string | null>(null);
+  const [purposeError, setPurposeError] = useState<string | null>(null);
+  const [reconcile, setReconcile] = useState<{
+    accountId: string;
+    purpose: FinancialAccountPurpose;
+    opening: number;
+    accountPosition: number;
+  } | null>(null);
+  const [preserveChoice, setPreserveChoice] = useState<{
+    kind: "clear" | "remove";
+    account: FinancialAccount;
+    accountPosition: number;
+    purpose: FinancialAccountPurpose;
+  } | null>(null);
+  const [changeConfirm, setChangeConfirm] = useState<{
+    accountId: string;
+    from: FinancialAccountPurpose;
+    to: FinancialAccountPurpose;
+  } | null>(null);
 
   useEffect(() => {
     onEditorOpenChange?.(
-      editorOpen || pendingRemove !== null || protectedOpen
+      editorOpen ||
+        pendingRemove !== null ||
+        protectedOpen ||
+        reconcile !== null ||
+        preserveChoice !== null ||
+        changeConfirm !== null
     );
-  }, [editorOpen, pendingRemove, protectedOpen, onEditorOpenChange]);
+  }, [
+    editorOpen,
+    pendingRemove,
+    protectedOpen,
+    reconcile,
+    preserveChoice,
+    changeConfirm,
+    onEditorOpenChange,
+  ]);
 
   const openAdd = () => {
     setEditingId(null);
@@ -364,6 +441,63 @@ export function FinancialPosition({
     setProtectedError(null);
   };
 
+  const applyPurpose = (
+    accountId: string,
+    purpose: FinancialAccountPurpose,
+    choice?: FirstDesignationReconcileChoice | "cancel"
+  ) => {
+    const result = onSetAccountPurpose(accountId, purpose, choice);
+    if (result.status === "needs_reconcile") {
+      setReconcile({
+        accountId,
+        purpose: result.purpose,
+        opening: result.opening,
+        accountPosition: result.accountPosition,
+      });
+      return;
+    }
+    if (result.status === "rejected") {
+      setPurposeError(result.reason);
+      return;
+    }
+    setPurposeError(null);
+    setReconcile(null);
+    setChangeConfirm(null);
+  };
+
+  const requestPurpose = (
+    account: FinancialAccount,
+    purpose: FinancialAccountPurpose | "none"
+  ) => {
+    setPurposeError(null);
+    if (purpose === "none") {
+      if (account.purpose === undefined) return;
+      const result = onClearAccountPurpose(account.id);
+      if (result.status === "needs_preserve_choice") {
+        setPreserveChoice({
+          kind: "clear",
+          account,
+          accountPosition: result.accountPosition,
+          purpose: result.purpose,
+        });
+        return;
+      }
+      if (result.status === "rejected") {
+        setPurposeError(result.reason);
+      }
+      return;
+    }
+    if (account.purpose && account.purpose !== purpose) {
+      setChangeConfirm({
+        accountId: account.id,
+        from: account.purpose,
+        to: purpose,
+      });
+      return;
+    }
+    applyPurpose(account.id, purpose);
+  };
+
   const accountList =
     accounts.length === 0 ? (
       <p className="text-sm text-slate-500">No accounts yet.</p>
@@ -391,6 +525,39 @@ export function FinancialPosition({
                   nowMs: Date.now(),
                 })}
               </p>
+              {account.purpose ? (
+                <p className="mt-1 text-[11px] font-medium text-emerald-300/90">
+                  {accountPurposeLabel(account.purpose)}
+                </p>
+              ) : null}
+              <div className="mt-2 max-w-xs">
+                <Select
+                  value={account.purpose ?? "none"}
+                  onValueChange={(value) =>
+                    requestPurpose(
+                      account,
+                      value === "none"
+                        ? "none"
+                        : (value as FinancialAccountPurpose)
+                    )
+                  }
+                >
+                  <SelectTrigger
+                    className="h-8 text-xs"
+                    aria-label={`Purpose for ${account.name}`}
+                  >
+                    <SelectValue placeholder="No special purpose" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No special purpose</SelectItem>
+                    {FINANCIAL_ACCOUNT_PURPOSES.map((purpose) => (
+                      <SelectItem key={purpose} value={purpose}>
+                        {accountPurposeLabel(purpose)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <p className="font-[family-name:var(--font-display)] text-lg font-semibold tabular-nums text-slate-100">
               {money(accountPosition.balance)}
@@ -539,9 +706,25 @@ export function FinancialPosition({
               {EXISTING_WEALTH_BUILDING_LABEL} {money(openingWealthBuilding)} ·{" "}
               {EXISTING_EMERGENCY_FUND_LABEL} {money(openingEmergencyFund)}
             </p>
+            {wealthBuildingPosition > 0 || emergencyFundPosition > 0 ? (
+              <p className="mt-1 text-xs leading-relaxed text-slate-400">
+                {WEALTH_BUILDING_POSITIONED_LABEL}{" "}
+                <span className="tabular-nums">{money(wealthBuildingPosition)}</span>{" "}
+                {CURRENTLY_POSITIONED_HINT}
+                {" · "}
+                {EMERGENCY_FUND_POSITIONED_LABEL}{" "}
+                <span className="tabular-nums">{money(emergencyFundPosition)}</span>{" "}
+                {CURRENTLY_POSITIONED_HINT}
+              </p>
+            ) : null}
             <p className="mt-1 text-xs leading-relaxed text-slate-500">
               {alreadySetAsideExplain(protectedMoney)}
             </p>
+            {purposeError ? (
+              <p role="alert" className="mt-2 text-xs leading-relaxed text-amber-200">
+                {purposeError}
+              </p>
+            ) : null}
             {protectedOverAvailable ? (
               <p role="alert" className="mt-2 text-xs leading-relaxed text-amber-200">
                 Already-set-aside amounts exceed your current Money Available.
@@ -819,11 +1002,221 @@ export function FinancialPosition({
                 if (linked) {
                   void balanceObservation?.onRemoveAssociation(pendingRemove.id);
                 }
-                onRemoveAccount(pendingRemove.id);
+                const result = onRemoveAccount(pendingRemove.id);
+                if (result.status === "needs_preserve_choice") {
+                  setPreserveChoice({
+                    kind: "remove",
+                    account: pendingRemove,
+                    accountPosition: result.accountPosition,
+                    purpose: result.purpose,
+                  });
+                  setPendingRemove(null);
+                  return;
+                }
+                if (result.status === "rejected") {
+                  setPurposeError(result.reason);
+                  return;
+                }
                 setPendingRemove(null);
               }}
             >
               Remove Account
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={reconcile !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            if (reconcile) {
+              onSetAccountPurpose(reconcile.accountId, reconcile.purpose, "cancel");
+            }
+            setReconcile(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {reconcile
+                ? accountPurposeLabel(reconcile.purpose)
+                : "Already Set Aside"}
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2 text-sm text-slate-400">
+                <p>
+                  Existing{" "}
+                  {reconcile
+                    ? accountPurposeLabel(reconcile.purpose)
+                    : "designation"}
+                  :{" "}
+                  <span className="tabular-nums text-slate-200">
+                    {money(reconcile?.opening ?? 0)}
+                  </span>
+                </p>
+                <p>
+                  This account&apos;s current position:{" "}
+                  <span className="tabular-nums text-slate-200">
+                    {money(reconcile?.accountPosition ?? 0)}
+                  </span>
+                </p>
+                <p>How should Already Set Aside use them?</p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col gap-2 sm:flex-col">
+            <AlertDialogAction
+              onClick={() => {
+                if (!reconcile) return;
+                applyPurpose(
+                  reconcile.accountId,
+                  reconcile.purpose,
+                  "keep_remainder"
+                );
+              }}
+            >
+              Use account and keep any remainder as Existing
+            </AlertDialogAction>
+            <AlertDialogAction
+              onClick={() => {
+                if (!reconcile) return;
+                applyPurpose(
+                  reconcile.accountId,
+                  reconcile.purpose,
+                  "replace_existing"
+                );
+              }}
+            >
+              Use account and clear Existing for this purpose
+            </AlertDialogAction>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={preserveChoice !== null}
+        onOpenChange={(open) => {
+          if (!open) setPreserveChoice(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {preserveChoice?.kind === "remove"
+                ? "Remove purpose account"
+                : "Clear account purpose"}
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2 text-sm text-slate-400">
+                <p>
+                  {accountPurposeLabel(
+                    preserveChoice?.purpose ?? "wealth_building"
+                  )}{" "}
+                  position includes{" "}
+                  <span className="tabular-nums text-slate-200">
+                    {money(preserveChoice?.accountPosition ?? 0)}
+                  </span>{" "}
+                  in this account. Already Set Aside will drop by that amount
+                  unless you keep it as Existing.
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-col gap-2 sm:flex-col">
+            <AlertDialogAction
+              onClick={() => {
+                if (!preserveChoice) return;
+                if (preserveChoice.kind === "clear") {
+                  const result = onClearAccountPurpose(
+                    preserveChoice.account.id,
+                    "allow_drop"
+                  );
+                  if (result.status === "rejected") {
+                    setPurposeError(result.reason);
+                    return;
+                  }
+                } else {
+                  const result = onRemoveAccount(
+                    preserveChoice.account.id,
+                    "allow_drop"
+                  );
+                  if (result.status === "rejected") {
+                    setPurposeError(result.reason);
+                    return;
+                  }
+                }
+                setPreserveChoice(null);
+              }}
+            >
+              Remove from Already Set Aside
+            </AlertDialogAction>
+            <AlertDialogAction
+              onClick={() => {
+                if (!preserveChoice) return;
+                if (preserveChoice.kind === "clear") {
+                  const result = onClearAccountPurpose(
+                    preserveChoice.account.id,
+                    "keep_as_existing"
+                  );
+                  if (result.status === "rejected") {
+                    setPurposeError(result.reason);
+                    return;
+                  }
+                } else {
+                  const result = onRemoveAccount(
+                    preserveChoice.account.id,
+                    "keep_as_existing"
+                  );
+                  if (result.status === "rejected") {
+                    setPurposeError(result.reason);
+                    return;
+                  }
+                }
+                setPreserveChoice(null);
+              }}
+            >
+              Keep as Existing {accountPurposeLabel(
+                preserveChoice?.purpose ?? "wealth_building"
+              )}
+            </AlertDialogAction>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={changeConfirm !== null}
+        onOpenChange={(open) => {
+          if (!open) setChangeConfirm(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Change account purpose</AlertDialogTitle>
+            <AlertDialogDescription>
+              Change from{" "}
+              {changeConfirm
+                ? accountPurposeLabel(changeConfirm.from)
+                : "current purpose"}{" "}
+              to{" "}
+              {changeConfirm
+                ? accountPurposeLabel(changeConfirm.to)
+                : "new purpose"}
+              . Money Available and allocation history do not change.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (!changeConfirm) return;
+                applyPurpose(changeConfirm.accountId, changeConfirm.to);
+              }}
+            >
+              Change purpose
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

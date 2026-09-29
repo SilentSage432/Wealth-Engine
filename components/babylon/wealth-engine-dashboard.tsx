@@ -149,6 +149,8 @@ export function WealthEngineDashboard() {
       openingWealthBuilding={engine.openingWealthBuilding}
       openingEmergencyFund={engine.openingEmergencyFund}
       protectedMoney={engine.protectedMoney}
+      wealthBuildingPosition={engine.wealthBuildingPosition}
+      emergencyFundPosition={engine.emergencyFundPosition}
       protectedOverAvailable={engine.protectedOverAvailable}
       upcomingNeeds={engine.upcomingNeeds}
       availableAfterPlannedNeeds={engine.availableAfterPlannedNeeds}
@@ -157,6 +159,8 @@ export function WealthEngineDashboard() {
       onAddAccount={engine.addAccount}
       onUpdateAccount={engine.updateAccount}
       onRemoveAccount={engine.removeAccount}
+      onSetAccountPurpose={engine.setAccountPurpose}
+      onClearAccountPurpose={engine.clearAccountPurpose}
       onUpdateProtected={engine.updateProtectedDesignations}
       onEditorOpenChange={setAccountEditorOpen}
       balanceObservation={balanceObservationView}
@@ -480,6 +484,8 @@ export function WealthEngineDashboard() {
                 openingWealthBuilding={engine.openingWealthBuilding}
                 openingEmergencyFund={engine.openingEmergencyFund}
                 protectedMoney={engine.protectedMoney}
+                wealthBuildingPosition={engine.wealthBuildingPosition}
+                emergencyFundPosition={engine.emergencyFundPosition}
                 protectedOverAvailable={engine.protectedOverAvailable}
                 upcomingNeeds={engine.upcomingNeeds}
                 availableAfterPlannedNeeds={engine.availableAfterPlannedNeeds}
@@ -488,6 +494,8 @@ export function WealthEngineDashboard() {
                 onAddAccount={engine.addAccount}
                 onUpdateAccount={engine.updateAccount}
                 onRemoveAccount={engine.removeAccount}
+                onSetAccountPurpose={engine.setAccountPurpose}
+                onClearAccountPurpose={engine.clearAccountPurpose}
                 onUpdateProtected={engine.updateProtectedDesignations}
                 onEditorOpenChange={setAccountEditorOpen}
                 balanceObservation={balanceObservationView}

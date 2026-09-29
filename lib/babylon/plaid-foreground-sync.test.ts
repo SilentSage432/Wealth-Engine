@@ -260,8 +260,8 @@ describe("foreground observation sync", () => {
     const ok = await requestPlaidObservationSync(ITEM_A);
     expect(ok).toBe(true);
     expect(vault).toEqual(before);
-    expect(backup.version).toBe(7);
-    expect(LEDGER_BACKUP_VERSION).toBe(7);
+    expect(backup.version).toBe(8);
+    expect(LEDGER_BACKUP_VERSION).toBe(8);
     expect(EMPTY_STATE).not.toHaveProperty("plaidTransactions");
   });
 

@@ -2,7 +2,20 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useBalanceObservation } from "@/hooks/useBalanceObservation";
-import { operationalMoneyAvailable } from "@/lib/babylon/balance-evidence-load";
+import {
+  operationalAccountPosition,
+  operationalAccountPositions,
+  operationalMoneyAvailable,
+} from "@/lib/babylon/balance-evidence-load";
+import {
+  currentEmergencyFundPosition,
+  currentWealthBuildingPosition,
+  isFirstPurposeDesignation,
+  openingForPurpose,
+  residualAfterFirstDesignation,
+  withAccountPurpose,
+  type FirstDesignationReconcileChoice,
+} from "@/lib/babylon/account-purpose";
 import {
   BABYLON_WISDOM,
   DONUT_COLORS,
@@ -114,6 +127,7 @@ import type {
   ExpenseInput,
   FinancialAccount,
   FinancialAccountInput,
+  FinancialAccountPurpose,
   IncomeEntry,
   IncomeInput,
   MonthlyCloseSummary,
@@ -702,9 +716,39 @@ export function useBabylonEngine() {
     [accounts, balanceObservation.load]
   );
 
+  const effectivePositions = useMemo(
+    () =>
+      operationalAccountPositions({
+        accounts,
+        load: balanceObservation.load,
+      }),
+    [accounts, balanceObservation.load]
+  );
+
+  const wealthBuildingPosition = useMemo(
+    () => currentWealthBuildingPosition(accounts, effectivePositions),
+    [accounts, effectivePositions]
+  );
+
+  const emergencyFundPosition = useMemo(
+    () => currentEmergencyFundPosition(accounts, effectivePositions),
+    [accounts, effectivePositions]
+  );
+
   const protectedMoney = useMemo(
-    () => totalProtectedMoney(openingWealthBuilding, openingEmergencyFund),
-    [openingWealthBuilding, openingEmergencyFund]
+    () =>
+      totalProtectedMoney(
+        openingWealthBuilding,
+        openingEmergencyFund,
+        wealthBuildingPosition,
+        emergencyFundPosition
+      ),
+    [
+      openingWealthBuilding,
+      openingEmergencyFund,
+      wealthBuildingPosition,
+      emergencyFundPosition,
+    ]
   );
 
   const wealthBuildingTotal = useMemo(
@@ -720,7 +764,9 @@ export function useBabylonEngine() {
   const protectedOverAvailable = protectedExceedsAvailable(
     openingWealthBuilding,
     openingEmergencyFund,
-    moneyAvailable
+    moneyAvailable,
+    wealthBuildingPosition,
+    emergencyFundPosition
   );
 
   const lifetimeActual = useMemo(
@@ -1612,32 +1658,312 @@ export function useBabylonEngine() {
 
   const updateAccount = useCallback(
     (id: string, input: FinancialAccountInput): boolean => {
+      const existing = accounts.find((account) => account.id === id);
+      if (!existing) return false;
       const next = normalizeAccountDraft(input, id);
       if (!next) return false;
-      if (!accounts.some((account) => account.id === id)) return false;
-      setAccounts((prev) => replaceAccount(prev, id, next) ?? prev);
+      const preserved =
+        existing.purpose !== undefined
+          ? { ...next, purpose: existing.purpose }
+          : next;
+      setAccounts((prev) => replaceAccount(prev, id, preserved) ?? prev);
       return true;
     },
     [accounts]
   );
 
-  const removeAccount = useCallback((id: string) => {
-    setAccounts((prev) => withoutAccount(prev, id));
-  }, []);
+  const accountEffectiveBalance = useCallback(
+    (account: FinancialAccount): number =>
+      operationalAccountPosition({
+        account,
+        load: balanceObservation.load,
+      }).balance,
+    [balanceObservation.load]
+  );
 
   const updateProtectedDesignations = useCallback(
     (wealth: number, emergency: number): string | null => {
       const error = protectedDesignationError(
         wealth,
         emergency,
-        moneyAvailable
+        moneyAvailable,
+        wealthBuildingPosition,
+        emergencyFundPosition
       );
       if (error) return error;
       setOpeningWealthBuilding(roundMoney(wealth));
       setOpeningEmergencyFund(roundMoney(emergency));
       return null;
     },
-    [moneyAvailable]
+    [moneyAvailable, wealthBuildingPosition, emergencyFundPosition]
+  );
+
+  type PurposeActionResult =
+    | { status: "applied" }
+    | {
+        status: "needs_reconcile";
+        purpose: FinancialAccountPurpose;
+        opening: number;
+        accountPosition: number;
+      }
+    | { status: "rejected"; reason: string };
+
+  type PurposeClearResult =
+    | { status: "applied" }
+    | {
+        status: "needs_preserve_choice";
+        accountPosition: number;
+        purpose: FinancialAccountPurpose;
+      }
+    | { status: "rejected"; reason: string };
+
+  const setAccountPurpose = useCallback(
+    (
+      accountId: string,
+      purpose: FinancialAccountPurpose,
+      reconcile?: FirstDesignationReconcileChoice | "cancel"
+    ): PurposeActionResult => {
+      const account = accounts.find((row) => row.id === accountId);
+      if (!account) {
+        return { status: "rejected", reason: "Account not found." };
+      }
+      if (account.purpose === purpose) {
+        return { status: "applied" };
+      }
+
+      if (reconcile === "cancel") {
+        return { status: "applied" };
+      }
+
+      const first = isFirstPurposeDesignation(accounts, accountId, purpose);
+      const opening = openingForPurpose(
+        purpose,
+        openingWealthBuilding,
+        openingEmergencyFund
+      );
+      const position = accountEffectiveBalance(account);
+
+      if (first && opening > 0 && reconcile === undefined) {
+        return {
+          status: "needs_reconcile",
+          purpose,
+          opening: roundMoney(opening),
+          accountPosition: roundMoney(position),
+        };
+      }
+
+      let nextOpeningWealth = openingWealthBuilding;
+      let nextOpeningEmergency = openingEmergencyFund;
+      if (first && opening > 0 && reconcile) {
+        const residual = residualAfterFirstDesignation(
+          opening,
+          position,
+          reconcile
+        );
+        if (purpose === "wealth_building") {
+          nextOpeningWealth = residual;
+        } else {
+          nextOpeningEmergency = residual;
+        }
+      }
+
+      // When changing purpose away from another purpose, just reassign.
+      const nextAccounts = accounts.map((row) =>
+        row.id === accountId ? withAccountPurpose(row, purpose) : row
+      );
+      const nextPositions = operationalAccountPositions({
+        accounts: nextAccounts,
+        load: balanceObservation.load,
+      });
+      const nextWealthPos = currentWealthBuildingPosition(
+        nextAccounts,
+        nextPositions
+      );
+      const nextEmergencyPos = currentEmergencyFundPosition(
+        nextAccounts,
+        nextPositions
+      );
+      const fit = protectedDesignationError(
+        nextOpeningWealth,
+        nextOpeningEmergency,
+        moneyAvailable,
+        nextWealthPos,
+        nextEmergencyPos
+      );
+      if (fit) {
+        return { status: "rejected", reason: fit };
+      }
+
+      setAccounts(nextAccounts);
+      setOpeningWealthBuilding(roundMoney(nextOpeningWealth));
+      setOpeningEmergencyFund(roundMoney(nextOpeningEmergency));
+      return { status: "applied" };
+    },
+    [
+      accounts,
+      openingWealthBuilding,
+      openingEmergencyFund,
+      accountEffectiveBalance,
+      balanceObservation.load,
+      moneyAvailable,
+    ]
+  );
+
+  const clearAccountPurpose = useCallback(
+    (
+      accountId: string,
+      preserve?: "allow_drop" | "keep_as_existing" | "cancel"
+    ): PurposeClearResult => {
+      const account = accounts.find((row) => row.id === accountId);
+      if (!account) {
+        return { status: "rejected", reason: "Account not found." };
+      }
+      if (account.purpose === undefined) {
+        return { status: "applied" };
+      }
+      if (preserve === "cancel") {
+        return { status: "applied" };
+      }
+
+      const purpose = account.purpose;
+      const position = accountEffectiveBalance(account);
+      if (preserve === undefined && position > 0) {
+        return {
+          status: "needs_preserve_choice",
+          accountPosition: roundMoney(position),
+          purpose,
+        };
+      }
+
+      let nextOpeningWealth = openingWealthBuilding;
+      let nextOpeningEmergency = openingEmergencyFund;
+      if (preserve === "keep_as_existing") {
+        if (purpose === "wealth_building") {
+          nextOpeningWealth = roundMoney(openingWealthBuilding + position);
+        } else {
+          nextOpeningEmergency = roundMoney(openingEmergencyFund + position);
+        }
+      }
+
+      const nextAccounts = accounts.map((row) =>
+        row.id === accountId ? withAccountPurpose(row, undefined) : row
+      );
+      const nextPositions = operationalAccountPositions({
+        accounts: nextAccounts,
+        load: balanceObservation.load,
+      });
+      const nextWealthPos = currentWealthBuildingPosition(
+        nextAccounts,
+        nextPositions
+      );
+      const nextEmergencyPos = currentEmergencyFundPosition(
+        nextAccounts,
+        nextPositions
+      );
+      const fit = protectedDesignationError(
+        nextOpeningWealth,
+        nextOpeningEmergency,
+        moneyAvailable,
+        nextWealthPos,
+        nextEmergencyPos
+      );
+      if (fit) {
+        return { status: "rejected", reason: fit };
+      }
+
+      setAccounts(nextAccounts);
+      setOpeningWealthBuilding(roundMoney(nextOpeningWealth));
+      setOpeningEmergencyFund(roundMoney(nextOpeningEmergency));
+      return { status: "applied" };
+    },
+    [
+      accounts,
+      openingWealthBuilding,
+      openingEmergencyFund,
+      accountEffectiveBalance,
+      balanceObservation.load,
+      moneyAvailable,
+    ]
+  );
+
+  const removeAccount = useCallback(
+    (
+      id: string,
+      preserve?: "allow_drop" | "keep_as_existing" | "cancel"
+    ): PurposeClearResult | { status: "applied" } => {
+      const account = accounts.find((row) => row.id === id);
+      if (!account) {
+        return { status: "rejected", reason: "Account not found." };
+      }
+      if (preserve === "cancel") {
+        return { status: "applied" };
+      }
+
+      if (account.purpose !== undefined) {
+        const purpose = account.purpose;
+        const position = accountEffectiveBalance(account);
+        if (preserve === undefined && position > 0) {
+          return {
+            status: "needs_preserve_choice",
+            accountPosition: roundMoney(position),
+            purpose,
+          };
+        }
+
+        let nextOpeningWealth = openingWealthBuilding;
+        let nextOpeningEmergency = openingEmergencyFund;
+        if (preserve === "keep_as_existing") {
+          if (purpose === "wealth_building") {
+            nextOpeningWealth = roundMoney(openingWealthBuilding + position);
+          } else {
+            nextOpeningEmergency = roundMoney(openingEmergencyFund + position);
+          }
+        }
+
+        const nextAccounts = withoutAccount(accounts, id);
+        const nextPositions = operationalAccountPositions({
+          accounts: nextAccounts,
+          load: balanceObservation.load,
+        });
+        // Money Available will drop by this account — fit check uses next MA.
+        const nextMa = operationalMoneyAvailable({
+          accounts: nextAccounts,
+          load: balanceObservation.load,
+        });
+        const nextWealthPos = currentWealthBuildingPosition(
+          nextAccounts,
+          nextPositions
+        );
+        const nextEmergencyPos = currentEmergencyFundPosition(
+          nextAccounts,
+          nextPositions
+        );
+        const fit = protectedDesignationError(
+          nextOpeningWealth,
+          nextOpeningEmergency,
+          nextMa,
+          nextWealthPos,
+          nextEmergencyPos
+        );
+        if (fit) {
+          return { status: "rejected", reason: fit };
+        }
+        setAccounts(nextAccounts);
+        setOpeningWealthBuilding(roundMoney(nextOpeningWealth));
+        setOpeningEmergencyFund(roundMoney(nextOpeningEmergency));
+        return { status: "applied" };
+      }
+
+      setAccounts((prev) => withoutAccount(prev, id));
+      return { status: "applied" };
+    },
+    [
+      accounts,
+      openingWealthBuilding,
+      openingEmergencyFund,
+      accountEffectiveBalance,
+      balanceObservation.load,
+    ]
   );
 
   const deleteIncome = useCallback(
@@ -1856,6 +2182,8 @@ export function useBabylonEngine() {
     openingWealthBuilding,
     openingEmergencyFund,
     protectedMoney,
+    wealthBuildingPosition,
+    emergencyFundPosition,
     wealthBuildingTotal,
     emergencyFundTotal,
     protectedOverAvailable,
@@ -1903,6 +2231,8 @@ export function useBabylonEngine() {
     addAccount,
     updateAccount,
     removeAccount,
+    setAccountPurpose,
+    clearAccountPurpose,
     updateProtectedDesignations,
     addIncome,
     addExpense,

@@ -46,7 +46,7 @@ export function alreadySetAsideExplain(protectedMoney: number): string {
   if (protectedMoney <= 0) {
     return "No existing designation yet. Progress tracked from income and month close is separate.";
   }
-  return "Of Money Available, already designated for Wealth Building or the Emergency Fund. Not additional cash. Progress tracked from income and month close is separate.";
+  return "Of Money Available, already designated for Wealth Building or the Emergency Fund — including money currently positioned in purpose accounts and any Existing amounts not located in those accounts. Not additional cash. Progress tracked from income and month close is separate.";
 }
 
 export function recordedDebtExplain(remainingDebt: number): string {
@@ -60,19 +60,30 @@ export function availableAfterPlannedNeedsExplain(): string {
   return "After already-set-aside money and known unpaid Needs. Does not subtract debt, Wants, Living Budget, or past allocations. Not a promise the remainder is safe to spend.";
 }
 
+export const WEALTH_BUILDING_POSITIONED_LABEL = "Wealth Building";
+
+export const EMERGENCY_FUND_POSITIONED_LABEL = "Emergency Fund";
+
+export const CURRENTLY_POSITIONED_HINT = "currently positioned";
+
 /**
- * Prove openings alone define Already Set Aside / Protected Money.
+ * Already Set Aside / Protected Money.
+ * Account-backed purpose positions + residual openings.
  * Tracked wealth and emergency shield are ignored by design.
  */
 export function composeAlreadySetAside(input: {
   openingWealthBuilding: number;
   openingEmergencyFund: number;
+  currentWealthBuildingPosition?: number;
+  currentEmergencyFundPosition?: number;
   trackedWealthBuilding?: number;
   emergencyShield?: number;
 }): number {
   return totalProtectedMoney(
     input.openingWealthBuilding,
-    input.openingEmergencyFund
+    input.openingEmergencyFund,
+    input.currentWealthBuildingPosition ?? 0,
+    input.currentEmergencyFundPosition ?? 0
   );
 }
 
@@ -85,6 +96,8 @@ export function composePositionWithRecordedDebt(input: {
   openingEmergencyFund: number;
   upcomingNeeds: number;
   debts: readonly DebtEntry[];
+  currentWealthBuildingPosition?: number;
+  currentEmergencyFundPosition?: number;
 }): {
   moneyAvailable: number;
   alreadySetAside: number;
@@ -95,6 +108,8 @@ export function composePositionWithRecordedDebt(input: {
   const alreadySetAside = composeAlreadySetAside({
     openingWealthBuilding: input.openingWealthBuilding,
     openingEmergencyFund: input.openingEmergencyFund,
+    currentWealthBuildingPosition: input.currentWealthBuildingPosition,
+    currentEmergencyFundPosition: input.currentEmergencyFundPosition,
   });
   const planned = deriveAvailableAfterPlannedNeeds({
     moneyAvailable: input.moneyAvailable,

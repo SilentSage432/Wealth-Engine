@@ -6,7 +6,9 @@
 **Architecture map:** [`ARCHITECTURE.md`](./ARCHITECTURE.md) — layers, dependency rules, canonical ownership matrix.
 
 ## Current state
-WE-ALLOCATION-EXECUTION-005 is accepted and finalized on main. PURPOSE + POSITION separation for debt: after all-or-nothing steward rebase, `remainingDebt` is authoritative current owed and income/month-close debt purpose no longer mutates it. Per-creditor `DebtPurposeAttribution` on new allocations only. Legacy vaults with debts keep modeled mutation until every debt is declared. Backup version 7; cloud schema stays 6 with soft-added JSON keys (no SQL). Debt execution / settlement / payment instruments not implemented. Intelligence Contract v3 preserved with clarified remaining_cents derivation.
+WE-WEALTH-POSITION-003 is a **review candidate**. Steward `FinancialAccount.purpose` (`wealth_building` | `emergency_fund`; absent = ordinary liquid). Purpose positions compose from EffectiveAccountPosition. Already Set Aside = purpose positions + residual openings after first-designation reconciliation. MA unchanged by purpose. Backup v8; cloud schema 6; no SQL; IC v3 unchanged. Movement/Attention deferred. goldRetained / emergencyShield remain historical, not position.
+
+WE-ALLOCATION-EXECUTION-005 is accepted and finalized on main. PURPOSE + POSITION separation for debt: after all-or-nothing steward rebase, `remainingDebt` is authoritative current owed and income/month-close debt purpose no longer mutates it. Per-creditor `DebtPurposeAttribution` on new allocations only. Legacy vaults with debts keep modeled mutation until every debt is declared. Cloud schema stays 6 with soft-added JSON keys (no SQL). Debt execution / settlement / payment instruments not implemented. Intelligence Contract v3 preserved with clarified remaining_cents derivation.
 
 WE-ALLOCATION-EXECUTION-002 semantic lock remains: Allocation ≠ Execution. Debt Purpose ≠ Debt Position ≠ Debt Execution.
 
@@ -71,8 +73,8 @@ Persisted in `localStorage` (`wealth-engine-babylon-v2`) as:
 - `debts[]` — `totalDebt`, `remainingDebt`, `monthlyAllocation` (required on create)
 - `allocations[]` — historical events for charts (includes synthetic period-close rows)
 - `budgetTargets[]` — planned caps inside the Living Budget (starts empty)
-- `accounts[]` — manual Financial Position (checking / savings / cash, balance, local `asOf`). Missing on older vaults; loads as `[]`. Never inferred from income or spending. Not cloud-backed.
-- `openingWealthBuilding` / `openingEmergencyFund` — existing designations inside current Money Available. Missing on older vaults; loads as `0`. Not income, not allocation events, and not cloud-backed.
+- `accounts[]` — manual Financial Position (checking / savings / cash, balance, local `asOf`, optional steward `purpose`). Missing on older vaults; loads as `[]`. Never inferred from income or spending. Purpose is steward-authoritative (`wealth_building` | `emergency_fund`); absent = ordinary liquid.
+- `openingWealthBuilding` / `openingEmergencyFund` — residual Existing designations inside Money Available (unlocated when purpose accounts exist). Missing on older vaults; loads as `0`. Not income, not allocation events.
 - `recurringObligations[]` — declared bill rules (WE-OBLIGATION-001). Missing on older vaults; loads as `[]`. A missing `intervalMonths`, or `1`, means every calendar month from `startMonth`. A larger positive integer means every that many calendar months. Non-due months are not skips. `skippedMonths` is a due month the steward deleted. Generation still covers only the current month and the next month, and only when that month is due. This is not a spending cap, a sinking fund, or a bank-observation match. Generated months are ordinary expenses with `recurringObligationId` and `recurrenceMonth`.
 - `monthlyPlans[]` — finalized Monthly Plan revisions (WE-PLAN-001). Missing on older vaults; loads as `[]`. Each revision is historical intent for an explicit `periodKey`. Planning Basis is not income. Category purposes, debt context, due obligation facts, protected context, and the derived 10/20/70 shares are copies. Later edits to live settings do not rewrite a revision. No plan is inferred from current caps.
 - `activityLog[]` — mutation feed for Recent Activity (newest first, capped)
@@ -109,7 +111,7 @@ Legacy expenses without `dueDate` soft-migrate to use `date`. Want expenses (`ca
 - **Income** — newly received money that enters the 10/20/70 Allocation Engine
 - **Living Budget** — the 70% allocation produced from new income
 - **Money Available** — sum of current operational/effective account balances (checking, savings, cash). It is not safe-to-spend, not Living Budget remaining, and not net worth. Paying an expense does not change it. Existing protected designations are included in it and do not change it
-- **Already Set Aside (Protected Money)** — Existing Wealth Building plus Existing Emergency Fund openings. Portion of current Money Available the steward designated. Not additional cash. Not tracked allocation wealth or `emergencyShield`. Steward-facing label is Already Set Aside; domain field remains `protectedMoney`
+- **Already Set Aside (Protected Money)** — account-backed purpose positions + residual Existing openings. Not additional cash. Not tracked allocation wealth or `emergencyShield`. Steward-facing label is Already Set Aside; domain field remains `protectedMoney`
 - **Tracked Wealth Building** — sum of recorded allocation wealth. The Wealth Building card adds the existing designation to this. Allocation charts stay tracked-only. Not proof funds sit in a separate account.
 - **Tracked Emergency Fund** — `emergencyShield`, from month-close surplus only. The month-close balance adds the existing designation to this. Not a bank transfer.
 - **Upcoming obligation** — an expense that is not yet paid (`isSettled: false`)

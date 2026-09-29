@@ -291,3 +291,28 @@ export function operationalAccountPosition(input: {
     })
   );
 }
+
+/** Effective positions for every vault account under the same MA load rule. */
+export function operationalAccountPositions(input: {
+  accounts: readonly FinancialAccount[];
+  load: BalanceObservationLoad | undefined;
+}): EffectiveAccountPosition[] {
+  const evidence = evidenceForOperationalPosition(input.load);
+  if (!evidence) {
+    return input.accounts.map((account) =>
+      deriveEffectiveAccountPosition({
+        account,
+        associatedPlaidAccountId: null,
+        accountType: null,
+        subtype: null,
+        observation: null,
+      })
+    );
+  }
+  return deriveEffectiveAccountPositions({
+    accounts: input.accounts,
+    plaidAccounts: evidence.plaidAccounts,
+    observations: evidence.observations,
+    associations: evidence.associations,
+  });
+}

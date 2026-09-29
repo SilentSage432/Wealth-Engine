@@ -40,7 +40,7 @@ function debt(
 }
 
 describe("Financial Position composition", () => {
-  it("keeps Already Set Aside as openings only", () => {
+  it("keeps Already Set Aside as openings plus purpose positions", () => {
     expect(
       composeAlreadySetAside({
         openingWealthBuilding: 300,
@@ -50,6 +50,14 @@ describe("Financial Position composition", () => {
       })
     ).toBe(500);
     expect(totalProtectedMoney(300, 200)).toBe(500);
+    expect(
+      composeAlreadySetAside({
+        openingWealthBuilding: 0,
+        openingEmergencyFund: 0,
+        currentWealthBuildingPosition: 2000,
+        currentEmergencyFundPosition: 1000,
+      })
+    ).toBe(3000);
   });
 
   it("does not fold tracked Wealth or emergencyShield into Protected Money", () => {

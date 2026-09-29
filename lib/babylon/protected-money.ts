@@ -1,6 +1,10 @@
 /**
  * Existing protected money — designations inside current account balances.
  * These are not income, allocations, or extra cash.
+ *
+ * With account purpose: Protected = account-backed purpose positions
+ * + residual openings (unlocated designations). Tracked goldRetained /
+ * emergencyShield are never included.
  */
 
 import { roundMoney } from "@/lib/babylon/engine";
@@ -9,12 +13,21 @@ function cents(value: number): number {
   return Math.round(roundMoney(value) * 100);
 }
 
+/**
+ * Already Set Aside / Protected Money.
+ * Positions default to 0 so legacy openings-only call sites stay valid.
+ */
 export function totalProtectedMoney(
   openingWealthBuilding: number,
-  openingEmergencyFund: number
+  openingEmergencyFund: number,
+  currentWealthBuildingPosition = 0,
+  currentEmergencyFundPosition = 0
 ): number {
   return roundMoney(
-    roundMoney(openingWealthBuilding) + roundMoney(openingEmergencyFund)
+    roundMoney(openingWealthBuilding) +
+      roundMoney(openingEmergencyFund) +
+      roundMoney(currentWealthBuildingPosition) +
+      roundMoney(currentEmergencyFundPosition)
   );
 }
 
@@ -41,11 +54,19 @@ export function totalEmergencyFund(
 export function protectedExceedsAvailable(
   openingWealthBuilding: number,
   openingEmergencyFund: number,
-  moneyAvailable: number
+  moneyAvailable: number,
+  currentWealthBuildingPosition = 0,
+  currentEmergencyFundPosition = 0
 ): boolean {
   return (
-    cents(totalProtectedMoney(openingWealthBuilding, openingEmergencyFund)) >
-    cents(moneyAvailable)
+    cents(
+      totalProtectedMoney(
+        openingWealthBuilding,
+        openingEmergencyFund,
+        currentWealthBuildingPosition,
+        currentEmergencyFundPosition
+      )
+    ) > cents(moneyAvailable)
   );
 }
 
@@ -56,7 +77,9 @@ export function protectedExceedsAvailable(
 export function protectedDesignationError(
   openingWealthBuilding: number,
   openingEmergencyFund: number,
-  moneyAvailable: number
+  moneyAvailable: number,
+  currentWealthBuildingPosition = 0,
+  currentEmergencyFundPosition = 0
 ): string | null {
   if (
     !Number.isFinite(openingWealthBuilding) ||
@@ -70,7 +93,9 @@ export function protectedDesignationError(
     protectedExceedsAvailable(
       openingWealthBuilding,
       openingEmergencyFund,
-      moneyAvailable
+      moneyAvailable,
+      currentWealthBuildingPosition,
+      currentEmergencyFundPosition
     )
   ) {
     return "Protected designations exceed your current Money Available. Update your protected amounts or Financial Position.";

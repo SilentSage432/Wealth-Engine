@@ -317,7 +317,10 @@ describe("downstream financial position", () => {
     const engine = readFileSync(resolve(process.cwd(), "hooks/useBabylonEngine.ts"), "utf8");
     expect(planned).not.toContain("balance-observation");
     expect(engine).toContain("livingBudgetRemaining(");
-    const close = engine.slice(engine.indexOf("const closeMonth"), engine.indexOf("const previewAllocation"));
+    const close = engine.slice(
+      engine.indexOf("const closeMonth"),
+      engine.indexOf("const addAccount")
+    );
     expect(close).not.toContain("operationalMoneyAvailable");
     expect(close).not.toContain("deriveEffective");
     const dashboard = readFileSync(

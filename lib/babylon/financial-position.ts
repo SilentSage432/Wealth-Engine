@@ -4,11 +4,13 @@
  * A cached bank balance is a separate observation and does not write these balances.
  */
 
+import { isFinancialAccountPurpose } from "@/lib/babylon/account-purpose";
 import { roundMoney, todayIso } from "@/lib/babylon/engine";
 import type {
   FinancialAccount,
   FinancialAccountInput,
   FinancialAccountKind,
+  FinancialAccountPurpose,
   PersistedState,
 } from "@/types/babylon";
 
@@ -66,7 +68,7 @@ export function formatAsOfLabel(
 }
 
 export function normalizeAccountDraft(
-  input: FinancialAccountInput,
+  input: FinancialAccountInput & { purpose?: FinancialAccountPurpose },
   id: string
 ): FinancialAccount | null {
   const name = input.name.trim();
@@ -74,14 +76,24 @@ export function normalizeAccountDraft(
   if (!isFinancialAccountKind(input.kind)) return null;
   if (!Number.isFinite(input.balance) || input.balance < 0) return null;
   if (!isLocalIsoDate(input.asOf)) return null;
+  if (
+    input.purpose !== undefined &&
+    !isFinancialAccountPurpose(input.purpose)
+  ) {
+    return null;
+  }
 
-  return {
+  const account: FinancialAccount = {
     id,
     name,
     kind: input.kind,
     balance: roundMoney(input.balance),
     asOf: input.asOf,
   };
+  if (input.purpose !== undefined) {
+    account.purpose = input.purpose;
+  }
+  return account;
 }
 
 /** Declaration sum. Operational Money Available is derived beside balance evidence. */
