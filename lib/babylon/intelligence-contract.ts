@@ -21,6 +21,10 @@ import {
   deriveEffectiveMoneyAvailable,
   type BalanceObservationPublic,
 } from "@/lib/babylon/balance-observation";
+import {
+  deriveDeployablePosition,
+  deriveDeployableProtected,
+} from "@/lib/babylon/account-restriction";
 import { realtimeBalanceAge } from "@/lib/babylon/foreground-balance-refresh";
 import { sumAccountBalances } from "@/lib/babylon/financial-position";
 import { civilDateInTimeZone } from "@/lib/babylon/notification-delivery";
@@ -189,9 +193,16 @@ export function assembleIntelligenceContract(input: IntelligenceContractInput) {
     state.openingWealthBuilding,
     state.openingEmergencyFund
   );
+  const deployablePosition = deriveDeployablePosition(state.accounts, positions);
+  const deployableProtected = deriveDeployableProtected(
+    state.accounts,
+    positions,
+    state.openingWealthBuilding,
+    state.openingEmergencyFund
+  );
   const available = deriveAvailableAfterPlannedNeeds({
-    moneyAvailable,
-    protectedMoney: openingProtected,
+    deployablePosition,
+    deployableProtected,
     upcomingNeeds,
   });
   const trackedWealth = sumMoney(state.allocations.map((allocation) => allocation.wealth));

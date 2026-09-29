@@ -524,9 +524,9 @@ describe("cloud vault foundation", () => {
 
   it("keeps backup version 6 free of cloud identity", () => {
     const backup = buildLedgerBackup(occupiedState());
-    expect(LEDGER_BACKUP_VERSION).toBe(8);
+    expect(LEDGER_BACKUP_VERSION).toBe(9);
     expect(CLOUD_VAULT_SCHEMA_VERSION).toBe(6);
-    expect(backup.version).toBe(8);
+    expect(backup.version).toBe(9);
     const keys = Object.keys(backup);
     expect(keys).not.toContain("revision");
     expect(keys).not.toContain("userId");

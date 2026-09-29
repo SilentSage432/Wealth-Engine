@@ -1,5 +1,22 @@
 # Development Journal
 
+## 2026-09-29 — WE-RESTRICTED-POSITION-003 owned vs unavailable vs deployable
+
+### What changed
+- Optional steward `FinancialAccount.restrictedAmount` (Unavailable). OWNED ≠ DEPLOYABLE. EAP unchanged by restriction.
+- Money Available remains Σ full EAP (owned liquid). Deployable / DeployableProtected / FreeBeforeNeeds feed AAPN (Candidate A).
+- ProtectedOwned keeps full purpose positions + residual openings. Residuals stay fully DeployableProtected (location UNKNOWN).
+- Restriction conflict when declared > EAP: keep declaration, effective min, deployable 0, inline UI only.
+- Backup version 9. Cloud schema 6 soft field. No SQL. IC v3 unchanged. Plaid `available` not used. No Expenses purpose, Attention, or credit-card model.
+
+### Validation
+- Focused restriction + AAPN + persistence tests passed.
+- Full suite: 48 files, 660 tests passed.
+- `tsc --noEmit` passed; eslint on touched files clean; production build passed; `git diff --check` clean.
+
+### Not in this tranche
+- No commit, push, deploy, or Supabase work.
+
 ## 2026-09-29 — WE-WEALTH-POSITION-003 account-backed purpose position
 
 ### What changed

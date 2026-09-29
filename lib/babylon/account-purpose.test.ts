@@ -241,8 +241,8 @@ describe("Protected composition with purpose positions", () => {
   it("AAPN example A = 700", () => {
     const protectedMoney = totalProtectedMoney(0, 0, 2000, 1000);
     const planned = deriveAvailableAfterPlannedNeeds({
-      moneyAvailable: 4500,
-      protectedMoney,
+      deployablePosition: 4500,
+      deployableProtected: protectedMoney,
       upcomingNeeds: 800,
     });
     expect(protectedMoney).toBe(3000);
@@ -252,8 +252,8 @@ describe("Protected composition with purpose positions", () => {
   it("AAPN example B = 200", () => {
     const protectedMoney = totalProtectedMoney(500, 0, 2000, 1000);
     const planned = deriveAvailableAfterPlannedNeeds({
-      moneyAvailable: 4500,
-      protectedMoney,
+      deployablePosition: 4500,
+      deployableProtected: protectedMoney,
       upcomingNeeds: 800,
     });
     expect(protectedMoney).toBe(3500);
@@ -262,8 +262,8 @@ describe("Protected composition with purpose positions", () => {
 });
 
 describe("purpose backup and cloud versions", () => {
-  it("exports backup version 8 and keeps cloud schema 6", () => {
-    expect(LEDGER_BACKUP_VERSION).toBe(8);
+  it("exports backup version 9 and keeps cloud schema 6", () => {
+    expect(LEDGER_BACKUP_VERSION).toBe(9);
     expect(CLOUD_VAULT_SCHEMA_VERSION).toBe(6);
     const backup = buildLedgerBackup({
       ...EMPTY_STATE,
@@ -276,7 +276,7 @@ describe("purpose backup and cloud versions", () => {
         }),
       ],
     });
-    expect(backup.version).toBe(8);
+    expect(backup.version).toBe(9);
     expect(backup.accounts?.[0]?.purpose).toBe("wealth_building");
   });
 

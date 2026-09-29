@@ -299,8 +299,8 @@ describe("downstream financial position", () => {
     );
     expect(protectedDesignationError(50, 0, money)).not.toBeNull();
     const planned = deriveAvailableAfterPlannedNeeds({
-      moneyAvailable: money,
-      protectedMoney: 10,
+      deployablePosition: money,
+      deployableProtected: 10,
       upcomingNeeds: 50,
     });
     expect(planned.availableAfterPlannedNeeds).toBe(0);

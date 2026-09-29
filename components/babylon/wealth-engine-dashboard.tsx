@@ -146,6 +146,7 @@ export function WealthEngineDashboard() {
     <FinancialPosition
       accounts={engine.accounts}
       moneyAvailable={engine.moneyAvailable}
+      restrictedEffectiveTotal={engine.restrictedEffectiveTotal}
       openingWealthBuilding={engine.openingWealthBuilding}
       openingEmergencyFund={engine.openingEmergencyFund}
       protectedMoney={engine.protectedMoney}
@@ -481,6 +482,7 @@ export function WealthEngineDashboard() {
                 onCheckCloud={engine.confirmCloudCheck}
                 accounts={engine.accounts}
                 moneyAvailable={engine.moneyAvailable}
+                restrictedEffectiveTotal={engine.restrictedEffectiveTotal}
                 openingWealthBuilding={engine.openingWealthBuilding}
                 openingEmergencyFund={engine.openingEmergencyFund}
                 protectedMoney={engine.protectedMoney}

@@ -231,8 +231,8 @@ describe("intelligence contract", () => {
       balanceEvidence: READY_EMPTY,
     });
     const available = deriveAvailableAfterPlannedNeeds({
-      moneyAvailable: 1000,
-      protectedMoney: totalProtectedMoney(15, 5),
+      deployablePosition: 1000,
+      deployableProtected: totalProtectedMoney(15, 5),
       upcomingNeeds: 100,
     });
     expect(contract.available_after_planned_needs.available_cents).toBe(

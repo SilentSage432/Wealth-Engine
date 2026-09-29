@@ -124,6 +124,12 @@ export interface FinancialAccount {
    * At most one protected purpose. Not proof of movement or allocation execution.
    */
   purpose?: FinancialAccountPurpose;
+  /**
+   * Steward-declared amount of this account's owned position that is presently
+   * unavailable for deployment. Optional. Not purpose, debt, movement, or
+   * Plaid available. Zero is omitted.
+   */
+  restrictedAmount?: number;
 }
 
 /**
@@ -158,6 +164,8 @@ export interface FinancialAccountInput {
   kind: FinancialAccountKind;
   balance: number;
   asOf: string;
+  /** Optional. Absent or zero clears restriction. */
+  restrictedAmount?: number;
 }
 
 /** Lightweight Command Deck activity feed item. */
@@ -454,8 +462,10 @@ export interface ExpenseInput {
  * remainingDebt as authoritative without confirmation.
  * Version 8 stores optional FinancialAccount purpose. Older builds reject
  * version 8 instead of stripping purpose on round-trip.
+ * Version 9 stores optional FinancialAccount restrictedAmount. Older builds
+ * reject version 9 instead of stripping restriction on round-trip.
  */
-export type LedgerBackupVersion = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
+export type LedgerBackupVersion = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
 
 export interface LedgerBackup {
   version: LedgerBackupVersion;

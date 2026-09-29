@@ -57,7 +57,17 @@ export function recordedDebtExplain(remainingDebt: number): string {
 }
 
 export function availableAfterPlannedNeedsExplain(): string {
-  return "After already-set-aside money and known unpaid Needs. Does not subtract debt, Wants, Living Budget, or past allocations. Not a promise the remainder is safe to spend.";
+  return "Of money available to use after unavailable amounts and already-set-aside Wealth/Emergency designations, then after known unpaid Needs. Unavailable and Already Set Aside may overlap. Does not subtract debt, Wants, Living Budget, or past allocations. Not a promise the remainder is safe to spend.";
+}
+
+/** Aggregate label when some owned liquid is steward-unavailable. */
+export const UNAVAILABLE_LABEL = "Unavailable";
+
+export function unavailableExplain(unavailableTotal: number): string {
+  if (unavailableTotal <= 0) {
+    return "No unavailable amount declared.";
+  }
+  return "Of Money Available, presently unavailable for deployment. Still owned. Not Already Set Aside, debt, or borrowing capacity.";
 }
 
 export const WEALTH_BUILDING_POSITIONED_LABEL = "Wealth Building";
@@ -89,6 +99,7 @@ export function composeAlreadySetAside(input: {
 
 /**
  * Recorded debt is sibling context. It must not change Money Available or AAPN.
+ * When deployable fields are omitted, assumes no restriction (legacy identity).
  */
 export function composePositionWithRecordedDebt(input: {
   moneyAvailable: number;
@@ -98,6 +109,8 @@ export function composePositionWithRecordedDebt(input: {
   debts: readonly DebtEntry[];
   currentWealthBuildingPosition?: number;
   currentEmergencyFundPosition?: number;
+  deployablePosition?: number;
+  deployableProtected?: number;
 }): {
   moneyAvailable: number;
   alreadySetAside: number;
@@ -111,9 +124,11 @@ export function composePositionWithRecordedDebt(input: {
     currentWealthBuildingPosition: input.currentWealthBuildingPosition,
     currentEmergencyFundPosition: input.currentEmergencyFundPosition,
   });
+  const deployablePosition = input.deployablePosition ?? input.moneyAvailable;
+  const deployableProtected = input.deployableProtected ?? alreadySetAside;
   const planned = deriveAvailableAfterPlannedNeeds({
-    moneyAvailable: input.moneyAvailable,
-    protectedMoney: alreadySetAside,
+    deployablePosition,
+    deployableProtected,
     upcomingNeeds: input.upcomingNeeds,
   });
   return {

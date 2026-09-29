@@ -39,8 +39,8 @@ import type {
   SurplusDisposition,
 } from "@/types/babylon";
 
-/** Current export version. Version 8 adds optional FinancialAccount purpose. */
-export const LEDGER_BACKUP_VERSION = 8 as const;
+/** Current export version. Version 9 adds optional FinancialAccount restrictedAmount. */
+export const LEDGER_BACKUP_VERSION = 9 as const;
 
 /** Local vault marker. 2 means `isSettled: false` is an Upcoming obligation. */
 export const EXPENSE_SEMANTICS_VERSION = 2 as const;
@@ -266,6 +266,23 @@ function parseFinancialAccountPurposeField(
   return mode === "strict" ? "invalid" : undefined;
 }
 
+/**
+ * Soft: invalid restriction dropped. Strict: invalid rejects the account row.
+ * Amount may exceed balance (conflict is derived later). Zero is omitted.
+ */
+function parseRestrictedAmountField(
+  value: unknown,
+  mode: "soft" | "strict"
+): number | undefined | "invalid" {
+  if (value === undefined || value === null) return undefined;
+  if (!isFiniteNumber(value) || value < 0) {
+    return mode === "strict" ? "invalid" : undefined;
+  }
+  const rounded = roundMoney(value);
+  if (rounded === 0) return undefined;
+  return rounded;
+}
+
 function parseFinancialAccount(
   value: unknown,
   mode: "soft" | "strict" = "soft"
@@ -280,6 +297,12 @@ function parseFinancialAccount(
   const purpose = parseFinancialAccountPurposeField(value.purpose, mode);
   if (purpose === "invalid") return null;
 
+  const restrictedAmount = parseRestrictedAmountField(
+    value.restrictedAmount,
+    mode
+  );
+  if (restrictedAmount === "invalid") return null;
+
   const account: FinancialAccount = {
     id: value.id,
     name: value.name.trim(),
@@ -289,6 +312,9 @@ function parseFinancialAccount(
   };
   if (purpose !== undefined) {
     account.purpose = purpose;
+  }
+  if (restrictedAmount !== undefined) {
+    account.restrictedAmount = restrictedAmount;
   }
   return account;
 }
@@ -593,7 +619,8 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
     raw.version !== 5 &&
     raw.version !== 6 &&
     raw.version !== 7 &&
-    raw.version !== 8
+    raw.version !== 8 &&
+    raw.version !== 9
   ) {
     return null;
   }
@@ -605,7 +632,7 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
   if (!incomes || !expenses || !debts) return null;
 
   // Versions 1 and 2 counted unsettled rows as spent. Mark them paid on import
-  // so a later save does not turn old spending into Upcoming. Versions 3–8
+  // so a later save does not turn old spending into Upcoming. Versions 3–9
   // keep Upcoming unpaid.
   const settledExpenses =
     raw.version === 3 ||
@@ -613,7 +640,8 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
     raw.version === 5 ||
     raw.version === 6 ||
     raw.version === 7 ||
-    raw.version === 8
+    raw.version === 8 ||
+    raw.version === 9
       ? expenses
       : settleLegacyExpenses(expenses);
 
@@ -670,9 +698,10 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
     typeof raw.displayName === "string" ? raw.displayName : "";
 
   // Version 1 has no account contract. Ignore any stray `accounts` field so a
-  // version-1 file cannot smuggle balances. Versions 2–8 require a valid list;
-  // one bad row rejects the whole backup. Versions ≤7 strip purpose.
-  // Version 8 keeps valid purpose and rejects unknown purpose.
+  // version-1 file cannot smuggle balances. Versions 2–9 require a valid list;
+  // one bad row rejects the whole backup. Versions ≤7 strip purpose and
+  // restriction. Version 8 keeps purpose and strips restriction. Version 9
+  // keeps purpose and restrictedAmount; rejects invalid optional fields.
   let accounts: FinancialAccount[] = [];
   if (
     raw.version === 2 ||
@@ -681,29 +710,46 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
     raw.version === 5 ||
     raw.version === 6 ||
     raw.version === 7 ||
-    raw.version === 8
+    raw.version === 8 ||
+    raw.version === 9
   ) {
     if (raw.accounts === undefined) return null;
     const parsed =
-      raw.version === 8
+      raw.version === 9
         ? parseArray(raw.accounts, (row) => parseFinancialAccount(row, "strict"))
-        : parseArray(raw.accounts, (row) => {
-            const account = parseFinancialAccount(row, "soft");
-            if (!account) return null;
-            return {
-              id: account.id,
-              name: account.name,
-              kind: account.kind,
-              balance: account.balance,
-              asOf: account.asOf,
-            };
-          });
+        : raw.version === 8
+          ? parseArray(raw.accounts, (row) => {
+              const account = parseFinancialAccount(row, "strict");
+              if (!account) return null;
+              const stripped: FinancialAccount = {
+                id: account.id,
+                name: account.name,
+                kind: account.kind,
+                balance: account.balance,
+                asOf: account.asOf,
+              };
+              if (account.purpose !== undefined) {
+                stripped.purpose = account.purpose;
+              }
+              return stripped;
+            })
+          : parseArray(raw.accounts, (row) => {
+              const account = parseFinancialAccount(row, "soft");
+              if (!account) return null;
+              return {
+                id: account.id,
+                name: account.name,
+                kind: account.kind,
+                balance: account.balance,
+                asOf: account.asOf,
+              };
+            });
     if (!parsed) return null;
     accounts = parsed;
   }
 
   // Versions 1–3 have no protected-designation contract. Force zero even if
-  // stray fields are present. Versions 4–8 must include both amounts; a
+  // stray fields are present. Versions 4–9 must include both amounts; a
   // missing field rejects the backup instead of silently dropping a designation.
   let openingWealthBuilding = 0;
   let openingEmergencyFund = 0;
@@ -712,7 +758,8 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
     raw.version === 5 ||
     raw.version === 6 ||
     raw.version === 7 ||
-    raw.version === 8
+    raw.version === 8 ||
+    raw.version === 9
   ) {
     const wealth = nonNegativeMoney(raw.openingWealthBuilding);
     const emergency = nonNegativeMoney(raw.openingEmergencyFund);
@@ -722,14 +769,15 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
   }
 
   // Versions 1–4 have no recurring-rule contract. Force an empty list even if
-  // stray rules are present. Versions 5–8 must include the list; a missing
+  // stray rules are present. Versions 5–9 must include the list; a missing
   // list rejects the backup instead of silently dropping recurrence.
   let recurringObligations: RecurringObligation[] = [];
   if (
     raw.version === 5 ||
     raw.version === 6 ||
     raw.version === 7 ||
-    raw.version === 8
+    raw.version === 8 ||
+    raw.version === 9
   ) {
     if (raw.recurringObligations === undefined) return null;
     const parsed = parseArray(raw.recurringObligations, parseRecurringObligation);
@@ -738,10 +786,15 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
   }
 
   // Versions 1–5 have no monthly-plan contract. Force an empty list even if
-  // stray revisions are present. Versions 6–8 must include the list; a missing
+  // stray revisions are present. Versions 6–9 must include the list; a missing
   // or corrupt list rejects the backup instead of dropping historical intent.
   let monthlyPlans: MonthlyPlanRevision[] = [];
-  if (raw.version === 6 || raw.version === 7 || raw.version === 8) {
+  if (
+    raw.version === 6 ||
+    raw.version === 7 ||
+    raw.version === 8 ||
+    raw.version === 9
+  ) {
     if (raw.monthlyPlans === undefined) return null;
     const parsed = parseArray(raw.monthlyPlans, parseMonthlyPlanRevision);
     if (!parsed) return null;
@@ -750,11 +803,11 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
 
   // Versions 1–6 have no debt-position epoch contract. Soft-migrate to legacy
   // semantics when debts exist (fail-closed: modeled remaining is NOT treated
-  // as authoritative). Versions 7–8 require explicit epoch fields.
+  // as authoritative). Versions 7–9 require explicit epoch fields.
   let debtSemanticsVersion: 1 | 2 = DEBT_SEMANTICS_LEGACY;
   let debtPositionEpochAt: string | null = null;
   let debtPurposeAttributions: DebtPurposeAttribution[] = [];
-  if (raw.version === 7 || raw.version === 8) {
+  if (raw.version === 7 || raw.version === 8 || raw.version === 9) {
     if (
       raw.debtSemanticsVersion !== DEBT_SEMANTICS_LEGACY &&
       raw.debtSemanticsVersion !== DEBT_SEMANTICS_POSITION

@@ -57,6 +57,11 @@ import {
   FINANCIAL_ACCOUNT_PURPOSES,
 } from "@/lib/babylon/account-purpose";
 import {
+  accountDeployableBalance,
+  hasRestrictionConflict,
+  restrictedDeclared,
+} from "@/lib/babylon/account-restriction";
+import {
   ALREADY_SET_ASIDE_LABEL,
   AVAILABLE_AFTER_PLANNED_NEEDS_LABEL,
   availableAfterPlannedNeedsExplain,
@@ -70,6 +75,8 @@ import {
   MONEY_AVAILABLE_SCOPE,
   RECORDED_DEBT_LABEL,
   recordedDebtExplain,
+  UNAVAILABLE_LABEL,
+  unavailableExplain,
   UPCOMING_NEEDS_LABEL,
   WEALTH_BUILDING_POSITIONED_LABEL,
 } from "@/lib/babylon/financial-position-composition";
@@ -112,6 +119,8 @@ type PurposeClearResult =
 interface FinancialPositionProps {
   accounts: FinancialAccount[];
   moneyAvailable: number;
+  /** Aggregate steward-unavailable effective total. */
+  restrictedEffectiveTotal?: number;
   openingWealthBuilding: number;
   openingEmergencyFund: number;
   protectedMoney: number;
@@ -151,6 +160,7 @@ const EMPTY_DRAFT = {
   kind: "checking" as FinancialAccountKind,
   balance: "",
   asOf: "",
+  restrictedAmount: "",
 };
 
 function AccountObservation({
@@ -304,6 +314,7 @@ function AccountObservation({
 export function FinancialPosition({
   accounts,
   moneyAvailable,
+  restrictedEffectiveTotal = 0,
   openingWealthBuilding,
   openingEmergencyFund,
   protectedMoney,
@@ -392,6 +403,10 @@ export function FinancialPosition({
       kind: account.kind,
       balance: String(account.balance),
       asOf: account.asOf,
+      restrictedAmount:
+        account.restrictedAmount !== undefined
+          ? String(account.restrictedAmount)
+          : "",
     });
     setFormError(null);
     setEditorOpen(true);
@@ -404,17 +419,23 @@ export function FinancialPosition({
 
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
+    const restrictedRaw = draft.restrictedAmount.trim();
+    const restrictedParsed =
+      restrictedRaw === "" ? 0 : Number.parseFloat(restrictedRaw);
     const input: FinancialAccountInput = {
       name: draft.name,
       kind: draft.kind,
       balance: Number.parseFloat(draft.balance),
       asOf: draft.asOf,
+      restrictedAmount: restrictedParsed,
     };
     const ok = editingId
       ? onUpdateAccount(editingId, input)
       : onAddAccount(input);
     if (!ok) {
-      setFormError("Enter a name, a balance of zero or more, and an updated date.");
+      setFormError(
+        "Enter a name, a balance of zero or more, an updated date, and unavailable of zero or more."
+      );
       return;
     }
     closeEditor();
@@ -508,6 +529,16 @@ export function FinancialPosition({
             account,
             load: balanceObservation?.load,
           });
+          const declaredUnavailable = restrictedDeclared(account);
+          const accountAvailable = accountDeployableBalance(
+            accountPosition.balance,
+            declaredUnavailable
+          );
+          const restrictionConflict = hasRestrictionConflict(
+            accountPosition.balance,
+            declaredUnavailable
+          );
+          const showUnavailable = declaredUnavailable > 0;
           return (
           <li
             key={account.id}
@@ -528,6 +559,38 @@ export function FinancialPosition({
               {account.purpose ? (
                 <p className="mt-1 text-[11px] font-medium text-emerald-300/90">
                   {accountPurposeLabel(account.purpose)}
+                </p>
+              ) : null}
+              {showUnavailable ? (
+                <dl className="mt-2 space-y-0.5 text-[11px] text-slate-400">
+                  <div className="flex items-baseline justify-between gap-3 max-w-xs">
+                    <dt>Position</dt>
+                    <dd className="tabular-nums text-slate-200">
+                      {money(accountPosition.balance)}
+                    </dd>
+                  </div>
+                  <div className="flex items-baseline justify-between gap-3 max-w-xs">
+                    <dt>{UNAVAILABLE_LABEL}</dt>
+                    <dd className="tabular-nums text-slate-200">
+                      {money(declaredUnavailable)}
+                    </dd>
+                  </div>
+                  <div className="flex items-baseline justify-between gap-3 max-w-xs">
+                    <dt>Available</dt>
+                    <dd className="tabular-nums text-slate-200">
+                      {money(accountAvailable)}
+                    </dd>
+                  </div>
+                </dl>
+              ) : null}
+              {restrictionConflict ? (
+                <p
+                  role="alert"
+                  className="mt-2 max-w-xs text-[11px] leading-relaxed text-amber-200"
+                >
+                  The declared unavailable amount is greater than the current
+                  account position. Unavailable money is still owned; available
+                  from this account is zero until the amounts agree.
                 </p>
               ) : null}
               <div className="mt-2 max-w-xs">
@@ -650,6 +713,17 @@ export function FinancialPosition({
               <p className="mt-1 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight text-slate-50 tabular-nums sm:text-4xl">
                 {money(moneyAvailable)}
               </p>
+              {restrictedEffectiveTotal > 0 ? (
+                <p className="mt-2 text-xs leading-relaxed text-slate-400">
+                  {UNAVAILABLE_LABEL}{" "}
+                  <span className="tabular-nums text-slate-200">
+                    {money(restrictedEffectiveTotal)}
+                  </span>
+                  <span className="mt-1 block text-slate-500">
+                    {unavailableExplain(restrictedEffectiveTotal)}
+                  </span>
+                </p>
+              ) : null}
               <p className="mt-2 max-w-xl text-xs leading-relaxed text-slate-500">
                 {MONEY_AVAILABLE_SCOPE}{" "}
                 {describeMoneyAvailableEvidence({
@@ -952,6 +1026,32 @@ export function FinancialPosition({
                   required
                 />
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="account-unavailable">Unavailable</Label>
+              <Input
+                id="account-unavailable"
+                type="number"
+                min="0"
+                step="0.01"
+                inputMode="decimal"
+                value={draft.restrictedAmount}
+                onChange={(event) =>
+                  setDraft((prev) => ({
+                    ...prev,
+                    restrictedAmount: event.target.value,
+                  }))
+                }
+                placeholder="0"
+                aria-describedby="account-unavailable-hint"
+              />
+              <p
+                id="account-unavailable-hint"
+                className="text-[11px] leading-relaxed text-slate-500"
+              >
+                How much of this account is currently unavailable? Still owned.
+                Not a purpose, and not inferred from your bank.
+              </p>
             </div>
             {formError && (
               <p role="alert" className="text-xs text-rose-300">

@@ -248,7 +248,7 @@ describe("import / backup fail-closed", () => {
     };
     const backup = buildLedgerBackup(state);
     expect(backup.version).toBe(LEDGER_BACKUP_VERSION);
-    expect(LEDGER_BACKUP_VERSION).toBe(8);
+    expect(LEDGER_BACKUP_VERSION).toBe(9);
     const restored = validateLedgerBackup(backup);
     expect(restored?.debtSemanticsVersion).toBe(DEBT_SEMANTICS_POSITION);
     expect(restored?.debtPositionEpochAt).toBe("2026-09-29T12:00:00.000Z");

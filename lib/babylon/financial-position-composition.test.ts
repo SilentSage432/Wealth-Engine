@@ -83,8 +83,8 @@ describe("Financial Position composition", () => {
 
   it("keeps the AAPN formula unchanged", () => {
     const planned = deriveAvailableAfterPlannedNeeds({
-      moneyAvailable: 3600,
-      protectedMoney: 500,
+      deployablePosition: 3600,
+      deployableProtected: 500,
       upcomingNeeds: 1000,
     });
     expect(planned.availableAfterPlannedNeeds).toBe(2100);

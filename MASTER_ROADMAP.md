@@ -54,6 +54,7 @@ A personal ledger that splits income 10% to Wealth Building, 20% to Debt Payoff,
 - [x] Financial Position — local manual account balances and Money Available, separate from 10/20/70 (WE-BUDGET-002)
 - [x] Financial Position composition (WE-FINANCIAL-POSITION-003). Review candidate. Liquid scope copy (not net worth); Already Set Aside for existing designations; Recorded Debt sibling context without netting against Money Available or AAPN. No schema, account-kind, or formula change
 - [x] Account-backed Wealth / Emergency purpose position (WE-WEALTH-POSITION-003). Review candidate. Optional `FinancialAccount.purpose`; compose positions from EffectiveAccountPosition; Protected = positions + residual openings with first-designation reconciliation; backup v8; cloud schema 6; no SQL; IC v3 unchanged; movement/Attention deferred
+- [x] Owned vs unavailable vs deployable (WE-RESTRICTED-POSITION-003). Review candidate. Optional `FinancialAccount.restrictedAmount`; Money Available stays owned EAP sum; AAPN uses Deployable − DeployableProtected − Needs; backup v9; cloud schema 6; no SQL; IC v3 unchanged; no Expenses purpose / credit-card / Attention
 - [x] Allocation ≠ Execution semantic lock (WE-ALLOCATION-EXECUTION-002). Review candidate. Purpose vs execution vs position vs observation; truthful copy; debt waterfall documented as modeled purpose progress (historical compatibility). No math, schema, or persistence change. Settlement / payment-instrument work blocked until compatibility is deliberately resolved
 - [x] WE-ALLOCATION-EXECUTION-005 combined minimal debt PURPOSE + POSITION transition. Accepted. Steward all-or-nothing rebase; post-epoch allocation does not mutate authoritative owed; per-creditor purpose attribution; backup v7; cloud schema 6 soft fields; no debt execution
 - [x] Paid vs Upcoming — settled spending, upcoming Needs, one-time legacy migration (WE-BUDGET-003)
@@ -119,6 +120,7 @@ Canonical map: [`ARCHITECTURE.md`](./ARCHITECTURE.md) (layers, dependency rules,
 | Allocation math | `lib/babylon/engine.ts` |
 | Financial Position (manual balances, Money Available) | `lib/babylon/financial-position.ts` |
 | Account purpose / purpose position | `lib/babylon/account-purpose.ts` |
+| Account restriction / deployable | `lib/babylon/account-restriction.ts` |
 | Balance observation and account association | `lib/babylon/balance-observation.ts` |
 | Existing protected money | `lib/babylon/protected-money.ts` |
 | Monthly recurring obligations | `lib/babylon/recurring-obligations.ts` |

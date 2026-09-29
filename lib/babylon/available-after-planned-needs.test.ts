@@ -23,13 +23,13 @@ import {
 import type { ExpenseEntry, FinancialAccount, RecurringObligation } from "@/types/babylon";
 
 function derive(
-  moneyAvailable: number,
-  protectedMoney: number,
+  deployablePosition: number,
+  deployableProtected: number,
   upcomingNeeds: number
 ) {
   return deriveAvailableAfterPlannedNeeds({
-    moneyAvailable,
-    protectedMoney,
+    deployablePosition,
+    deployableProtected,
     upcomingNeeds,
   });
 }
@@ -77,11 +77,14 @@ describe("available after planned needs", () => {
     expect(result.plannedNeedsShortfall).toBe(200);
   });
 
-  it("does not rewrite protected money when it exceeds money available", () => {
+  it("does not rewrite protected money when it exceeds deployable", () => {
     const stored = { openingWealthBuilding: 500, openingEmergencyFund: 0 };
+    // FreeBeforeNeeds floors at 0 when DeployableProtected exceeds Deployable.
+    // Needs shortfall is only unmet Needs against that zero base (not Protected excess).
     const result = derive(400, totalProtectedMoney(500, 0), 100);
+    expect(result.freeBeforeNeeds).toBe(0);
     expect(result.availableAfterPlannedNeeds).toBe(0);
-    expect(result.plannedNeedsShortfall).toBe(200);
+    expect(result.plannedNeedsShortfall).toBe(100);
     expect(stored.openingWealthBuilding).toBe(500);
   });
 
@@ -245,7 +248,7 @@ describe("available after planned needs", () => {
       expenses: [need({ id: "rent", amount: 650 })],
     };
     const backup = buildLedgerBackup(state);
-    expect(backup.version).toBe(8);
+    expect(backup.version).toBe(9);
     expect(backup.version).toBe(LEDGER_BACKUP_VERSION);
     const serialized = JSON.stringify(backup);
     expect(serialized).not.toContain("availableAfterPlannedNeeds");

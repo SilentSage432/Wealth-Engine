@@ -82,6 +82,12 @@ export function normalizeAccountDraft(
   ) {
     return null;
   }
+  if (
+    input.restrictedAmount !== undefined &&
+    (!Number.isFinite(input.restrictedAmount) || input.restrictedAmount < 0)
+  ) {
+    return null;
+  }
 
   const account: FinancialAccount = {
     id,
@@ -92,6 +98,12 @@ export function normalizeAccountDraft(
   };
   if (input.purpose !== undefined) {
     account.purpose = input.purpose;
+  }
+  if (
+    input.restrictedAmount !== undefined &&
+    input.restrictedAmount > 0
+  ) {
+    account.restrictedAmount = roundMoney(input.restrictedAmount);
   }
   return account;
 }

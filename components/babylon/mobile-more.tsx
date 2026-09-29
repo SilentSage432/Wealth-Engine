@@ -77,6 +77,7 @@ interface MobileMoreProps {
   onCheckCloud: () => void | Promise<void>;
   accounts: FinancialAccount[];
   moneyAvailable: number;
+  restrictedEffectiveTotal?: number;
   openingWealthBuilding: number;
   openingEmergencyFund: number;
   protectedMoney: number;
@@ -145,6 +146,7 @@ export function MobileMore({
   onCheckCloud,
   accounts,
   moneyAvailable,
+  restrictedEffectiveTotal = 0,
   openingWealthBuilding,
   openingEmergencyFund,
   protectedMoney,
@@ -176,6 +178,7 @@ export function MobileMore({
           presentation="manage"
           accounts={accounts}
           moneyAvailable={moneyAvailable}
+          restrictedEffectiveTotal={restrictedEffectiveTotal}
           openingWealthBuilding={openingWealthBuilding}
           openingEmergencyFund={openingEmergencyFund}
           protectedMoney={protectedMoney}

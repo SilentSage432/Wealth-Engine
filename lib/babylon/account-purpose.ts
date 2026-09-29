@@ -112,13 +112,17 @@ export function withAccountPurpose(
   purpose: FinancialAccountPurpose | undefined
 ): FinancialAccount {
   if (purpose === undefined) {
-    return {
+    const cleared: FinancialAccount = {
       id: account.id,
       name: account.name,
       kind: account.kind,
       balance: account.balance,
       asOf: account.asOf,
     };
+    if (account.restrictedAmount !== undefined) {
+      cleared.restrictedAmount = account.restrictedAmount;
+    }
+    return cleared;
   }
   return { ...account, purpose };
 }

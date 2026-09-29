@@ -6,7 +6,9 @@
 **Architecture map:** [`ARCHITECTURE.md`](./ARCHITECTURE.md) — layers, dependency rules, canonical ownership matrix.
 
 ## Current state
-WE-WEALTH-POSITION-003 is a **review candidate**. Steward `FinancialAccount.purpose` (`wealth_building` | `emergency_fund`; absent = ordinary liquid). Purpose positions compose from EffectiveAccountPosition. Already Set Aside = purpose positions + residual openings after first-designation reconciliation. MA unchanged by purpose. Backup v8; cloud schema 6; no SQL; IC v3 unchanged. Movement/Attention deferred. goldRetained / emergencyShield remain historical, not position.
+WE-RESTRICTED-POSITION-003 is a **review candidate**. Steward `FinancialAccount.restrictedAmount` (Unavailable). OWNED ≠ DEPLOYABLE. Money Available remains full EAP sum. AAPN uses Deployable − DeployableProtected − Upcoming Needs. ProtectedOwned keeps full purpose positions. Backup v9; cloud schema 6; no SQL; IC v3 unchanged. Plaid `available` does not establish restriction.
+
+WE-WEALTH-POSITION-003 is a **review candidate**. Steward `FinancialAccount.purpose` (`wealth_building` | `emergency_fund`; absent = ordinary liquid). Purpose positions compose from EffectiveAccountPosition. Already Set Aside = purpose positions + residual openings after first-designation reconciliation. MA unchanged by purpose. Movement/Attention deferred. goldRetained / emergencyShield remain historical, not position.
 
 WE-ALLOCATION-EXECUTION-005 is accepted and finalized on main. PURPOSE + POSITION separation for debt: after all-or-nothing steward rebase, `remainingDebt` is authoritative current owed and income/month-close debt purpose no longer mutates it. Per-creditor `DebtPurposeAttribution` on new allocations only. Legacy vaults with debts keep modeled mutation until every debt is declared. Cloud schema stays 6 with soft-added JSON keys (no SQL). Debt execution / settlement / payment instruments not implemented. Intelligence Contract v3 preserved with clarified remaining_cents derivation.
 

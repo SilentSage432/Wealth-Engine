@@ -80,6 +80,12 @@ import {
   withoutAccount,
 } from "@/lib/babylon/financial-position";
 import {
+  deriveDeployablePosition,
+  deriveDeployableProtected,
+  deriveRestrictedEffectiveTotal,
+  withAccountRestrictedAmount,
+} from "@/lib/babylon/account-restriction";
+import {
   protectedDesignationError,
   protectedExceedsAvailable,
   totalEmergencyFund,
@@ -751,6 +757,32 @@ export function useBabylonEngine() {
     ]
   );
 
+  const deployablePosition = useMemo(
+    () => deriveDeployablePosition(accounts, effectivePositions),
+    [accounts, effectivePositions]
+  );
+
+  const deployableProtected = useMemo(
+    () =>
+      deriveDeployableProtected(
+        accounts,
+        effectivePositions,
+        openingWealthBuilding,
+        openingEmergencyFund
+      ),
+    [
+      accounts,
+      effectivePositions,
+      openingWealthBuilding,
+      openingEmergencyFund,
+    ]
+  );
+
+  const restrictedEffectiveTotal = useMemo(
+    () => deriveRestrictedEffectiveTotal(accounts, effectivePositions),
+    [accounts, effectivePositions]
+  );
+
   const wealthBuildingTotal = useMemo(
     () => totalWealthBuilding(openingWealthBuilding, goldRetained),
     [openingWealthBuilding, goldRetained]
@@ -793,11 +825,11 @@ export function useBabylonEngine() {
   const availableAfterPlannedNeeds = useMemo(
     () =>
       deriveAvailableAfterPlannedNeeds({
-        moneyAvailable,
-        protectedMoney,
+        deployablePosition,
+        deployableProtected,
         upcomingNeeds,
       }),
-    [moneyAvailable, protectedMoney, upcomingNeeds]
+    [deployablePosition, deployableProtected, upcomingNeeds]
   );
 
   const comingUp = useMemo(() => comingUpObligations(expenses), [expenses]);
@@ -1662,11 +1694,37 @@ export function useBabylonEngine() {
       if (!existing) return false;
       const next = normalizeAccountDraft(input, id);
       if (!next) return false;
-      const preserved =
-        existing.purpose !== undefined
-          ? { ...next, purpose: existing.purpose }
-          : next;
+      let preserved = next;
+      if (existing.purpose !== undefined) {
+        preserved = { ...preserved, purpose: existing.purpose };
+      }
+      if (
+        input.restrictedAmount === undefined &&
+        existing.restrictedAmount !== undefined
+      ) {
+        preserved = {
+          ...preserved,
+          restrictedAmount: existing.restrictedAmount,
+        };
+      }
       setAccounts((prev) => replaceAccount(prev, id, preserved) ?? prev);
+      return true;
+    },
+    [accounts]
+  );
+
+  const setAccountRestrictedAmount = useCallback(
+    (accountId: string, restrictedAmount: number | undefined): boolean => {
+      const existing = accounts.find((account) => account.id === accountId);
+      if (!existing) return false;
+      if (
+        restrictedAmount !== undefined &&
+        (!Number.isFinite(restrictedAmount) || restrictedAmount < 0)
+      ) {
+        return false;
+      }
+      const next = withAccountRestrictedAmount(existing, restrictedAmount);
+      setAccounts((prev) => replaceAccount(prev, accountId, next) ?? prev);
       return true;
     },
     [accounts]
@@ -2182,6 +2240,9 @@ export function useBabylonEngine() {
     openingWealthBuilding,
     openingEmergencyFund,
     protectedMoney,
+    deployablePosition,
+    deployableProtected,
+    restrictedEffectiveTotal,
     wealthBuildingPosition,
     emergencyFundPosition,
     wealthBuildingTotal,
@@ -2230,6 +2291,7 @@ export function useBabylonEngine() {
     donutData,
     addAccount,
     updateAccount,
+    setAccountRestrictedAmount,
     removeAccount,
     setAccountPurpose,
     clearAccountPurpose,
