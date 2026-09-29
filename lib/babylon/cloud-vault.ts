@@ -14,9 +14,9 @@ import type { PersistedState } from "@/types/babylon";
 
 /**
  * Financial document generation. This is backup version 6 generation with
- * soft-added debt-position fields inside vault_data (no schemaVersion bump;
- * no SQL upgrade RPC). Older schema-6 documents missing the three debt keys
- * soft-migrate on read via normalizePersistedState.
+ * soft-added debt-position fields and paySchedules inside vault_data (no
+ * schemaVersion bump; no SQL upgrade RPC). Older schema-6 documents missing
+ * those soft keys soft-migrate on read via normalizePersistedState.
  */
 export const CLOUD_VAULT_SCHEMA_VERSION = 6 as const;
 
@@ -43,14 +43,16 @@ export const CLOUD_VAULT_DATA_KEYS = [
   "debtSemanticsVersion",
   "debtPositionEpochAt",
   "debtPurposeAttributions",
+  "paySchedules",
 ] as const satisfies readonly (keyof PersistedState)[];
 
-/** Schema-6 documents written before debt-position fields. Soft-filled on read. */
-const SCHEMA_6_WITHOUT_DEBT_KEYS = CLOUD_VAULT_DATA_KEYS.filter(
+/** Schema-6 documents written before debt-position fields and pay schedules. */
+const SCHEMA_6_CORE_KEYS = CLOUD_VAULT_DATA_KEYS.filter(
   (key) =>
     key !== "debtSemanticsVersion" &&
     key !== "debtPositionEpochAt" &&
-    key !== "debtPurposeAttributions"
+    key !== "debtPurposeAttributions" &&
+    key !== "paySchedules"
 );
 
 const DEBT_POSITION_CLOUD_KEYS = [
@@ -58,6 +60,8 @@ const DEBT_POSITION_CLOUD_KEYS = [
   "debtPositionEpochAt",
   "debtPurposeAttributions",
 ] as const;
+
+const PAY_SCHEDULE_CLOUD_KEYS = ["paySchedules"] as const;
 
 export type CloudVaultData = Pick<
   PersistedState,
@@ -350,12 +354,13 @@ export function serializeCloudVaultData(state: PersistedState): CloudVaultData {
     debtSemanticsVersion: state.debtSemanticsVersion,
     debtPositionEpochAt: state.debtPositionEpochAt,
     debtPurposeAttributions: state.debtPurposeAttributions,
+    paySchedules: state.paySchedules,
   };
 }
 
 /**
  * Accept a schema-6 document only when normalization would not change it,
- * except soft-filled debt-position keys on older schema-6 payloads.
+ * except soft-filled debt-position / paySchedules keys on older payloads.
  * A failure is null. It is not an empty vault.
  */
 export function parseCloudVaultData(raw: unknown): PersistedState | null {
@@ -364,29 +369,39 @@ export function parseCloudVaultData(raw: unknown): PersistedState | null {
   const hasDebtKeys = DEBT_POSITION_CLOUD_KEYS.every((key) =>
     Object.prototype.hasOwnProperty.call(raw, key)
   );
-  const expectedKeys = hasDebtKeys
-    ? CLOUD_VAULT_DATA_KEYS
-    : SCHEMA_6_WITHOUT_DEBT_KEYS;
-  if (keys.length !== expectedKeys.length) return null;
-  for (const key of expectedKeys) {
-    if (!Object.prototype.hasOwnProperty.call(raw, key)) return null;
-  }
+  const hasPaySchedules = Object.prototype.hasOwnProperty.call(
+    raw,
+    "paySchedules"
+  );
   // Reject partial debt-key presence (mixed / corrupt).
   if (!hasDebtKeys) {
     for (const key of DEBT_POSITION_CLOUD_KEYS) {
       if (Object.prototype.hasOwnProperty.call(raw, key)) return null;
     }
   }
+  let expectedKeys: readonly string[] = [...SCHEMA_6_CORE_KEYS];
+  if (hasDebtKeys) {
+    expectedKeys = [...expectedKeys, ...DEBT_POSITION_CLOUD_KEYS];
+  }
+  if (hasPaySchedules) {
+    expectedKeys = [...expectedKeys, ...PAY_SCHEDULE_CLOUD_KEYS];
+  }
+  if (keys.length !== expectedKeys.length) return null;
+  for (const key of expectedKeys) {
+    if (!Object.prototype.hasOwnProperty.call(raw, key)) return null;
+  }
   if (raw.expenseSemanticsVersion !== EXPENSE_SEMANTICS_VERSION) return null;
 
   const normalized = normalizePersistedState(raw);
   for (const key of expectedKeys) {
-    if (canonicalJson(raw[key]) !== canonicalJson(normalized[key])) return null;
+    if (canonicalJson(raw[key]) !== canonicalJson(normalized[key as keyof PersistedState])) {
+      return null;
+    }
   }
   return normalized;
 }
 
-const SCHEMA_5_DATA_KEYS = SCHEMA_6_WITHOUT_DEBT_KEYS.filter(
+const SCHEMA_5_DATA_KEYS = SCHEMA_6_CORE_KEYS.filter(
   (key) => key !== "monthlyPlans"
 );
 
@@ -400,6 +415,7 @@ export function parseSchema5VaultData(raw: unknown): PersistedState | null {
   for (const key of DEBT_POSITION_CLOUD_KEYS) {
     if (Object.prototype.hasOwnProperty.call(raw, key)) return null;
   }
+  if (Object.prototype.hasOwnProperty.call(raw, "paySchedules")) return null;
   const keys = Object.keys(raw);
   if (keys.length !== SCHEMA_5_DATA_KEYS.length) return null;
   for (const key of SCHEMA_5_DATA_KEYS) {
@@ -409,6 +425,7 @@ export function parseSchema5VaultData(raw: unknown): PersistedState | null {
 
   const normalized = normalizePersistedState(raw);
   if (normalized.monthlyPlans.length !== 0) return null;
+  if (normalized.paySchedules.length !== 0) return null;
   for (const key of SCHEMA_5_DATA_KEYS) {
     if (canonicalJson(raw[key]) !== canonicalJson(normalized[key])) return null;
   }

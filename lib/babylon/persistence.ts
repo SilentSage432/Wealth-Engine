@@ -17,6 +17,7 @@ import {
   isFinancialAccountKind,
   isLocalIsoDate,
 } from "@/lib/babylon/financial-position";
+import { parsePaySchedule } from "@/lib/babylon/pay-schedule";
 import type {
   AllocationEvent,
   ActivityEvent,
@@ -33,14 +34,15 @@ import type {
   IncomeStreamKind,
   LedgerBackup,
   MonthlyPlanRevision,
+  PaySchedule,
   PeriodArchive,
   PersistedState,
   RecurringObligation,
   SurplusDisposition,
 } from "@/types/babylon";
 
-/** Current export version. Version 9 adds optional FinancialAccount restrictedAmount. */
-export const LEDGER_BACKUP_VERSION = 9 as const;
+/** Current export version. Version 10 adds steward PaySchedule rules. */
+export const LEDGER_BACKUP_VERSION = 10 as const;
 
 /** Local vault marker. 2 means `isSettled: false` is an Upcoming obligation. */
 export const EXPENSE_SEMANTICS_VERSION = 2 as const;
@@ -559,6 +561,13 @@ export function normalizePersistedState(raw: unknown): PersistedState {
         .filter((row): row is DebtPurposeAttribution => row !== null)
     : [];
 
+  // Older vaults omit pay schedules. Never infer from IncomeEntry history.
+  const paySchedules = Array.isArray(raw.paySchedules)
+    ? raw.paySchedules
+        .map(parsePaySchedule)
+        .filter((row): row is PaySchedule => row !== null)
+    : [];
+
   const debtSemanticsVersion = resolveDebtSemanticsVersion(
     raw.debtSemanticsVersion,
     debts.length
@@ -601,6 +610,7 @@ export function normalizePersistedState(raw: unknown): PersistedState {
     debtSemanticsVersion,
     debtPositionEpochAt,
     debtPurposeAttributions,
+    paySchedules,
   };
 }
 
@@ -620,7 +630,8 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
     raw.version !== 6 &&
     raw.version !== 7 &&
     raw.version !== 8 &&
-    raw.version !== 9
+    raw.version !== 9 &&
+    raw.version !== 10
   ) {
     return null;
   }
@@ -632,7 +643,7 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
   if (!incomes || !expenses || !debts) return null;
 
   // Versions 1 and 2 counted unsettled rows as spent. Mark them paid on import
-  // so a later save does not turn old spending into Upcoming. Versions 3–9
+  // so a later save does not turn old spending into Upcoming. Versions 3–10
   // keep Upcoming unpaid.
   const settledExpenses =
     raw.version === 3 ||
@@ -641,7 +652,8 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
     raw.version === 6 ||
     raw.version === 7 ||
     raw.version === 8 ||
-    raw.version === 9
+    raw.version === 9 ||
+    raw.version === 10
       ? expenses
       : settleLegacyExpenses(expenses);
 
@@ -698,10 +710,10 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
     typeof raw.displayName === "string" ? raw.displayName : "";
 
   // Version 1 has no account contract. Ignore any stray `accounts` field so a
-  // version-1 file cannot smuggle balances. Versions 2–9 require a valid list;
+  // version-1 file cannot smuggle balances. Versions 2–10 require a valid list;
   // one bad row rejects the whole backup. Versions ≤7 strip purpose and
-  // restriction. Version 8 keeps purpose and strips restriction. Version 9
-  // keeps purpose and restrictedAmount; rejects invalid optional fields.
+  // restriction. Version 8 keeps purpose and strips restriction. Versions 9–10
+  // keep purpose and restrictedAmount; rejects invalid optional fields.
   let accounts: FinancialAccount[] = [];
   if (
     raw.version === 2 ||
@@ -711,11 +723,12 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
     raw.version === 6 ||
     raw.version === 7 ||
     raw.version === 8 ||
-    raw.version === 9
+    raw.version === 9 ||
+    raw.version === 10
   ) {
     if (raw.accounts === undefined) return null;
     const parsed =
-      raw.version === 9
+      raw.version === 9 || raw.version === 10
         ? parseArray(raw.accounts, (row) => parseFinancialAccount(row, "strict"))
         : raw.version === 8
           ? parseArray(raw.accounts, (row) => {
@@ -749,7 +762,7 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
   }
 
   // Versions 1–3 have no protected-designation contract. Force zero even if
-  // stray fields are present. Versions 4–9 must include both amounts; a
+  // stray fields are present. Versions 4–10 must include both amounts; a
   // missing field rejects the backup instead of silently dropping a designation.
   let openingWealthBuilding = 0;
   let openingEmergencyFund = 0;
@@ -759,7 +772,8 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
     raw.version === 6 ||
     raw.version === 7 ||
     raw.version === 8 ||
-    raw.version === 9
+    raw.version === 9 ||
+    raw.version === 10
   ) {
     const wealth = nonNegativeMoney(raw.openingWealthBuilding);
     const emergency = nonNegativeMoney(raw.openingEmergencyFund);
@@ -769,7 +783,7 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
   }
 
   // Versions 1–4 have no recurring-rule contract. Force an empty list even if
-  // stray rules are present. Versions 5–9 must include the list; a missing
+  // stray rules are present. Versions 5–10 must include the list; a missing
   // list rejects the backup instead of silently dropping recurrence.
   let recurringObligations: RecurringObligation[] = [];
   if (
@@ -777,7 +791,8 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
     raw.version === 6 ||
     raw.version === 7 ||
     raw.version === 8 ||
-    raw.version === 9
+    raw.version === 9 ||
+    raw.version === 10
   ) {
     if (raw.recurringObligations === undefined) return null;
     const parsed = parseArray(raw.recurringObligations, parseRecurringObligation);
@@ -786,14 +801,15 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
   }
 
   // Versions 1–5 have no monthly-plan contract. Force an empty list even if
-  // stray revisions are present. Versions 6–9 must include the list; a missing
+  // stray revisions are present. Versions 6–10 must include the list; a missing
   // or corrupt list rejects the backup instead of dropping historical intent.
   let monthlyPlans: MonthlyPlanRevision[] = [];
   if (
     raw.version === 6 ||
     raw.version === 7 ||
     raw.version === 8 ||
-    raw.version === 9
+    raw.version === 9 ||
+    raw.version === 10
   ) {
     if (raw.monthlyPlans === undefined) return null;
     const parsed = parseArray(raw.monthlyPlans, parseMonthlyPlanRevision);
@@ -803,11 +819,16 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
 
   // Versions 1–6 have no debt-position epoch contract. Soft-migrate to legacy
   // semantics when debts exist (fail-closed: modeled remaining is NOT treated
-  // as authoritative). Versions 7–9 require explicit epoch fields.
+  // as authoritative). Versions 7–10 require explicit epoch fields.
   let debtSemanticsVersion: 1 | 2 = DEBT_SEMANTICS_LEGACY;
   let debtPositionEpochAt: string | null = null;
   let debtPurposeAttributions: DebtPurposeAttribution[] = [];
-  if (raw.version === 7 || raw.version === 8 || raw.version === 9) {
+  if (
+    raw.version === 7 ||
+    raw.version === 8 ||
+    raw.version === 9 ||
+    raw.version === 10
+  ) {
     if (
       raw.debtSemanticsVersion !== DEBT_SEMANTICS_LEGACY &&
       raw.debtSemanticsVersion !== DEBT_SEMANTICS_POSITION
@@ -840,6 +861,16 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
     debtPurposeAttributions = [];
   }
 
+  // Versions 1–9 have no pay-schedule contract. Force an empty list even if
+  // stray schedules are present. Version 10 must include the list.
+  let paySchedules: PaySchedule[] = [];
+  if (raw.version === 10) {
+    if (raw.paySchedules === undefined) return null;
+    const parsed = parseArray(raw.paySchedules, parsePaySchedule);
+    if (!parsed) return null;
+    paySchedules = parsed;
+  }
+
   return {
     version: raw.version,
     exportedAt: raw.exportedAt,
@@ -861,6 +892,7 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
     debtSemanticsVersion,
     debtPositionEpochAt,
     debtPurposeAttributions,
+    paySchedules,
   };
 }
 
@@ -886,6 +918,7 @@ export function buildLedgerBackup(state: PersistedState): LedgerBackup {
     debtSemanticsVersion: state.debtSemanticsVersion ?? DEBT_SEMANTICS_LEGACY,
     debtPositionEpochAt: state.debtPositionEpochAt ?? null,
     debtPurposeAttributions: state.debtPurposeAttributions ?? [],
+    paySchedules: state.paySchedules ?? [],
   };
 }
 

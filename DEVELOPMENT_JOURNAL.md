@@ -1,5 +1,21 @@
 # Development Journal
 
+## 2026-09-29 — WE-PAY-SCHEDULE-001 expected pay schedule domain
+
+### What changed
+- Steward-authored `PaySchedule` rules (`weekly` / `biweekly` / `semimonthly` / `monthly`) with pure `deriveExpectedPaydays` → `ExpectedPayday` (not Income).
+- Anchor for weekly/biweekly is recurrence **phase**, not a hard start cutoff.
+- Semimonthly supports day pairs and `last`; weekend stays on declared civil date.
+- Persist schedule rules only (`paySchedules[]`); backup **v10**; cloud schema **6** soft-add (no SQL). IC v3 unchanged. No funding UI.
+
+### Validation
+- Focused pay-schedule tests passed (21).
+- Full suite: 49 files, 697 tests passed.
+- `tsc --noEmit` passed; eslint on touched files clean; production build passed; `git diff --check` clean.
+
+### Not in this tranche
+- No commit, push, deploy, funding plan, Attention, or Supabase work.
+
 ## 2026-09-29 — WE-FINANCIAL-POSITION-HIERARCHY-001 promote actionable position
 
 ### What changed

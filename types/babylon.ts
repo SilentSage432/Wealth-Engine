@@ -109,6 +109,90 @@ export type FinancialAccountPurpose =
   | "emergency_fund";
 
 /**
+ * Steward cadence for expected income timing.
+ * Distinct from IncomeEntry.interval (rate metadata only).
+ */
+export type PayScheduleCadence =
+  | "weekly"
+  | "biweekly"
+  | "semimonthly"
+  | "monthly";
+
+/** Day-of-month for semimonthly / monthly schedules. "last" = final civil day. */
+export type SemimonthlyMonthDay = number | "last";
+
+interface PayScheduleBase {
+  id: string;
+  /** Local civil date the rule was created (YYYY-MM-DD). */
+  createdAt: string;
+  /**
+   * Optional planning estimate for each expected occurrence.
+   * Not Income. Not Position. Omitted when unknown.
+   */
+  expectedAmount?: number;
+  /**
+   * Optional steward label / source hint (e.g. "Lowe's").
+   * Descriptive only. Never implies identity with an IncomeEntry.
+   */
+  label?: string;
+}
+
+/**
+ * Weekly lattice. anchorDate is recurrence PHASE, not a hard start cutoff.
+ * Months before the anchor are derived from the same 7-day lattice.
+ */
+export interface WeeklyPaySchedule extends PayScheduleBase {
+  cadence: "weekly";
+  anchorDate: string;
+}
+
+/** Biweekly lattice (every 14 civil days). Same phase semantics as weekly. */
+export interface BiweeklyPaySchedule extends PayScheduleBase {
+  cadence: "biweekly";
+  anchorDate: string;
+}
+
+/**
+ * Two steward-defined civil days within each month.
+ * Not biweekly. Weekend/holiday stays on the declared civil day.
+ */
+export interface SemimonthlyPaySchedule extends PayScheduleBase {
+  cadence: "semimonthly";
+  firstDay: SemimonthlyMonthDay;
+  secondDay: SemimonthlyMonthDay;
+}
+
+/**
+ * One steward-defined civil day per month.
+ * Day 31 clamps to the month's last civil day (same as obligation dueDay).
+ */
+export interface MonthlyPaySchedule extends PayScheduleBase {
+  cadence: "monthly";
+  dayOfMonth: number;
+}
+
+/** Steward-authored expected-pay rule. Not IncomeEntry. */
+export type PaySchedule =
+  | WeeklyPaySchedule
+  | BiweeklyPaySchedule
+  | SemimonthlyPaySchedule
+  | MonthlyPaySchedule;
+
+/**
+ * Derived expected occurrence for one civil date in a period.
+ * Not IncomeEntry. Not persisted. Not interchangeable with recorded income.
+ */
+export interface ExpectedPayday {
+  scheduleId: string;
+  /** Civil ISO date (YYYY-MM-DD). */
+  date: string;
+  /** YYYY-MM of date. */
+  periodKey: string;
+  expectedAmount?: number;
+  label?: string;
+}
+
+/**
  * Current balance the user says exists in one place.
  * This is financial position. It is not income and it does not allocate.
  */
@@ -397,6 +481,11 @@ export interface PersistedState {
    * backfilled.
    */
   debtPurposeAttributions: DebtPurposeAttribution[];
+  /**
+   * Steward-authored expected pay schedules. Missing on older vaults; loads as [].
+   * Derived ExpectedPayday occurrences are not stored.
+   */
+  paySchedules: PaySchedule[];
 }
 
 export interface ChartMonthPoint {
@@ -464,8 +553,10 @@ export interface ExpenseInput {
  * version 8 instead of stripping purpose on round-trip.
  * Version 9 stores optional FinancialAccount restrictedAmount. Older builds
  * reject version 9 instead of stripping restriction on round-trip.
+ * Version 10 stores steward PaySchedule rules. Older builds reject version 10
+ * instead of dropping expected-pay timing on round-trip.
  */
-export type LedgerBackupVersion = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
+export type LedgerBackupVersion = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
 
 export interface LedgerBackup {
   version: LedgerBackupVersion;
@@ -496,6 +587,8 @@ export interface LedgerBackup {
   debtPositionEpochAt?: string | null;
   /** Present on version 7. Earlier versions import as []. */
   debtPurposeAttributions?: DebtPurposeAttribution[];
+  /** Present on version 10. Earlier versions import as []. */
+  paySchedules?: PaySchedule[];
 }
 
 export interface AffordabilitySnapshot {

@@ -123,6 +123,8 @@ function omitMonthlyPlans(state: PersistedState): Record<string, unknown> {
   delete document.debtSemanticsVersion;
   delete document.debtPositionEpochAt;
   delete document.debtPurposeAttributions;
+  // Pre-pay-schedule schema-5/6 documents omit paySchedules.
+  delete document.paySchedules;
   return document;
 }
 

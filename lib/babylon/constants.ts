@@ -131,4 +131,5 @@ export const EMPTY_STATE: PersistedState = {
   debtSemanticsVersion: 2,
   debtPositionEpochAt: null,
   debtPurposeAttributions: [],
+  paySchedules: [],
 };

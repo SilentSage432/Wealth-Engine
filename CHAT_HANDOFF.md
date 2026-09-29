@@ -6,7 +6,9 @@
 **Architecture map:** [`ARCHITECTURE.md`](./ARCHITECTURE.md) — layers, dependency rules, canonical ownership matrix.
 
 ## Current state
-WE-FINANCIAL-POSITION-HIERARCHY-001 is a **review candidate**. When Unavailable > 0, Available to use is the hero; Liquid Position and Unavailable are supporting composition. Zero-restriction keeps Liquid Position as hero. Domain arithmetic, IC v3, backup v9, and schema 6 unchanged.
+WE-PAY-SCHEDULE-001 is a **review candidate**. Steward `PaySchedule` rules derive `ExpectedPayday` occurrences by civil month. Expected ≠ Income. Backup v10; cloud schema 6 soft-add `paySchedules`; no SQL; IC v3 unchanged. No funding UI / Attention / matching.
+
+WE-FINANCIAL-POSITION-HIERARCHY-001 is a **review candidate**. When Unavailable > 0, Available to use is the hero; Liquid Position and Unavailable are supporting composition. Zero-restriction keeps Liquid Position as hero. Domain arithmetic and IC v3 unchanged.
 
 WE-FINANCIAL-POSITION-LANGUAGE-001 is a **review candidate**. Steward-facing owned-liquid label is Liquid Position (presentation only). Domain `moneyAvailable` and IC `money_available_cents` unchanged. When Unavailable > 0, surfaces Unavailable and derived Available to use. Shortfall copy is Candidate A and renders once with two decimals. Backup v9; cloud schema 6; no SQL.
 
@@ -83,6 +85,7 @@ Persisted in `localStorage` (`wealth-engine-babylon-v2`) as:
 - `openingWealthBuilding` / `openingEmergencyFund` — residual Existing designations inside Money Available (unlocated when purpose accounts exist). Missing on older vaults; loads as `0`. Not income, not allocation events.
 - `recurringObligations[]` — declared bill rules (WE-OBLIGATION-001). Missing on older vaults; loads as `[]`. A missing `intervalMonths`, or `1`, means every calendar month from `startMonth`. A larger positive integer means every that many calendar months. Non-due months are not skips. `skippedMonths` is a due month the steward deleted. Generation still covers only the current month and the next month, and only when that month is due. This is not a spending cap, a sinking fund, or a bank-observation match. Generated months are ordinary expenses with `recurringObligationId` and `recurrenceMonth`.
 - `monthlyPlans[]` — finalized Monthly Plan revisions (WE-PLAN-001). Missing on older vaults; loads as `[]`. Each revision is historical intent for an explicit `periodKey`. Planning Basis is not income. Category purposes, debt context, due obligation facts, protected context, and the derived 10/20/70 shares are copies. Later edits to live settings do not rewrite a revision. No plan is inferred from current caps.
+- `paySchedules[]` — steward Expected Pay Schedule rules (WE-PAY-SCHEDULE-001). Missing on older vaults; loads as `[]`. Derived ExpectedPayday occurrences are not stored. Not Income.
 - `activityLog[]` — mutation feed for Recent Activity (newest first, capped)
 - `emergencyShield` — tracked Emergency Fund from Monthly Close surplus only
 - `periodArchives[]` — sealed month snapshots

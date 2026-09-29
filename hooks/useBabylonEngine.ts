@@ -140,6 +140,7 @@ import type {
   MonthlyPlanCategoryPurpose,
   MonthlyPlanRevision,
   NavSection,
+  PaySchedule,
   PeriodArchive,
   PersistedState,
   RecurringObligation,
@@ -181,6 +182,7 @@ export function useBabylonEngine() {
   const [debtPurposeAttributions, setDebtPurposeAttributions] = useState<
     DebtPurposeAttribution[]
   >([]);
+  const [paySchedules, setPaySchedules] = useState<PaySchedule[]>([]);
   /** Profile name input value — may be empty; greeting uses a visual fallback. */
   const [username, setUsernameState] = useState("");
   /** Auth user id when a verified Supabase session is present; null = local-only. */
@@ -258,6 +260,7 @@ export function useBabylonEngine() {
     setDebtSemanticsVersion(stored.debtSemanticsVersion);
     setDebtPositionEpochAt(stored.debtPositionEpochAt);
     setDebtPurposeAttributions(stored.debtPurposeAttributions);
+    setPaySchedules(stored.paySchedules);
     setUsernameState(loadUsername(stored.displayName));
     try {
       setIsDiscreetMode(
@@ -343,6 +346,7 @@ export function useBabylonEngine() {
       debtSemanticsVersion,
       debtPositionEpochAt,
       debtPurposeAttributions,
+      paySchedules,
     };
     savePersistedState(payload);
   }, [
@@ -366,6 +370,7 @@ export function useBabylonEngine() {
     debtSemanticsVersion,
     debtPositionEpochAt,
     debtPurposeAttributions,
+    paySchedules,
   ]);
 
   const vaultSnapshot = useMemo<PersistedState>(
@@ -389,6 +394,7 @@ export function useBabylonEngine() {
       debtSemanticsVersion,
       debtPositionEpochAt,
       debtPurposeAttributions,
+      paySchedules,
     }),
     [
       incomes,
@@ -410,6 +416,7 @@ export function useBabylonEngine() {
       debtSemanticsVersion,
       debtPositionEpochAt,
       debtPurposeAttributions,
+      paySchedules,
     ]
   );
   const vaultRef = useRef(vaultSnapshot);
@@ -442,6 +449,7 @@ export function useBabylonEngine() {
     setDebtSemanticsVersion(next.debtSemanticsVersion);
     setDebtPositionEpochAt(next.debtPositionEpochAt);
     setDebtPurposeAttributions(next.debtPurposeAttributions);
+    setPaySchedules(next.paySchedules);
     setUsernameState(next.displayName);
   }, []);
 
@@ -1575,6 +1583,7 @@ export function useBabylonEngine() {
     setDebtSemanticsVersion(DEBT_SEMANTICS_POSITION);
     setDebtPositionEpochAt(null);
     setDebtPurposeAttributions([]);
+    setPaySchedules([]);
     setUsernameState("");
     setTributeOpen(false);
     setTributeMode("income");
@@ -1604,6 +1613,7 @@ export function useBabylonEngine() {
       debtSemanticsVersion,
       debtPositionEpochAt,
       debtPurposeAttributions,
+      paySchedules,
     });
     const blob = new Blob([JSON.stringify(backup, null, 2)], {
       type: "application/json",
@@ -1637,6 +1647,7 @@ export function useBabylonEngine() {
     debtSemanticsVersion,
     debtPositionEpochAt,
     debtPurposeAttributions,
+    paySchedules,
   ]);
 
   const importBackup = useCallback((raw: unknown): string | null => {
@@ -1669,6 +1680,7 @@ export function useBabylonEngine() {
           : DEBT_SEMANTICS_LEGACY),
       debtPositionEpochAt: backup.debtPositionEpochAt ?? null,
       debtPurposeAttributions: backup.debtPurposeAttributions ?? [],
+      paySchedules: backup.paySchedules ?? [],
     };
 
     applyVault(next);

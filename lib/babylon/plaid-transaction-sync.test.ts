@@ -516,8 +516,9 @@ describe("Plaid observational transaction sync", () => {
       "debtSemanticsVersion",
       "debtPositionEpochAt",
       "debtPurposeAttributions",
+      "paySchedules",
     ]);
-    expect(LEDGER_BACKUP_VERSION).toBe(9);
+    expect(LEDGER_BACKUP_VERSION).toBe(10);
     expect(PLAID_OBSERVATION_COLUMNS).not.toContain("access_token");
 
     const files = [
