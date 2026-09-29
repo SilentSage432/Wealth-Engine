@@ -286,6 +286,8 @@ export function WealthEngineDashboard() {
             activeNav={engine.activeNav}
             onClose={() => engine.setSidebarOpen(false)}
             onSelectNav={engine.selectNav}
+            username={engine.username}
+            onUsernameChange={engine.setUsername}
             onExportBackup={engine.exportBackup}
             onImportBackup={engine.importBackup}
             onClearAllData={engine.clearAllData}
@@ -311,7 +313,6 @@ export function WealthEngineDashboard() {
                   isDiscreetMode={discreet}
                   plaidLaunching={launching}
                   plaidInitializing={!hydrated}
-                  onUsernameChange={engine.setUsername}
                   onOpenSidebar={() => engine.setSidebarOpen(true)}
                   onRecordTribute={() => engine.openTribute("income")}
                   onOpenMonthlyClose={() => engine.setMonthlyCloseOpen(true)}

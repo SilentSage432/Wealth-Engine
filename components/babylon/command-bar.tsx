@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { CalendarCheck, CalendarDays, Eye, EyeOff, Menu, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { PlaidLinkButton } from "@/components/babylon/plaid-link-button";
 import { VaultErrorBoundary } from "@/components/babylon/vault-error-boundary";
 import { GREETING_NAME_FALLBACK } from "@/lib/babylon/constants";
@@ -15,13 +14,13 @@ function greetingForHour(hour: number): string {
 }
 
 interface CommandBarProps {
+  /** Presentation only — configure the steward name on the sidebar. */
   username: string;
   monthAlreadyClosed?: boolean;
   openMonthMessage?: string | null;
   isDiscreetMode?: boolean;
   plaidLaunching?: boolean;
   plaidInitializing?: boolean;
-  onUsernameChange: (value: string) => void;
   onOpenSidebar: () => void;
   onRecordTribute: () => void;
   onOpenMonthlyClose?: () => void;
@@ -36,7 +35,6 @@ export function CommandBar({
   isDiscreetMode = false,
   plaidLaunching = false,
   plaidInitializing = false,
-  onUsernameChange,
   onOpenSidebar,
   onRecordTribute,
   onOpenMonthlyClose,
@@ -129,14 +127,6 @@ export function CommandBar({
             />
           </VaultErrorBoundary>
 
-          <Input
-            value={username}
-            onChange={(e) => onUsernameChange(e.target.value)}
-            onBlur={(e) => onUsernameChange(e.target.value)}
-            placeholder={GREETING_NAME_FALLBACK}
-            className="h-11 min-h-11 w-full max-w-none border-slate-800 bg-slate-900/50 text-base sm:w-36 sm:max-w-[10rem] md:h-9 md:min-h-9 md:text-xs lg:w-40"
-            aria-label="Profile name"
-          />
           {onOpenMonthlyClose && (
             <Button
               type="button"

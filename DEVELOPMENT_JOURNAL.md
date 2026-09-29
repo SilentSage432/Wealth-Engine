@@ -1,5 +1,21 @@
 # Development Journal
 
+## 2026-09-29 — WE-IDENTITY-UX-001 relocate steward name configuration
+
+### What changed
+- Removed the duplicate Profile name `<Input>` from desktop `CommandBar` (left of Close Month). Greeting still presents the colored steward name.
+- Phone header already presented only; unchanged. Configuration stays on phone More → Financial setup.
+- Desktop configuration now lives on the sidebar management surface (`AppSidebar` + shared `ProfileNameField`), above vault maintenance.
+- Persistence unchanged: `engine.setUsername` → `babylon_username` / vault `displayName` mirror. No schema, auth, or financial changes.
+
+### Validation
+- Relevant: mobile-more / attention / mobile-home / layout-viewport — 4 files, 31 tests passed.
+- Full suite: 43 files, 576 tests passed.
+- `tsc --noEmit`, lint, production build, and `git diff --check` passed.
+
+### Not in this tranche
+- No commit, push, deploy, header redesign, or Settings architecture.
+
 ## 2026-09-29 — WE-VISUAL-ICONS-001 remove cartoon/emoji application icons
 
 ### What changed

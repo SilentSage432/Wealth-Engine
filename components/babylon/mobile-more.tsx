@@ -15,11 +15,10 @@ import {
   VaultDataBackups,
   VaultResetLedger,
 } from "@/components/babylon/vault-maintenance-panel";
+import { ProfileNameField } from "@/components/babylon/profile-name-field";
 import { WisdomBox } from "@/components/babylon/wisdom-box";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import type { AvailableAfterPlannedNeeds } from "@/lib/babylon/available-after-planned-needs";
-import { GREETING_NAME_FALLBACK } from "@/lib/babylon/constants";
 import type { VaultSyncView } from "@/lib/babylon/vault-sync";
 import type {
   BudgetTarget,
@@ -131,17 +130,7 @@ export function MobileMore({
     <div className="min-w-0 space-y-6">
       <section className="space-y-3" aria-label="Financial setup">
         <GroupHeading>Financial setup</GroupHeading>
-        <label className="block space-y-1">
-          <span className="text-xs text-slate-400">Profile name</span>
-          <Input
-            value={username}
-            onChange={(event) => onUsernameChange(event.target.value)}
-            onBlur={(event) => onUsernameChange(event.target.value)}
-            placeholder={GREETING_NAME_FALLBACK}
-            aria-label="Profile name"
-            className="border-slate-800 bg-slate-900/50"
-          />
-        </label>
+        <ProfileNameField value={username} onChange={onUsernameChange} />
         <FinancialPosition
           presentation="manage"
           accounts={accounts}

@@ -60,6 +60,7 @@ A personal ledger that splits income 10% to Wealth Building, 20% to Debt Payoff,
 - [x] WE-SYNC-003 explicit desktop bootstrap and empty-device hydration
 - [x] WE-SYNC-004 revision sync, offline edits, and conflict stop
 - [ ] WE-SYNC-005 choose cloud or this device after a conflict, with a backup first
+- [x] WE-IDENTITY-UX-001 — steward name configuration on management surfaces (sidebar / phone More); primary headers present greeting only
 - [x] WE-VISUAL-ICONS-001 — Quick Add uses lucide-react vector icons (no emoji application icons); behavior unchanged
 - [ ] Speed-Tribute 1-tap commit (presets + bar mount; full amount autofill / zero-modal path still open)
 - [x] Plaid observational transaction sync (WE-ATTENTION-002). `20260926_plaid_transaction_sync.sql` is written and not applied from the app. No attention UI

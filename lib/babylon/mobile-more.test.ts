@@ -30,12 +30,24 @@ describe("phone More source boundaries", () => {
     "components/babylon/mobile-more.tsx",
     "utf8"
   );
+  const profileNameSource = readFileSync(
+    "components/babylon/profile-name-field.tsx",
+    "utf8"
+  );
   const panelSource = readFileSync(
     "components/babylon/vault-maintenance-panel.tsx",
     "utf8"
   );
   const sidebarSource = readFileSync(
     "components/babylon/app-sidebar.tsx",
+    "utf8"
+  );
+  const commandBarSource = readFileSync(
+    "components/babylon/command-bar.tsx",
+    "utf8"
+  );
+  const mobileHeaderSource = readFileSync(
+    "components/babylon/mobile-header.tsx",
     "utf8"
   );
   const positionSource = readFileSync(
@@ -83,7 +95,15 @@ describe("phone More source boundaries", () => {
     expect(moreSource).toContain("VaultResetLedger");
     expect(moreSource).toContain("aria-expanded");
     expect(moreSource).toContain("Close Month");
-    expect(moreSource).toContain("Profile name");
+    expect(moreSource).toContain("ProfileNameField");
+    expect(profileNameSource).toContain("Profile name");
+    expect(sidebarSource).toContain("ProfileNameField");
+    expect(commandBarSource).not.toContain("onUsernameChange");
+    expect(commandBarSource).not.toContain("Profile name");
+    expect(commandBarSource).not.toContain("<Input");
+    expect(mobileHeaderSource).not.toContain("onUsernameChange");
+    expect(mobileHeaderSource).not.toContain("ProfileNameField");
+    expect(mobileHeaderSource).not.toContain("<Input");
     expect(moreSource).not.toContain("BOOTSTRAP_CONFIRM");
     expect(moreSource).not.toContain("Clear this ledger?");
     expect(moreSource).not.toContain("serviceWorker");

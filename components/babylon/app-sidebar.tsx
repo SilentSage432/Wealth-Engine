@@ -1,6 +1,7 @@
 "use client";
 
 import { Landmark, X } from "lucide-react";
+import { ProfileNameField } from "@/components/babylon/profile-name-field";
 import { VaultMaintenancePanel } from "@/components/babylon/vault-maintenance-panel";
 import { Button } from "@/components/ui/button";
 import { NAV_ITEMS } from "@/lib/babylon/constants";
@@ -13,6 +14,8 @@ interface AppSidebarProps {
   activeNav: NavSection;
   onClose: () => void;
   onSelectNav: (section: NavSection) => void;
+  username: string;
+  onUsernameChange: (value: string) => void;
   onExportBackup: () => void;
   onImportBackup: (raw: unknown) => string | null;
   onClearAllData: () => void;
@@ -32,6 +35,8 @@ export function AppSidebar({
   activeNav,
   onClose,
   onSelectNav,
+  username,
+  onUsernameChange,
   onExportBackup,
   onImportBackup,
   onClearAllData,
@@ -99,6 +104,7 @@ export function AppSidebar({
       </nav>
 
       <div className="space-y-3 border-t border-slate-800/80 p-4">
+        <ProfileNameField value={username} onChange={onUsernameChange} />
         <VaultMaintenancePanel
           onExportBackup={onExportBackup}
           onImportBackup={onImportBackup}
