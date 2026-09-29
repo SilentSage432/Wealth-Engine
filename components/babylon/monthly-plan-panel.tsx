@@ -40,12 +40,14 @@ import {
 } from "@/lib/babylon/monthly-plan";
 import { obligationIntervalLabel } from "@/lib/babylon/recurring-obligations";
 import { cn, formatCurrency } from "@/lib/utils";
+import { FundThisMonthSection } from "@/components/babylon/fund-this-month";
 import type {
   BudgetTarget,
   DebtEntry,
   MonthlyPlanCategoryPurpose,
   MonthlyPlanObligationEvidence,
   MonthlyPlanRevision,
+  PaySchedule,
   RecurringObligation,
 } from "@/types/babylon";
 
@@ -67,8 +69,13 @@ interface MonthlyPlanPanelProps {
   obligations: readonly RecurringObligation[];
   openingWealthBuilding: number;
   openingEmergencyFund: number;
+  paySchedules: readonly PaySchedule[];
   discreet?: boolean;
   onFinalize: (input: MonthlyPlanFinalizeSubmission) => MonthlyPlanFinalizeOutcome;
+  onUpsertPaySchedule: (
+    schedule: PaySchedule
+  ) => { ok: true } | { ok: false; message: string };
+  onRemovePaySchedule: (id: string) => void;
 }
 
 function parseDraftAmount(text: string): number {
@@ -108,8 +115,11 @@ export function MonthlyPlanPanel({
   obligations,
   openingWealthBuilding,
   openingEmergencyFund,
+  paySchedules,
   discreet = false,
   onFinalize,
+  onUpsertPaySchedule,
+  onRemovePaySchedule,
 }: MonthlyPlanPanelProps) {
   const [periodKey, setPeriodKey] = useState(suggestedPeriodKey);
   const [drafting, setDrafting] = useState(false);
@@ -281,12 +291,21 @@ export function MonthlyPlanPanel({
           </div>
 
           {!drafting && latest ? (
-            <RevisionSummary
-              revision={latest}
-              money={money}
-              monthTitle={monthTitle}
-              onRevise={() => openDraft("revise", periodKey)}
-            />
+            <>
+              <RevisionSummary
+                revision={latest}
+                money={money}
+                monthTitle={monthTitle}
+                onRevise={() => openDraft("revise", periodKey)}
+              />
+              <FundThisMonthSection
+                revision={latest}
+                paySchedules={paySchedules}
+                money={money}
+                onUpsertPaySchedule={onUpsertPaySchedule}
+                onRemovePaySchedule={onRemovePaySchedule}
+              />
+            </>
           ) : null}
 
           {!drafting && !latest ? (

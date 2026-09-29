@@ -1,5 +1,21 @@
 # Development Journal
 
+## 2026-09-29 — WE-PAYCHECK-PLANNER-UI-004 surface paycheck funding path
+
+### What changed
+- Read-only **Fund this month** section on finalized Monthly Plan (`FundThisMonthSection`), composing `deriveExpectedPaydaysForSchedules` + funding + temporal via `composeFundThisMonthView`.
+- Steward **Expected pay schedule** authoring (`ExpectedPayScheduleEditor`) mutates only `paySchedules[]` through `upsertPaySchedule` / `removePaySchedule`.
+- Temporal obligation facts shown as context (not funding rows). No Income/Allocation/matching/Attention. Backup v10; cloud schema 6; IC v3 unchanged.
+
+### Validation
+- Focused planner-UI tests: 15 passed.
+- Relevant domain/UI/persistence/position isolation: 176 passed.
+- Full suite: 52 files, 754 tests passed.
+- `tsc --noEmit` passed; eslint on touched files clean; production build passed; `git diff --check` clean.
+
+### Not in this tranche
+- No commit, push, deploy, matching, funding edits, Attention, or Supabase work.
+
 ## 2026-09-29 — WE-PAYCHECK-TEMPORAL-003 due-before-next-payday facts
 
 ### What changed

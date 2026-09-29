@@ -6,7 +6,9 @@
 **Architecture map:** [`ARCHITECTURE.md`](./ARCHITECTURE.md) — layers, dependency rules, canonical ownership matrix.
 
 ## Current state
-WE-PAYCHECK-TEMPORAL-003 is an **implementation candidate**. Pure `derivePaycheckTemporalPlan` classifies finalized monthly obligation evidence against same-period ExpectedPayday unique civil dates (`due_before_first_payday` / `due_on_payday` / `due_before_next_payday` / `due_after_final_payday`). Temporal fact ≠ funding ≠ execution. Does not mutate PaycheckFundingPlan. Not persisted. No UI. Backup v10; cloud schema 6; IC v3 unchanged.
+WE-PAYCHECK-PLANNER-UI-004 is an **implementation candidate**. Finalized Monthly Plan shows read-only **Fund this month** (funding responsibilities + temporal obligation context). Steward can author Expected pay schedule (paySchedules only). Expected ≠ Income. No matching / funding edits / Attention. Backup v10; cloud schema 6; IC v3 unchanged.
+
+WE-PAYCHECK-TEMPORAL-003 is finalized on main (`4718786`). Pure `derivePaycheckTemporalPlan` classifies finalized monthly obligation evidence against same-period ExpectedPayday unique civil dates. Temporal fact ≠ funding ≠ execution. Not persisted. No UI in that tranche.
 
 WE-PAYCHECK-FUNDING-002 is finalized on main (`6d5c0da`). Pure `derivePaycheckFundingPlan` decomposes finalized `MonthlyPlanRevision` purposes across same-period `ExpectedPayday[]`. Living categories, `wealthShare`, and aggregate `debtShare` are independently conserved in integer cents (earliest remainder). Not Income / Allocation / Position. Not persisted. No UI. Backup v10; cloud schema 6; IC v3 unchanged.
 

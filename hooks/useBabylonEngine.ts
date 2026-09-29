@@ -36,6 +36,7 @@ import {
   type VaultSyncView,
 } from "@/lib/babylon/vault-sync";
 import { finalizeMonthlyPlanOnState } from "@/lib/babylon/monthly-plan";
+import { parsePaySchedule } from "@/lib/babylon/pay-schedule";
 import { monthCloseActivitySubtitle } from "@/lib/babylon/allocation-execution-copy";
 import {
   buildDebtPurposeAttributions,
@@ -2187,6 +2188,28 @@ export function useBabylonEngine() {
     []
   );
 
+  const upsertPaySchedule = useCallback((schedule: PaySchedule) => {
+    const parsed = parsePaySchedule(schedule);
+    if (!parsed) {
+      return {
+        ok: false as const,
+        message: "Expected pay schedule is incomplete.",
+      };
+    }
+    setPaySchedules((prev) => {
+      const index = prev.findIndex((row) => row.id === parsed.id);
+      if (index < 0) return [...prev, parsed];
+      const next = [...prev];
+      next[index] = parsed;
+      return next;
+    });
+    return { ok: true as const };
+  }, []);
+
+  const removePaySchedule = useCallback((id: string) => {
+    setPaySchedules((prev) => prev.filter((row) => row.id !== id));
+  }, []);
+
   const selectNav = useCallback((section: NavSection) => {
     setActiveNav(section);
     setSidebarOpen(false);
@@ -2292,6 +2315,7 @@ export function useBabylonEngine() {
     lastClosedMonthKey,
     periodArchives,
     monthlyPlans,
+    paySchedules,
     currentMonthKey,
     budgetVariances,
     budgetPlannedTotal,
@@ -2321,6 +2345,8 @@ export function useBabylonEngine() {
     autoScaleBudgetCaps,
     closeMonth,
     finalizeMonthlyPlan,
+    upsertPaySchedule,
+    removePaySchedule,
     clearAllData,
     exportBackup,
     importBackup,

@@ -253,8 +253,11 @@ export function WealthEngineDashboard() {
       obligations={engine.recurringObligations}
       openingWealthBuilding={engine.openingWealthBuilding}
       openingEmergencyFund={engine.openingEmergencyFund}
+      paySchedules={engine.paySchedules}
       discreet={discreet}
       onFinalize={engine.finalizeMonthlyPlan}
+      onUpsertPaySchedule={engine.upsertPaySchedule}
+      onRemovePaySchedule={engine.removePaySchedule}
     />
   );
 
