@@ -130,21 +130,52 @@ export async function POST(request: Request) {
   }
   logRealtimeBalanceStage("items-discovered", { items: items.length });
 
-  const summary = await observeBackgroundBalances({
-    items,
-    record: (item) =>
-      recordPlaidRealtimeBalanceObservations({
+  const repairs: { itemId: string; code: "ITEM_LOGIN_REQUIRED" }[] = [];
+  const itemOutcomes: {
+    itemId: string;
+    result: "applied" | "skipped" | "not-applied";
+  }[] = [];
+  let attempted = 0;
+  let applied = 0;
+  let notApplied = 0;
+  for (const item of items) {
+    attempted += 1;
+    try {
+      const outcome = await recordPlaidRealtimeBalanceObservations({
         service,
         userId: item.userId,
         itemRowId: item.id,
-      }),
-  });
+      });
+      itemOutcomes.push({ itemId: item.id, result: outcome.result });
+      if (outcome.result === "applied" || outcome.result === "skipped") {
+        applied += 1;
+      } else {
+        notApplied += 1;
+      }
+      if (outcome.repair === "ITEM_LOGIN_REQUIRED") {
+        repairs.push({ itemId: item.id, code: "ITEM_LOGIN_REQUIRED" });
+      }
+    } catch {
+      notApplied += 1;
+      itemOutcomes.push({ itemId: item.id, result: "not-applied" });
+      console.error("[plaid] foreground balance observation failed.");
+    }
+  }
+  const summary = {
+    items: items.length,
+    attempted,
+    applied,
+    notApplied,
+    repairs,
+    itemOutcomes,
+  };
   logRealtimeBalanceStage("post-complete", {
     status: 200,
     items: summary.items,
     attempted: summary.attempted,
     applied: summary.applied,
     notApplied: summary.notApplied,
+    repairs: summary.repairs.length,
   });
   return json(summary, 200);
 }
@@ -152,7 +183,17 @@ export async function POST(request: Request) {
 function json(
   body:
     | { error: string }
-    | { items: number; attempted: number; applied: number; notApplied: number },
+    | {
+        items: number;
+        attempted: number;
+        applied: number;
+        notApplied: number;
+        repairs: { itemId: string; code: "ITEM_LOGIN_REQUIRED" }[];
+        itemOutcomes: {
+          itemId: string;
+          result: "applied" | "skipped" | "not-applied";
+        }[];
+      },
   status: number
 ) {
   return NextResponse.json(body, {

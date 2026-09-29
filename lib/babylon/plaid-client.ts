@@ -112,6 +112,26 @@ export async function requestPlaidLinkToken(): Promise<string | null> {
 }
 
 /**
+ * Request an update-mode Link token for one owned local plaid_items row.
+ * The server loads the access_token. The client never sees it.
+ */
+export async function requestPlaidUpdateLinkToken(
+  itemRowId: string
+): Promise<string | null> {
+  const id = itemRowId.trim();
+  if (!id) return null;
+  const result = await plaidApiFetch<{ link_token: string }>(
+    "/api/plaid/link-token",
+    {
+      method: "POST",
+      body: JSON.stringify({ item: id }),
+    }
+  );
+  if (!result.ok) return null;
+  return result.data.link_token ?? null;
+}
+
+/**
  * Exchange public_token on the server. Returns public item metadata only —
  * access_token never enters client state.
  */
@@ -142,6 +162,19 @@ export async function createPlaidLinkTokenOrToast(): Promise<string | null> {
     return null;
   }
   return requestPlaidLinkToken();
+}
+
+export async function createPlaidUpdateLinkTokenOrToast(
+  itemRowId: string
+): Promise<string | null> {
+  if (!isPlaidClientConfigured()) {
+    emitVaultToast({
+      tone: "error",
+      message: plaidUserMessage("not_configured"),
+    });
+    return null;
+  }
+  return requestPlaidUpdateLinkToken(itemRowId);
 }
 
 /**

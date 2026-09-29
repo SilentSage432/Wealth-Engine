@@ -153,7 +153,7 @@ describe("recordPlaidRealtimeBalanceObservations", () => {
       associations: [],
       token: TOKEN,
     });
-    await expect(record(gateway)).resolves.toBe("applied");
+    await expect(record(gateway)).resolves.toEqual({ result: "skipped" });
     expect(fetchPlaidRealtimeBalances).not.toHaveBeenCalled();
     expect(fetchPlaidAccountBalances).not.toHaveBeenCalled();
     expect(gateway.rpc).not.toHaveBeenCalled();
@@ -169,7 +169,7 @@ describe("recordPlaidRealtimeBalanceObservations", () => {
         expect.objectContaining({
           stage: "balance-skipped",
           reason: "no-eligible-targets",
-          result: "applied",
+          result: "skipped",
         }),
       ])
     );
@@ -200,7 +200,7 @@ describe("recordPlaidRealtimeBalanceObservations", () => {
         },
       ],
     });
-    await expect(record(gateway)).resolves.toBe("applied");
+    await expect(record(gateway)).resolves.toEqual({ result: "applied" });
     expect(fetchPlaidRealtimeBalances).toHaveBeenCalledTimes(1);
     expect(fetchPlaidAccountBalances).not.toHaveBeenCalled();
     expect(fetchPlaidRealtimeBalances).toHaveBeenCalledWith({
@@ -244,7 +244,7 @@ describe("recordPlaidRealtimeBalanceObservations", () => {
       ],
       token: TOKEN,
     });
-    await expect(record(gateway)).resolves.toBe("applied");
+    await expect(record(gateway)).resolves.toEqual({ result: "skipped" });
     expect(fetchPlaidRealtimeBalances).not.toHaveBeenCalled();
     expect(gateway.rpc).not.toHaveBeenCalled();
     expect(gateway.calls).not.toContain("plaid_items");
@@ -253,7 +253,7 @@ describe("recordPlaidRealtimeBalanceObservations", () => {
         expect.objectContaining({
           stage: "balance-skipped",
           reason: "fresh-balance-get",
-          result: "applied",
+          result: "skipped",
         }),
       ])
     );
@@ -277,7 +277,7 @@ describe("recordPlaidRealtimeBalanceObservations", () => {
       ok: false,
       reason: "plaid_request",
     });
-    await expect(record(gateway)).resolves.toBe("not-applied");
+    await expect(record(gateway)).resolves.toEqual({ result: "not-applied" });
     expect(fetchPlaidAccountBalances).not.toHaveBeenCalled();
     expect(gateway.rpc).not.toHaveBeenCalled();
     expect(infoStages()).toEqual(
@@ -290,6 +290,33 @@ describe("recordPlaidRealtimeBalanceObservations", () => {
     );
     const logged = errorLog.mock.calls.map((call) => String(call[0])).join("\n");
     expect(logged).toBe("[plaid] balance observation failed.");
+    assertPrivateLogs();
+  });
+
+  it("returns ITEM_LOGIN_REQUIRED repair without writing or exchanging", async () => {
+    const gateway = serviceFor({
+      accounts: [account("checking")],
+      associations: [{ plaid_account_id: "checking" }],
+      observations: [],
+      token: TOKEN,
+    });
+    fetchPlaidRealtimeBalances.mockResolvedValue({
+      ok: false,
+      reason: "item_login_required",
+    });
+    await expect(record(gateway)).resolves.toEqual({
+      result: "not-applied",
+      repair: "ITEM_LOGIN_REQUIRED",
+    });
+    expect(gateway.rpc).not.toHaveBeenCalled();
+    expect(infoStages()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          stage: "balance-request-failed",
+          reason: "item_login_required",
+        }),
+      ])
+    );
     assertPrivateLogs();
   });
 });

@@ -45,14 +45,28 @@ export function plaidJsonError(
 
 /**
  * Fail-soft Plaid REST helper. Logs server-side detail; returns only safe user copy.
+ * Upstream failures expose a safe errorCode for server branching — never the raw body.
  */
 export async function plaidFetch<T>(
   path: string,
   body: Record<string, unknown>
-): Promise<{ ok: true; data: T } | { ok: false; response: NextResponse }> {
+): Promise<
+  | { ok: true; data: T }
+  | {
+      ok: false;
+      response: NextResponse;
+      errorCode: string | null;
+      httpStatus: number;
+    }
+> {
   const config = getPlaidServerConfig();
   if (!config) {
-    return { ok: false, response: plaidJsonError("not_configured", 503) };
+    return {
+      ok: false,
+      response: plaidJsonError("not_configured", 503),
+      errorCode: null,
+      httpStatus: 503,
+    };
   }
 
   try {
@@ -71,18 +85,32 @@ export async function plaidFetch<T>(
       | null;
 
     if (!res.ok) {
+      const errorCode =
+        typeof payload?.error_code === "string" && payload.error_code.trim()
+          ? payload.error_code.trim()
+          : null;
       console.error("[plaid] API error", {
         path,
         status: res.status,
-        error_code: payload?.error_code,
+        error_code: errorCode,
         // Never forward raw error_message to clients — may include internals.
       });
-      return { ok: false, response: plaidJsonError("upstream_failed", 502) };
+      return {
+        ok: false,
+        response: plaidJsonError("upstream_failed", 502),
+        errorCode,
+        httpStatus: res.status,
+      };
     }
 
     return { ok: true, data: payload as T };
   } catch (err) {
     console.error("[plaid] network failure — local vault unaffected.", err);
-    return { ok: false, response: plaidJsonError("network", 503) };
+    return {
+      ok: false,
+      response: plaidJsonError("network", 503),
+      errorCode: null,
+      httpStatus: 503,
+    };
   }
 }

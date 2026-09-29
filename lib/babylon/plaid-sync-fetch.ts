@@ -61,6 +61,7 @@ export async function fetchPlaidAccountBalances(args: {
 export type RealtimeBalanceFetchFailure =
   | "empty_account_ids"
   | "plaid_request"
+  | "item_login_required"
   | "parse";
 
 /**
@@ -81,7 +82,12 @@ export async function fetchPlaidRealtimeBalances(args: {
     access_token: args.accessToken,
     options: { account_ids: accountIds },
   });
-  if (!result.ok) return { ok: false, reason: "plaid_request" };
+  if (!result.ok) {
+    if (result.errorCode === "ITEM_LOGIN_REQUIRED") {
+      return { ok: false, reason: "item_login_required" };
+    }
+    return { ok: false, reason: "plaid_request" };
+  }
   const accounts = parsePlaidBalanceGetResponse(result.data);
   if (!accounts) return { ok: false, reason: "parse" };
   const allowed = new Set(accountIds);

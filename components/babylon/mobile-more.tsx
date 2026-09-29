@@ -39,7 +39,9 @@ interface MobileMoreProps {
   plaidLaunching: boolean;
   plaidInitializing: boolean;
   isCloudSynced: boolean;
+  repairs?: readonly { itemId: string; institutionName: string }[];
   onConnectBank: () => void;
+  onRepairBank?: (itemId: string) => void;
   onRequireAuth: () => void;
   budgetTargets: readonly BudgetTarget[];
   onExportBackup: () => void;
@@ -90,7 +92,9 @@ export function MobileMore({
   plaidLaunching,
   plaidInitializing,
   isCloudSynced,
+  repairs = [],
   onConnectBank,
+  onRepairBank,
   onRequireAuth,
   budgetTargets,
   onExportBackup,
@@ -180,7 +184,9 @@ export function MobileMore({
           launching={plaidLaunching}
           initializing={plaidInitializing}
           isCloudSynced={isCloudSynced}
+          repairs={repairs}
           onConnect={onConnectBank}
+          onRepair={onRepairBank}
           onRequireAuth={onRequireAuth}
         />
         <ObservationTeaching

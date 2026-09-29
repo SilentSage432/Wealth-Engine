@@ -7,6 +7,7 @@ import {
   BALANCE_OBSERVATION_QUERY_KEY,
   PLAID_DESCRIPTOR_QUERY_KEY,
 } from "@/hooks/useBalanceObservation";
+import type { PlaidItemRepairSignal } from "@/lib/babylon/background-balance-observation";
 import {
   FOREGROUND_BALANCE_REFRESH_WINDOW_MS,
   foregroundBalanceRefreshApplied,
@@ -19,6 +20,7 @@ import {
 } from "@/lib/babylon/foreground-balance-refresh";
 import {
   createPlaidLinkTokenOrToast,
+  createPlaidUpdateLinkTokenOrToast,
   listAccountAssociations,
   listCurrentBalanceObservations,
   listPlaidItems,
@@ -26,6 +28,7 @@ import {
   requestPlaidObservationSync,
   startPlaidLinkExchange,
 } from "@/lib/babylon/plaid-client";
+import { reconcilePlaidItemRepairs } from "@/lib/babylon/plaid-item-repair";
 import {
   itemIdsBeyondInitialReadyList,
   startForegroundObservationSync,
@@ -39,9 +42,11 @@ type UsePlaidConnectionsArgs = {
   enabled: boolean;
 };
 
+type LinkSessionMode = "connect" | "repair";
+
 /**
- * Application hook — owns Plaid Link launch, public item listing, and one
- * foreground observation sync after that list is ready.
+ * Application hook — owns Plaid Link launch (connect + repair), public item
+ * listing, and one foreground observation sync after that list is ready.
  * Presentation only renders; secrets stay on the server.
  */
 export function usePlaidConnections({ enabled }: UsePlaidConnectionsArgs) {
@@ -49,6 +54,9 @@ export function usePlaidConnections({ enabled }: UsePlaidConnectionsArgs) {
   const [linkToken, setLinkToken] = useState<string | null>(null);
   const [pendingOpen, setPendingOpen] = useState(false);
   const [launching, setLaunching] = useState(false);
+  const [repairs, setRepairs] = useState<PlaidItemRepairSignal[]>([]);
+  const linkModeRef = useRef<LinkSessionMode>("connect");
+  const repairItemRef = useRef<string | null>(null);
 
   const itemsQuery = useQuery({
     queryKey: PLAID_ITEMS_QUERY_KEY,
@@ -69,15 +77,65 @@ export function usePlaidConnections({ enabled }: UsePlaidConnectionsArgs) {
     staleTime: FOREGROUND_BALANCE_REFRESH_WINDOW_MS,
   });
 
+  const finishLinkSession = useCallback(() => {
+    setLinkToken(null);
+    setPendingOpen(false);
+    setLaunching(false);
+    linkModeRef.current = "connect";
+    repairItemRef.current = null;
+  }, []);
+
+  const applyObservationSummary = useCallback(
+    (
+      summary: Awaited<ReturnType<typeof requestForegroundBalanceRefresh>>,
+      ticket: number | null
+    ) => {
+      if (summary) {
+        setRepairs((previous) =>
+          reconcilePlaidItemRepairs({
+            previous,
+            repairs: summary.repairs,
+            itemOutcomes: summary.itemOutcomes,
+          })
+        );
+      }
+      if (ticket === null) return;
+      const applied = foregroundBalanceRefreshApplied(summary);
+      noteForegroundBalanceRefreshResult({
+        ticket,
+        applied,
+        now: Date.now(),
+      });
+      if (applied) {
+        void queryClient.invalidateQueries({ queryKey: BALANCE_OBSERVATION_QUERY_KEY });
+        void queryClient.invalidateQueries({ queryKey: PLAID_DESCRIPTOR_QUERY_KEY });
+        void queryClient.invalidateQueries({ queryKey: ACCOUNT_ASSOCIATION_QUERY_KEY });
+      }
+    },
+    [queryClient]
+  );
+
   const onSuccess = useCallback(
     async (
       publicToken: string | null,
       metadata: { institution?: { name?: string | null } | null }
     ) => {
+      const mode = linkModeRef.current;
+      if (mode === "repair") {
+        // Update mode never exchanges. Link success is not evidence recovery.
+        finishLinkSession();
+        const summary = await requestForegroundBalanceRefresh();
+        applyObservationSummary(summary, null);
+        if (summary && foregroundBalanceRefreshApplied(summary)) {
+          void queryClient.invalidateQueries({ queryKey: BALANCE_OBSERVATION_QUERY_KEY });
+          void queryClient.invalidateQueries({ queryKey: PLAID_DESCRIPTOR_QUERY_KEY });
+          void queryClient.invalidateQueries({ queryKey: ACCOUNT_ASSOCIATION_QUERY_KEY });
+        }
+        return;
+      }
+
       if (!publicToken) {
-        setLinkToken(null);
-        setPendingOpen(false);
-        setLaunching(false);
+        finishLinkSession();
         return;
       }
       const institutionName = metadata.institution?.name ?? undefined;
@@ -85,20 +143,16 @@ export function usePlaidConnections({ enabled }: UsePlaidConnectionsArgs) {
       if (item) {
         await queryClient.invalidateQueries({ queryKey: PLAID_ITEMS_QUERY_KEY });
       }
-      setLinkToken(null);
-      setPendingOpen(false);
-      setLaunching(false);
+      finishLinkSession();
     },
-    [queryClient]
+    [applyObservationSummary, finishLinkSession, queryClient]
   );
 
   const { open, ready } = usePlaidLink({
     token: linkToken,
     onSuccess,
     onExit: () => {
-      setPendingOpen(false);
-      setLaunching(false);
-      setLinkToken(null);
+      finishLinkSession();
     },
   });
 
@@ -111,6 +165,8 @@ export function usePlaidConnections({ enabled }: UsePlaidConnectionsArgs) {
   const launchLink = useCallback(async () => {
     if (launching) return;
     setLaunching(true);
+    linkModeRef.current = "connect";
+    repairItemRef.current = null;
     try {
       const token = await createPlaidLinkTokenOrToast();
       if (!token) {
@@ -123,6 +179,28 @@ export function usePlaidConnections({ enabled }: UsePlaidConnectionsArgs) {
       setLaunching(false);
     }
   }, [launching]);
+
+  const launchRepair = useCallback(
+    async (itemRowId: string) => {
+      const id = itemRowId.trim();
+      if (!id || launching) return;
+      setLaunching(true);
+      linkModeRef.current = "repair";
+      repairItemRef.current = id;
+      try {
+        const token = await createPlaidUpdateLinkTokenOrToast(id);
+        if (!token) {
+          finishLinkSession();
+          return;
+        }
+        setLinkToken(token);
+        setPendingOpen(true);
+      } catch {
+        finishLinkSession();
+      }
+    },
+    [finishLinkSession, launching]
+  );
 
   const items: PlaidItemPublic[] = itemsQuery.data ?? [];
   const itemsReady = itemsQuery.isSuccess && !itemsQuery.isFetching;
@@ -140,24 +218,18 @@ export function usePlaidConnections({ enabled }: UsePlaidConnectionsArgs) {
       });
       if (decision.action !== "request") return;
       void requestForegroundBalanceRefresh().then((summary) => {
-        const applied = foregroundBalanceRefreshApplied(summary);
-        noteForegroundBalanceRefreshResult({
-          ticket: decision.ticket,
-          applied,
-          now: Date.now(),
-        });
-        if (applied) {
-          void queryClient.invalidateQueries({ queryKey: BALANCE_OBSERVATION_QUERY_KEY });
-          void queryClient.invalidateQueries({ queryKey: PLAID_DESCRIPTOR_QUERY_KEY });
-          void queryClient.invalidateQueries({ queryKey: ACCOUNT_ASSOCIATION_QUERY_KEY });
-        }
+        applyObservationSummary(summary, decision.ticket);
         if (hasUnseenBalanceItem()) recordVisibleBalances(true);
       });
     },
-    [enabled, observationsQuery.data, queryClient]
+    [applyObservationSummary, enabled, observationsQuery.data]
   );
 
   useEffect(() => {
+    if (!enabled) {
+      setRepairs([]);
+      return;
+    }
     recordVisibleBalances(false);
     const onPresence = () => {
       if (document.visibilityState !== "visible") return;
@@ -169,7 +241,7 @@ export function usePlaidConnections({ enabled }: UsePlaidConnectionsArgs) {
       document.removeEventListener("visibilitychange", onPresence);
       window.removeEventListener("focus", onPresence);
     };
-  }, [recordVisibleBalances]);
+  }, [enabled, recordVisibleBalances]);
 
   const realtimeObservedAt = newestRealtimeObservedAt(observationsQuery.data);
   useEffect(() => {
@@ -219,13 +291,27 @@ export function usePlaidConnections({ enabled }: UsePlaidConnectionsArgs) {
     recordVisibleBalances(true);
   }, [enabled, itemsQuery.data, itemsReady, queryClient, recordVisibleBalances]);
 
+  const repairItems = repairs
+    .map((repair) => {
+      const item = items.find((row) => row.id === repair.itemId);
+      if (!item) return null;
+      return {
+        itemId: repair.itemId,
+        code: repair.code,
+        institutionName: item.institutionName,
+      };
+    })
+    .filter((row): row is NonNullable<typeof row> => row !== null);
+
   return {
     items,
     connectedCount: items.length,
     isLoading: itemsQuery.isLoading,
     launching,
     ready,
+    repairs: repairItems,
     refresh: () => itemsQuery.refetch(),
     launchLink,
+    launchRepair,
   };
 }

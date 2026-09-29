@@ -131,7 +131,14 @@ describe("background balance observation", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store");
     const body = await response.json();
-    expect(body).toEqual({ items: 2, attempted: 2, applied: 2, notApplied: 0 });
+    expect(body).toEqual({
+      items: 2,
+      attempted: 2,
+      applied: 2,
+      notApplied: 0,
+      repairs: [],
+      itemOutcomes: [],
+    });
     const text = JSON.stringify(body);
     expect(text).not.toContain(OWNER_A);
     expect(text).not.toContain(OWNER_B);
@@ -173,6 +180,8 @@ describe("background balance observation", () => {
       attempted: 2,
       applied: 1,
       notApplied: 1,
+      repairs: [],
+      itemOutcomes: [],
     });
     expect(recordPlaidBalanceObservations).toHaveBeenCalledTimes(2);
     const logged = errorLog.mock.calls.map((call) => call.map(String).join(" ")).join("\n");
@@ -241,7 +250,14 @@ describe("authoritative item rows", () => {
         return "applied";
       },
     });
-    expect(summary).toEqual({ items: 2, attempted: 2, applied: 1, notApplied: 1 });
+    expect(summary).toEqual({
+      items: 2,
+      attempted: 2,
+      applied: 1,
+      notApplied: 1,
+      repairs: [],
+      itemOutcomes: [],
+    });
     expect(seen).toEqual([ITEM_A, ITEM_B]);
   });
 
@@ -253,7 +269,14 @@ describe("authoritative item rows", () => {
       ],
       record: async (item) => (item.id === ITEM_A ? "not-applied" : "applied"),
     });
-    expect(summary).toEqual({ items: 2, attempted: 2, applied: 1, notApplied: 1 });
+    expect(summary).toEqual({
+      items: 2,
+      attempted: 2,
+      applied: 1,
+      notApplied: 1,
+      repairs: [],
+      itemOutcomes: [],
+    });
   });
 });
 

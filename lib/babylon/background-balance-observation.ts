@@ -11,11 +11,29 @@ export type BackgroundBalanceItem = {
   userId: string;
 };
 
+/** Safe Item repair signal for ITEM_LOGIN_REQUIRED only. No secrets or balances. */
+export type PlaidItemRepairSignal = {
+  itemId: string;
+  code: "ITEM_LOGIN_REQUIRED";
+};
+
+/**
+ * Per-Item foreground outcome. `applied` means a balance_get observation
+ * committed. `skipped` means no Balance write was needed or possible without
+ * failure. `not-applied` means failure. Only `applied` may clear repair.
+ */
+export type PlaidItemObservationOutcome = {
+  itemId: string;
+  result: "applied" | "skipped" | "not-applied";
+};
+
 export type BackgroundBalanceSummary = {
   items: number;
   attempted: number;
   applied: number;
   notApplied: number;
+  repairs: PlaidItemRepairSignal[];
+  itemOutcomes: PlaidItemObservationOutcome[];
 };
 
 /**
@@ -35,6 +53,47 @@ export function readPlaidItemOwners(rows: unknown): BackgroundBalanceItem[] | nu
     items.push({ id, userId });
   }
   return items;
+}
+
+export function readPlaidItemRepairSignals(
+  value: unknown
+): PlaidItemRepairSignal[] | null {
+  if (value === undefined) return [];
+  if (!Array.isArray(value)) return null;
+  const repairs: PlaidItemRepairSignal[] = [];
+  for (const entry of value) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) return null;
+    const record = entry as { itemId?: unknown; code?: unknown };
+    if (typeof record.itemId !== "string" || !record.itemId.trim()) return null;
+    if (record.code !== "ITEM_LOGIN_REQUIRED") return null;
+    repairs.push({ itemId: record.itemId.trim(), code: "ITEM_LOGIN_REQUIRED" });
+  }
+  return repairs;
+}
+
+export function readPlaidItemObservationOutcomes(
+  value: unknown
+): PlaidItemObservationOutcome[] | null {
+  if (value === undefined) return [];
+  if (!Array.isArray(value)) return null;
+  const outcomes: PlaidItemObservationOutcome[] = [];
+  for (const entry of value) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) return null;
+    const record = entry as { itemId?: unknown; result?: unknown };
+    if (typeof record.itemId !== "string" || !record.itemId.trim()) return null;
+    if (
+      record.result !== "applied" &&
+      record.result !== "skipped" &&
+      record.result !== "not-applied"
+    ) {
+      return null;
+    }
+    outcomes.push({
+      itemId: record.itemId.trim(),
+      result: record.result,
+    });
+  }
+  return outcomes;
 }
 
 /**
@@ -58,5 +117,12 @@ export async function observeBackgroundBalances(input: {
       console.error("[plaid] background balance observation failed.");
     }
   }
-  return { items: input.items.length, attempted, applied, notApplied };
+  return {
+    items: input.items.length,
+    attempted,
+    applied,
+    notApplied,
+    repairs: [],
+    itemOutcomes: [],
+  };
 }

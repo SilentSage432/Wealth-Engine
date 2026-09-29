@@ -194,11 +194,27 @@ describe("Plaid real-time balance fetch", () => {
     vi.mocked(plaidFetch).mockResolvedValue({
       ok: false,
       response: { status: 502 } as never,
+      errorCode: "PRODUCTS_NOT_SUPPORTED",
+      httpStatus: 400,
     });
     const fetched = await fetchPlaidRealtimeBalances({
       accessToken: ACCESS_TOKEN,
       accountIds: ["checking"],
     });
     expect(fetched).toEqual({ ok: false, reason: "plaid_request" });
+  });
+
+  it("names ITEM_LOGIN_REQUIRED distinctly from other Plaid failures", async () => {
+    vi.mocked(plaidFetch).mockResolvedValue({
+      ok: false,
+      response: { status: 502 } as never,
+      errorCode: "ITEM_LOGIN_REQUIRED",
+      httpStatus: 400,
+    });
+    const fetched = await fetchPlaidRealtimeBalances({
+      accessToken: ACCESS_TOKEN,
+      accountIds: ["checking"],
+    });
+    expect(fetched).toEqual({ ok: false, reason: "item_login_required" });
   });
 });

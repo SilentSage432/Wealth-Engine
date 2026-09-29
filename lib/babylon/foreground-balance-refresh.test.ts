@@ -151,6 +151,8 @@ describe("foreground balance refresh planner", () => {
         attempted: 1,
         applied: 0,
         notApplied: 1,
+        repairs: [],
+        itemOutcomes: [],
       })
     ).toBe(false);
     expect(
@@ -159,6 +161,8 @@ describe("foreground balance refresh planner", () => {
         attempted: 2,
         applied: 1,
         notApplied: 1,
+        repairs: [],
+        itemOutcomes: [],
       })
     ).toBe(false);
   });
@@ -170,6 +174,8 @@ describe("foreground balance refresh planner", () => {
         attempted: 2,
         applied: 2,
         notApplied: 0,
+        repairs: [],
+        itemOutcomes: [],
       })
     ).toBe(true);
   });
@@ -281,7 +287,7 @@ describe("POST /api/plaid/observe-balances", () => {
       { id: ITEM_A, user_id: OWNER },
       { id: ITEM_B, user_id: OWNER },
     ]);
-    recordPlaidRealtimeBalanceObservations.mockResolvedValue("applied");
+    recordPlaidRealtimeBalanceObservations.mockResolvedValue({ result: "applied" });
 
     const response = await post();
     expect(response.status).toBe(200);
@@ -290,6 +296,11 @@ describe("POST /api/plaid/observe-balances", () => {
       attempted: 2,
       applied: 2,
       notApplied: 0,
+      repairs: [],
+      itemOutcomes: [
+        { itemId: ITEM_A, result: "applied" },
+        { itemId: ITEM_B, result: "applied" },
+      ],
     });
     expect(recordPlaidRealtimeBalanceObservations).toHaveBeenCalledTimes(2);
     expect(recordPlaidRealtimeBalanceObservations.mock.calls[0]?.[0]).toMatchObject({
@@ -320,6 +331,7 @@ describe("POST /api/plaid/observe-balances", () => {
       attempted: 2,
       applied: 2,
       notApplied: 0,
+      repairs: 0,
     });
     expect(JSON.stringify(info.mock.calls)).not.toContain("access_token");
     info.mockRestore();
@@ -347,10 +359,80 @@ describe("POST /api/plaid/observe-balances", () => {
   it("returns the summary when the recorder does not apply", async () => {
     signedIn();
     items([{ id: ITEM_A, user_id: OWNER }]);
-    recordPlaidRealtimeBalanceObservations.mockResolvedValue("not-applied");
+    recordPlaidRealtimeBalanceObservations.mockResolvedValue({ result: "not-applied" });
     const response = await post();
     expect(response.status).toBe(200);
-    expect(await response.json()).toMatchObject({ applied: 0, notApplied: 1 });
+    expect(await response.json()).toMatchObject({
+      applied: 0,
+      notApplied: 1,
+      repairs: [],
+      itemOutcomes: [{ itemId: ITEM_A, result: "not-applied" }],
+    });
+  });
+
+  it("surfaces ITEM_LOGIN_REQUIRED as a safe Item repair signal", async () => {
+    signedIn();
+    items([{ id: ITEM_A, user_id: OWNER }]);
+    recordPlaidRealtimeBalanceObservations.mockResolvedValue({
+      result: "not-applied",
+      repair: "ITEM_LOGIN_REQUIRED",
+    });
+    const response = await post();
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body).toEqual({
+      items: 1,
+      attempted: 1,
+      applied: 0,
+      notApplied: 1,
+      repairs: [{ itemId: ITEM_A, code: "ITEM_LOGIN_REQUIRED" }],
+      itemOutcomes: [{ itemId: ITEM_A, result: "not-applied" }],
+    });
+    expect(JSON.stringify(body)).not.toContain("access_token");
+    expect(JSON.stringify(body)).not.toContain("13533");
+  });
+
+  it("emits skipped Item outcome without counting it as not-applied", async () => {
+    signedIn();
+    items([{ id: ITEM_A, user_id: OWNER }]);
+    recordPlaidRealtimeBalanceObservations.mockResolvedValue({ result: "skipped" });
+    const response = await post();
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      items: 1,
+      attempted: 1,
+      applied: 1,
+      notApplied: 0,
+      repairs: [],
+      itemOutcomes: [{ itemId: ITEM_A, result: "skipped" }],
+    });
+  });
+
+  it("keeps mixed Item outcomes Item-scoped", async () => {
+    signedIn();
+    items([
+      { id: ITEM_A, user_id: OWNER },
+      { id: ITEM_B, user_id: OWNER },
+    ]);
+    recordPlaidRealtimeBalanceObservations
+      .mockResolvedValueOnce({ result: "applied" })
+      .mockResolvedValueOnce({
+        result: "not-applied",
+        repair: "ITEM_LOGIN_REQUIRED",
+      });
+    const response = await post();
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      items: 2,
+      attempted: 2,
+      applied: 1,
+      notApplied: 1,
+      repairs: [{ itemId: ITEM_B, code: "ITEM_LOGIN_REQUIRED" }],
+      itemOutcomes: [
+        { itemId: ITEM_A, result: "applied" },
+        { itemId: ITEM_B, result: "not-applied" },
+      ],
+    });
   });
 
   it("does not run without a session", async () => {
@@ -425,7 +507,7 @@ describe("foreground balance ownership", () => {
   it("uses one foreground balance owner on initial visible signed-in use", () => {
     const hook = source("hooks/usePlaidConnections.ts");
     const syncRoute = source("app/api/plaid/sync-transactions/route.ts");
-    expect(hook.match(/requestForegroundBalanceRefresh\(/g)).toHaveLength(1);
+    expect(hook.match(/requestForegroundBalanceRefresh\(/g)).toHaveLength(2);
     expect(hook).toContain("recordVisibleBalances(false)");
     expect(syncRoute).not.toContain("recordPlaidBalanceObservations");
     expect(syncRoute).toContain("syncPlaidItemObservations");

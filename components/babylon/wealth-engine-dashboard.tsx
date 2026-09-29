@@ -56,7 +56,8 @@ export function WealthEngineDashboard() {
 
   const plaid = usePlaidConnections({ enabled: hydrated && isCloudSynced });
   const balanceObservation = engine.balanceObservation;
-  const { launchLink, launching, connectedCount, isLoading } = plaid;
+  const { launchLink, launchRepair, launching, connectedCount, isLoading, repairs } =
+    plaid;
 
   const handleLinkBank = useCallback(() => {
     if (!isCloudSynced) {
@@ -65,6 +66,17 @@ export function WealthEngineDashboard() {
     }
     void launchLink();
   }, [isCloudSynced, launchLink, setAuthOpen]);
+
+  const handleRepairBank = useCallback(
+    (itemId: string) => {
+      if (!isCloudSynced) {
+        setAuthOpen(true);
+        return;
+      }
+      void launchRepair(itemId);
+    },
+    [isCloudSynced, launchRepair, setAuthOpen]
+  );
 
   // Phone destinations only. Desktop keeps activeNav and does not mirror this.
   const [mobileDestination, setMobileDestination] =
@@ -252,7 +264,9 @@ export function WealthEngineDashboard() {
       launching={launching}
       initializing={!hydrated}
       isCloudSynced={isCloudSynced}
+      repairs={repairs}
       onConnect={handleLinkBank}
+      onRepair={handleRepairBank}
       onRequireAuth={() => setAuthOpen(true)}
     />
     <ObservationTeaching
@@ -411,7 +425,9 @@ export function WealthEngineDashboard() {
                 plaidLaunching={launching}
                 plaidInitializing={!hydrated}
                 isCloudSynced={isCloudSynced}
+                repairs={repairs}
                 onConnectBank={handleLinkBank}
+                onRepairBank={handleRepairBank}
                 onRequireAuth={() => setAuthOpen(true)}
                 budgetTargets={engine.budgetTargets}
                 onExportBackup={engine.exportBackup}

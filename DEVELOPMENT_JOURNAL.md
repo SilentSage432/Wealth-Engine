@@ -1,5 +1,35 @@
 # Development Journal
 
+## 2026-09-28 — WE-PLAID-RECOVERY-001A sticky Item-scoped repair clear
+
+### What changed
+- Blocking false-clear: wholesale `setRepairs(summary.repairs)` could erase `ITEM_LOGIN_REQUIRED` when a 200 summary returned empty `repairs[]` after generic failure.
+- Foreground POST now returns Item-scoped `itemOutcomes` keyed by local `plaid_items.id` with `applied` | `skipped` | `not-applied`. Only `applied` (committed `balance_get`) may clear that Item.
+- Client merges with `reconcilePlaidItemRepairs`. Absence from `repairs[]` is not recovery. Background GET still returns empty `itemOutcomes` and cannot clear foreground repair state.
+
+### Validation
+- Focused repair/balance suites passed (88 tests across 6 files).
+- Full suite: 42 files, 563 tests passed.
+- `tsc --noEmit`, lint, production build, and `git diff --check` passed.
+
+### Not in this tranche
+- No commit, push, deploy, Supabase apply, or manual Plaid call.
+
+## 2026-09-28 — WE-PLAID-RECOVERY-001 ITEM_LOGIN_REQUIRED update-mode repair
+
+### What changed
+- Production Balance diagnostics proved `/accounts/balance/get` returns HTTP 400 `ITEM_LOGIN_REQUIRED`. Cached `accounts_get` evidence is retained.
+- `POST /api/plaid/link-token` now supports CONNECT (unchanged initial Link) and REPAIR (owned local `plaid_items.id` → update-mode Link with the existing server-side `access_token`, no initial `products`).
+- Foreground observe POST returns a safe `repairs` collection for `ITEM_LOGIN_REQUIRED` only. Page/session repair state drives Connections copy and Reconnect. No schema, no Attention kind, no public-token exchange on repair success.
+- Repair Link success asks Balance again. Institution-refreshed provenance requires a committed `balance_get`. Link success alone is not recovery.
+
+### Validation
+- Focused and full suites passed: 41 files, 544 tests.
+- `tsc --noEmit`, lint, the production build, and `git diff --check` passed.
+
+### Not in this tranche
+- No commit, push, deploy, Supabase apply, or manual Plaid call. No durable Item-health columns. No webhook. No automatic credential repair.
+
 ## 2026-09-28 — WE-BALANCE-FRESHNESS-005 foreground real-time financial position
 
 ### What changed

@@ -1,4 +1,8 @@
 import type { BackgroundBalanceSummary } from "@/lib/babylon/background-balance-observation";
+import {
+  readPlaidItemObservationOutcomes,
+  readPlaidItemRepairSignals,
+} from "@/lib/babylon/background-balance-observation";
 
 /**
  * Minimum gap between paid /accounts/balance/get calls.
@@ -113,7 +117,15 @@ export function readBalanceObservationSummary(
   for (const count of Object.values(summary)) {
     if (typeof count !== "number" || !Number.isInteger(count) || count < 0) return null;
   }
-  return summary as BackgroundBalanceSummary;
+  const repairs = readPlaidItemRepairSignals(record.repairs);
+  if (!repairs) return null;
+  const itemOutcomes = readPlaidItemObservationOutcomes(record.itemOutcomes);
+  if (!itemOutcomes) return null;
+  return {
+    ...(summary as Omit<BackgroundBalanceSummary, "repairs" | "itemOutcomes">),
+    repairs,
+    itemOutcomes,
+  };
 }
 
 type RefreshDecision = { action: "skip" } | { action: "request"; ticket: number };
