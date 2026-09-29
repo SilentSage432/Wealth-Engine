@@ -6,7 +6,9 @@
 **Architecture map:** [`ARCHITECTURE.md`](./ARCHITECTURE.md) — layers, dependency rules, canonical ownership matrix.
 
 ## Current state
-WE-PAY-SCHEDULE-001 is a **review candidate**. Steward `PaySchedule` rules derive `ExpectedPayday` occurrences by civil month. Expected ≠ Income. Backup v10; cloud schema 6 soft-add `paySchedules`; no SQL; IC v3 unchanged. No funding UI / Attention / matching.
+WE-PAYCHECK-FUNDING-002 is an **implementation candidate**. Pure `derivePaycheckFundingPlan` decomposes finalized `MonthlyPlanRevision` purposes across same-period `ExpectedPayday[]`. Living categories, `wealthShare`, and aggregate `debtShare` are independently conserved in integer cents (earliest remainder). Not Income / Allocation / Position. Not persisted. No UI. Backup v10; cloud schema 6; IC v3 unchanged.
+
+WE-PAY-SCHEDULE-001 is finalized on main (`ab88d36`). Steward `PaySchedule` rules derive `ExpectedPayday` occurrences by civil month. Expected ≠ Income. Backup v10; cloud schema 6 soft-add `paySchedules`; no SQL; IC v3 unchanged. No funding UI / Attention / matching.
 
 WE-FINANCIAL-POSITION-HIERARCHY-001 is a **review candidate**. When Unavailable > 0, Available to use is the hero; Liquid Position and Unavailable are supporting composition. Zero-restriction keeps Liquid Position as hero. Domain arithmetic and IC v3 unchanged.
 

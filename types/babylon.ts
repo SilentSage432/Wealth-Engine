@@ -193,6 +193,78 @@ export interface ExpectedPayday {
 }
 
 /**
+ * Kind of monthly purpose decomposed across expected paydays.
+ * Living uses category identity. Wealth / Debt use the plan's canonical shares.
+ */
+export type PaycheckFundingPurposeKind = "living" | "wealth" | "debt";
+
+/**
+ * One finalized monthly purpose extracted for paycheck funding derivation.
+ * Not an AllocationEvent. Not Income. Derived provenance only.
+ */
+export type MonthlyFundingPurpose =
+  | {
+      kind: "living";
+      /** Budget category id from MonthlyPlanCategoryPurpose.id. */
+      purposeId: string;
+      label: string;
+      monthlyPlannedAmount: number;
+    }
+  | {
+      kind: "wealth";
+      purposeId: "wealth";
+      label: "Wealth Building";
+      monthlyPlannedAmount: number;
+    }
+  | {
+      kind: "debt";
+      purposeId: "debt";
+      label: "Debt Payoff";
+      /** Aggregate debtShare. Not per-creditor monthlyAllocation. */
+      monthlyPlannedAmount: number;
+    };
+
+/**
+ * Portion of one monthly purpose belonging to one expected funding slot.
+ * Planning arithmetic only. Not an AllocationEvent.
+ */
+export interface PaycheckFundingResponsibility {
+  purposeKind: PaycheckFundingPurposeKind;
+  purposeId: string;
+  label: string;
+  monthlyPlannedAmount: number;
+  amount: number;
+  scheduleId: string;
+  date: string;
+  periodKey: string;
+}
+
+/** One ordered expected payday with its derived responsibilities. */
+export interface PaycheckFundingPaydaySlot {
+  expectedPayday: ExpectedPayday;
+  responsibilities: PaycheckFundingResponsibility[];
+}
+
+/**
+ * Derived temporal decomposition of a finalized MonthlyPlanRevision
+ * across ExpectedPayday occurrences in the same period.
+ * Not persisted. Not Income. Not Allocation.
+ */
+export interface PaycheckFundingPlan {
+  periodKey: string;
+  monthlyPlanRevisionId: string;
+  /**
+   * "decomposed" when N >= 1.
+   * "no_expected_funding" when the plan exists but the period has zero
+   * expected funding opportunities (UNKNOWN temporal funding).
+   */
+  status: "decomposed" | "no_expected_funding";
+  fundingOpportunityCount: number;
+  purposes: MonthlyFundingPurpose[];
+  paydays: PaycheckFundingPaydaySlot[];
+}
+
+/**
  * Current balance the user says exists in one place.
  * This is financial position. It is not income and it does not allocate.
  */

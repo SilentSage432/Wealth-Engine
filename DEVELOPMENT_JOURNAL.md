@@ -1,5 +1,21 @@
 # Development Journal
 
+## 2026-09-29 — WE-PAYCHECK-FUNDING-002 monthly purpose temporal decomposition
+
+### What changed
+- Pure `lib/babylon/paycheck-funding.ts`: finalized `MonthlyPlanRevision` purposes decompose across same-period `ExpectedPayday[]` into derived `PaycheckFundingPlan` / responsibilities.
+- Living: each `categories[]` purpose independently conserved. Wealth: `wealthShare`. Debt: aggregate `debtShare` (not per-creditor `monthlyAllocation`).
+- Cent split uses earliest-occurrence remainder. `expectedAmount` and obligation due dates do not weight. Zero paydays → `no_expected_funding`. Not persisted. No UI / Income / Allocation / Position mutation. Backup v10; cloud schema 6; IC v3 unchanged.
+
+### Validation
+- Focused paycheck-funding tests: 22 passed.
+- Relevant monthly-plan / pay-schedule / position / debt isolation: 113 passed.
+- Full suite: 50 files, 719 tests passed.
+- `tsc --noEmit` passed; eslint on touched files clean; production build passed; `git diff --check` clean.
+
+### Not in this tranche
+- No commit, push, deploy, UI, due-before-next-payday, matching, Attention, or Supabase work.
+
 ## 2026-09-29 — WE-PAY-SCHEDULE-001 expected pay schedule domain
 
 ### What changed
