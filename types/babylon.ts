@@ -265,6 +265,73 @@ export interface PaycheckFundingPlan {
 }
 
 /**
+ * Temporal relationship between a finalized monthly obligation and
+ * expected civil payday dates. Describes TIME only — not funding,
+ * priority, payment, or execution.
+ */
+export type PaycheckTemporalRelationship =
+  | "due_before_first_payday"
+  | "due_on_payday"
+  | "due_before_next_payday"
+  | "due_after_final_payday";
+
+/**
+ * One obligation placed relative to expected payday civil dates.
+ * Not a funding assignment. Not settlement. Not an AllocationEvent.
+ */
+export interface TemporalObligationFact {
+  obligationId: string;
+  label: string;
+  amount: number;
+  dueDate: string;
+  /** Need/Want from plan evidence. Context only — never prioritizes funding. */
+  category: ExpenseKind;
+  budgetCategoryId: string;
+  relationship: PaycheckTemporalRelationship;
+  /**
+   * Civil payday date this fact anchors to when relationship is
+   * due_on_payday or due_before_next_payday.
+   */
+  paydayDate?: string;
+  /** Present when relationship is due_before_next_payday. */
+  nextPaydayDate?: string;
+}
+
+/**
+ * One unique civil payday date and the obligations temporally related to it.
+ * Windows are keyed by civil date, not funding-opportunity identity.
+ */
+export interface PaydayTemporalWindow {
+  paydayDate: string;
+  periodKey: string;
+  /** All ExpectedPayday occurrences on this civil date (provenance). */
+  paydayOccurrences: ExpectedPayday[];
+  /** Next distinct civil payday date in-period, or null if final. */
+  nextPaydayDate: string | null;
+  obligationsDueOnPayday: TemporalObligationFact[];
+  obligationsDueBeforeNextPayday: TemporalObligationFact[];
+}
+
+/**
+ * Derived temporal classification of finalized monthly obligation evidence
+ * against same-period ExpectedPayday civil dates.
+ * Not persisted. Does not mutate PaycheckFundingPlan.
+ */
+export interface PaycheckTemporalPlan {
+  periodKey: string;
+  monthlyPlanRevisionId: string;
+  /**
+   * "classified" when at least one unique civil payday date exists.
+   * "no_expected_funding" when zero ExpectedPaydays — no temporal windows.
+   */
+  status: "classified" | "no_expected_funding";
+  uniquePaydayDates: string[];
+  obligationsDueBeforeFirstPayday: TemporalObligationFact[];
+  windows: PaydayTemporalWindow[];
+  obligationsDueAfterFinalPayday: TemporalObligationFact[];
+}
+
+/**
  * Current balance the user says exists in one place.
  * This is financial position. It is not income and it does not allocate.
  */

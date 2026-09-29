@@ -1,5 +1,21 @@
 # Development Journal
 
+## 2026-09-29 — WE-PAYCHECK-TEMPORAL-003 due-before-next-payday facts
+
+### What changed
+- Pure `lib/babylon/paycheck-temporal.ts`: finalized `MonthlyPlanRevision.obligations[]` classified against same-period `ExpectedPayday` **unique civil dates**.
+- Relationships: `due_before_first_payday` | `due_on_payday` | `due_before_next_payday` | `due_after_final_payday`. Time only — not funding, priority, or settlement.
+- Payday coincidence elevates to `due_on_payday` (not labeled “before next”). Same-date schedules share one temporal window. Does not mutate `PaycheckFundingPlan`. Not persisted. Backup v10; cloud schema 6; IC v3 unchanged.
+
+### Validation
+- Focused temporal tests: 20 passed.
+- Relevant funding / monthly-plan / pay-schedule / obligations / position / debt isolation: 160 passed.
+- Full suite: 51 files, 739 tests passed.
+- `tsc --noEmit` passed; eslint on touched files clean; production build passed; `git diff --check` clean.
+
+### Not in this tranche
+- No commit, push, deploy, UI, funding mutation, matching, Attention, or Supabase work.
+
 ## 2026-09-29 — WE-PAYCHECK-FUNDING-002 monthly purpose temporal decomposition
 
 ### What changed
