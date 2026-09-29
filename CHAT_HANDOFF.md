@@ -6,6 +6,8 @@
 **Architecture map:** [`ARCHITECTURE.md`](./ARCHITECTURE.md) — layers, dependency rules, canonical ownership matrix.
 
 ## Current state
+WE-FINANCIAL-POSITION-HIERARCHY-001 is a **review candidate**. When Unavailable > 0, Available to use is the hero; Liquid Position and Unavailable are supporting composition. Zero-restriction keeps Liquid Position as hero. Domain arithmetic, IC v3, backup v9, and schema 6 unchanged.
+
 WE-FINANCIAL-POSITION-LANGUAGE-001 is a **review candidate**. Steward-facing owned-liquid label is Liquid Position (presentation only). Domain `moneyAvailable` and IC `money_available_cents` unchanged. When Unavailable > 0, surfaces Unavailable and derived Available to use. Shortfall copy is Candidate A and renders once with two decimals. Backup v9; cloud schema 6; no SQL.
 
 WE-RESTRICTED-POSITION-003 is a **review candidate**. Steward `FinancialAccount.restrictedAmount` (Unavailable). OWNED ≠ DEPLOYABLE. Money Available remains full EAP sum. AAPN uses Deployable − DeployableProtected − Upcoming Needs. ProtectedOwned keeps full purpose positions. Backup v9; cloud schema 6; no SQL; IC v3 unchanged. Plaid `available` does not establish restriction.

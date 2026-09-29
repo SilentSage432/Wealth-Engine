@@ -1,5 +1,20 @@
 # Development Journal
 
+## 2026-09-29 — WE-FINANCIAL-POSITION-HIERARCHY-001 promote actionable position
+
+### What changed
+- When aggregate Unavailable > 0, Financial Position hero becomes Available to use (DeployablePosition); Liquid Position + Unavailable move to supporting composition with − on Unavailable.
+- Zero-restriction keeps Liquid Position as the only hero (no duplicate Available to use).
+- Desktop and phone Home share adaptive hierarchy via `deriveAvailableToUsePresentation.heroKind`. No domain, schema, IC, or arithmetic change.
+
+### Validation
+- Focused composition / restriction / AAPN / IC tests passed.
+- Full suite: 48 files, 676 tests passed.
+- `tsc --noEmit` passed; eslint on touched files clean; production build passed; `git diff --check` clean.
+
+### Not in this tranche
+- No commit, push, deploy, or Supabase work.
+
 ## 2026-09-29 — WE-FINANCIAL-POSITION-LANGUAGE-001 owned / unavailable / available-to-use presentation
 
 ### What changed

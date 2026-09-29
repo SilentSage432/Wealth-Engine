@@ -2,8 +2,11 @@
  * Financial Position composition — labels and sibling context only.
  * Does not change Money Available, Protected Money, AAPN, or debt math.
  *
- * Steward-facing aggregate label is Liquid Position (owned liquid).
+ * Steward-facing owned-liquid aggregate label is Liquid Position (owned liquid).
  * Domain/runtime field remains `moneyAvailable`; IC stays `money_available_cents`.
+ *
+ * When Unavailable > 0, visual hierarchy promotes Available to use (deployable)
+ * as the decision-relevant hero; Liquid Position becomes supporting context.
  */
 
 import { deriveAvailableAfterPlannedNeeds } from "@/lib/babylon/available-after-planned-needs";
@@ -18,6 +21,16 @@ export const FINANCIAL_POSITION_TRUTH_ORDER = [
   "available-after-planned-needs",
   "accounts",
   "recorded-debt",
+] as const;
+
+/**
+ * Restricted-state document order inside the primary aggregate block.
+ * Decision-relevant deployable first; owned and unavailable as support.
+ */
+export const RESTRICTED_POSITION_DOCUMENT_ORDER = [
+  "available-to-use",
+  "liquid-position",
+  "unavailable",
 ] as const;
 
 export const FINANCIAL_POSITION_HEADING = "Financial Position";
@@ -56,6 +69,13 @@ export const RECORDED_DEBT_LABEL = "Recorded Debt";
 
 /** Aggregate deployable remainder when Unavailable > 0. Derived, not persisted. */
 export const AVAILABLE_TO_USE_LABEL = "Available to use";
+
+/**
+ * Restricted-state hero explanation. Not safe-to-spend. Not AAPN.
+ */
+export function availableToUseExplain(): string {
+  return "Owned liquid money presently available to use before set-aside purposes and Upcoming Needs.";
+}
 
 /**
  * Existing designations only. Tracked Wealth Building and Emergency Fund
@@ -107,18 +127,27 @@ export const EMERGENCY_FUND_POSITIONED_LABEL = "Emergency Fund";
 
 export const CURRENTLY_POSITIONED_HINT = "currently positioned";
 
+export type FinancialPositionHeroKind = "liquid-position" | "available-to-use";
+
 /**
  * Derived Available to use for presentation. Equals DeployablePosition.
  * Do not persist. Quiet when Unavailable is zero.
+ *
+ * When restricted, heroKind promotes Available to use for decision relevance.
+ * Supporting composition may show Unavailable with a minus because
+ * Liquid Position − Unavailable = Available to use (Unavailable ⊆ Owned).
  */
 export function deriveAvailableToUsePresentation(input: {
   moneyAvailable: number;
   restrictedEffectiveTotal: number;
   deployablePosition?: number;
 }): {
+  heroKind: FinancialPositionHeroKind;
   showUnavailable: boolean;
   showAvailableToUse: boolean;
   availableToUse: number;
+  /** True when supporting composition should prefix Unavailable with −. */
+  unavailableAsSubtraction: boolean;
 } {
   const unavailable = Math.max(0, input.restrictedEffectiveTotal);
   const availableToUse =
@@ -126,9 +155,11 @@ export function deriveAvailableToUsePresentation(input: {
     Math.max(0, input.moneyAvailable - unavailable);
   const showUnavailable = unavailable > 0;
   return {
+    heroKind: showUnavailable ? "available-to-use" : "liquid-position",
     showUnavailable,
     showAvailableToUse: showUnavailable,
     availableToUse,
+    unavailableAsSubtraction: showUnavailable,
   };
 }
 

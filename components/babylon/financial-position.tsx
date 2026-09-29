@@ -66,6 +66,7 @@ import {
   AVAILABLE_AFTER_PLANNED_NEEDS_LABEL,
   AVAILABLE_TO_USE_LABEL,
   availableAfterPlannedNeedsExplain,
+  availableToUseExplain,
   alreadySetAsideExplain,
   CURRENTLY_POSITIONED_HINT,
   deriveAvailableToUsePresentation,
@@ -718,47 +719,81 @@ export function FinancialPosition({
                 <Landmark className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                 {FINANCIAL_POSITION_HEADING}
               </p>
-              <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                {LIQUID_POSITION_LABEL}
-              </p>
-              <p className="mt-1 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight text-slate-50 tabular-nums sm:text-4xl">
-                {money(moneyAvailable)}
-              </p>
-              {availableToUsePresentation.showUnavailable ? (
-                <div className="mt-2 space-y-1 text-xs leading-relaxed text-slate-400">
-                  <p>
-                    {UNAVAILABLE_LABEL}{" "}
-                    <span className="tabular-nums text-slate-200">
-                      {money(restrictedEffectiveTotal)}
-                    </span>
-                    <span className="mt-1 block text-slate-500">
-                      {unavailableExplain(restrictedEffectiveTotal)}
-                    </span>
+              {availableToUsePresentation.heroKind === "available-to-use" ? (
+                <>
+                  <p
+                    className="mt-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500"
+                    data-position-hero="available-to-use"
+                  >
+                    {AVAILABLE_TO_USE_LABEL}
                   </p>
-                  {availableToUsePresentation.showAvailableToUse ? (
-                    <p>
-                      {AVAILABLE_TO_USE_LABEL}{" "}
-                      <span className="tabular-nums text-slate-200">
-                        {money(availableToUsePresentation.availableToUse)}
-                      </span>
-                    </p>
-                  ) : null}
-                </div>
-              ) : null}
-              <p className="mt-2 max-w-xl text-xs leading-relaxed text-slate-500">
-                {LIQUID_POSITION_SCOPE}{" "}
-                {describeMoneyAvailableEvidence({
-                  load: balanceObservation?.load,
-                  positions: accounts.map((account) =>
-                    operationalAccountPosition({
-                      account,
+                  <p className="mt-1 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight text-slate-50 tabular-nums sm:text-4xl">
+                    {money(availableToUsePresentation.availableToUse)}
+                  </p>
+                  <dl
+                    className="mt-3 space-y-1 text-xs text-slate-400"
+                    data-position-support="owned-unavailable"
+                  >
+                    <div className="flex items-baseline justify-between gap-3 max-w-xs">
+                      <dt>{LIQUID_POSITION_LABEL}</dt>
+                      <dd className="tabular-nums text-slate-200">
+                        {money(moneyAvailable)}
+                      </dd>
+                    </div>
+                    <div className="flex items-baseline justify-between gap-3 max-w-xs">
+                      <dt>{UNAVAILABLE_LABEL}</dt>
+                      <dd className="tabular-nums text-slate-200">
+                        {availableToUsePresentation.unavailableAsSubtraction
+                          ? `−${money(restrictedEffectiveTotal)}`
+                          : money(restrictedEffectiveTotal)}
+                      </dd>
+                    </div>
+                  </dl>
+                  <p className="mt-2 max-w-xl text-xs leading-relaxed text-slate-500">
+                    {availableToUseExplain()}
+                  </p>
+                  <p className="mt-1 max-w-xl text-xs leading-relaxed text-slate-500">
+                    {unavailableExplain(restrictedEffectiveTotal)}{" "}
+                    {describeMoneyAvailableEvidence({
                       load: balanceObservation?.load,
-                    })
-                  ),
-                  nowMs: Date.now(),
-                })}{" "}
-                Separate from your Living Budget.
-              </p>
+                      positions: accounts.map((account) =>
+                        operationalAccountPosition({
+                          account,
+                          load: balanceObservation?.load,
+                        })
+                      ),
+                      nowMs: Date.now(),
+                    })}{" "}
+                    Separate from your Living Budget.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p
+                    className="mt-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500"
+                    data-position-hero="liquid-position"
+                  >
+                    {LIQUID_POSITION_LABEL}
+                  </p>
+                  <p className="mt-1 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight text-slate-50 tabular-nums sm:text-4xl">
+                    {money(moneyAvailable)}
+                  </p>
+                  <p className="mt-2 max-w-xl text-xs leading-relaxed text-slate-500">
+                    {LIQUID_POSITION_SCOPE}{" "}
+                    {describeMoneyAvailableEvidence({
+                      load: balanceObservation?.load,
+                      positions: accounts.map((account) =>
+                        operationalAccountPosition({
+                          account,
+                          load: balanceObservation?.load,
+                        })
+                      ),
+                      nowMs: Date.now(),
+                    })}{" "}
+                    Separate from your Living Budget.
+                  </p>
+                </>
+              )}
               {balanceObservation?.load.status === "unavailable" ? (
                 <p className="mt-2 text-xs leading-relaxed text-slate-500">
                   {BALANCE_EVIDENCE_UNAVAILABLE_LABEL}

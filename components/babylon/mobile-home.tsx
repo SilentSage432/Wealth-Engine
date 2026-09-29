@@ -21,6 +21,7 @@ import {
   AVAILABLE_AFTER_PLANNED_NEEDS_LABEL,
   AVAILABLE_TO_USE_LABEL,
   alreadySetAsideExplain,
+  availableToUseExplain,
   deriveAvailableToUsePresentation,
   LIQUID_POSITION_LABEL,
   LIQUID_POSITION_SCOPE,
@@ -172,37 +173,60 @@ export function MobileHome({
       <section aria-label="Financial Position">
         <Card className="border-slate-800/80">
           <CardContent className="p-4">
-            <SectionLabel>{LIQUID_POSITION_LABEL}</SectionLabel>
-            <p className="mt-1 font-[family-name:var(--font-display)] text-4xl font-semibold tracking-tight text-slate-50 tabular-nums">
-              {money(moneyAvailable)}
-            </p>
-            {availableToUsePresentation.showUnavailable ? (
-              <p className="mt-2 text-xs leading-relaxed text-slate-400">
-                {UNAVAILABLE_LABEL}{" "}
-                <span className="tabular-nums text-slate-200">
-                  {money(restrictedEffectiveTotal)}
-                </span>
-                {" · "}
-                {AVAILABLE_TO_USE_LABEL}{" "}
-                <span className="tabular-nums text-slate-200">
+            {availableToUsePresentation.heroKind === "available-to-use" ? (
+              <>
+                <SectionLabel>{AVAILABLE_TO_USE_LABEL}</SectionLabel>
+                <p
+                  className="mt-1 font-[family-name:var(--font-display)] text-4xl font-semibold tracking-tight text-slate-50 tabular-nums"
+                  data-position-hero="available-to-use"
+                >
                   {money(availableToUsePresentation.availableToUse)}
-                </span>
-              </p>
-            ) : null}
-            <p className="mt-2 text-xs leading-relaxed text-slate-500">
-              {LIQUID_POSITION_SCOPE}{" "}
-              {describeMoneyAvailableEvidence({
-                load: balanceObservation?.load,
-                positions: accounts.map((account) =>
-                  operationalAccountPosition({
-                    account,
+                </p>
+                <p
+                  className="mt-2 text-xs leading-relaxed text-slate-400"
+                  data-position-support="owned-unavailable"
+                >
+                  {LIQUID_POSITION_LABEL}{" "}
+                  <span className="tabular-nums text-slate-200">
+                    {money(moneyAvailable)}
+                  </span>
+                  {" · "}
+                  {UNAVAILABLE_LABEL}{" "}
+                  <span className="tabular-nums text-slate-200">
+                    {availableToUsePresentation.unavailableAsSubtraction
+                      ? `−${money(restrictedEffectiveTotal)}`
+                      : money(restrictedEffectiveTotal)}
+                  </span>
+                </p>
+                <p className="mt-2 text-xs leading-relaxed text-slate-500">
+                  {availableToUseExplain()}
+                </p>
+              </>
+            ) : (
+              <>
+                <SectionLabel>{LIQUID_POSITION_LABEL}</SectionLabel>
+                <p
+                  className="mt-1 font-[family-name:var(--font-display)] text-4xl font-semibold tracking-tight text-slate-50 tabular-nums"
+                  data-position-hero="liquid-position"
+                >
+                  {money(moneyAvailable)}
+                </p>
+                <p className="mt-2 text-xs leading-relaxed text-slate-500">
+                  {LIQUID_POSITION_SCOPE}{" "}
+                  {describeMoneyAvailableEvidence({
                     load: balanceObservation?.load,
-                  })
-                ),
-                nowMs: Date.now(),
-              })}{" "}
-              Separate from your Living Budget.
-            </p>
+                    positions: accounts.map((account) =>
+                      operationalAccountPosition({
+                        account,
+                        load: balanceObservation?.load,
+                      })
+                    ),
+                    nowMs: Date.now(),
+                  })}{" "}
+                  Separate from your Living Budget.
+                </p>
+              </>
+            )}
             {balanceObservation?.load.status === "unavailable" ? (
               <p className="mt-2 text-xs leading-relaxed text-slate-500">
                 {BALANCE_EVIDENCE_UNAVAILABLE_LABEL}
