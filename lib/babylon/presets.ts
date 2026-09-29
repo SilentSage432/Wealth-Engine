@@ -2,14 +2,25 @@
  * Speed-Tribute quick presets — domain vocabulary for 1-tap entry chips.
  * Presentation renders these; Application maps them into IncomeInput / ExpenseInput.
  * Does not own allocation math or persistence.
+ *
+ * Icons are lucide-react components (same system as NAV_ITEMS / mobile nav).
+ * Presentation owns sizing and currentColor inheritance; labels remain the a11y name.
  */
 
 import type { ExpenseKind, IncomeStreamKind } from "@/types/babylon";
+import {
+  Banknote,
+  Coffee,
+  Fuel,
+  Home,
+  ShoppingCart,
+} from "lucide-react";
+import type { ComponentType } from "react";
 
 export interface QuickPreset {
   id: string;
   label: string;
-  icon: string;
+  icon: ComponentType<{ className?: string }>;
   type: "income" | "expense";
   amount?: number;
   categoryOrSource: string;
@@ -26,7 +37,7 @@ export const DEFAULT_PRESETS: QuickPreset[] = [
   {
     id: "lowes-paycheck",
     label: "Lowe's Paycheck",
-    icon: "💰",
+    icon: Banknote,
     type: "income",
     categoryOrSource: "Lowe's",
     kind: "primary_w2",
@@ -34,7 +45,7 @@ export const DEFAULT_PRESETS: QuickPreset[] = [
   {
     id: "groceries",
     label: "Groceries",
-    icon: "🛒",
+    icon: ShoppingCart,
     type: "expense",
     categoryOrSource: "Groceries",
     kind: "need",
@@ -42,7 +53,7 @@ export const DEFAULT_PRESETS: QuickPreset[] = [
   {
     id: "gas",
     label: "Gas / Transit",
-    icon: "🚗",
+    icon: Fuel,
     type: "expense",
     categoryOrSource: "Gas",
     kind: "need",
@@ -50,7 +61,7 @@ export const DEFAULT_PRESETS: QuickPreset[] = [
   {
     id: "coffee-treat",
     label: "Coffee / Treat",
-    icon: "☕",
+    icon: Coffee,
     type: "expense",
     categoryOrSource: "Dining & Treats",
     kind: "desire",
@@ -58,7 +69,7 @@ export const DEFAULT_PRESETS: QuickPreset[] = [
   {
     id: "rent-housing",
     label: "Rent / Housing",
-    icon: "🏠",
+    icon: Home,
     type: "expense",
     categoryOrSource: "Housing",
     kind: "need",

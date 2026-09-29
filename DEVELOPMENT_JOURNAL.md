@@ -1,5 +1,21 @@
 # Development Journal
 
+## 2026-09-29 — WE-VISUAL-ICONS-001 remove cartoon/emoji application icons
+
+### What changed
+- Audited user-facing TS/TSX for emoji used as application iconography. Only Quick Add presets in `lib/babylon/presets.ts` (rendered by `SpeedTributeBar`) were in scope.
+- Replaced emoji strings with `lucide-react` components, matching `NAV_ITEMS` / mobile nav conventions (`ComponentType<{ className?: string }>`, `h-3.5 w-3.5`, `aria-hidden`, currentColor from chip text).
+- Mapping: paycheck → `Banknote`, groceries → `ShoppingCart`, gas/transit → `Fuel`, coffee/treat → `Coffee`, rent/housing → `Home`.
+- Labels, ids, kinds, categories, and `onSelectPreset` behavior unchanged. No new icon package.
+
+### Validation
+- Full suite: 43 files, 576 tests passed.
+- `tsc --noEmit`, lint, production build, and `git diff --check` passed.
+- No test assertion updates required (no emoji markup assertions existed).
+
+### Not in this tranche
+- No commit, push, deploy, layout redesign, or financial semantics change.
+
 ## 2026-09-29 — WE-PLAN-UX-003A populated map acceptance prep
 
 ### What changed

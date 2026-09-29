@@ -34,32 +34,36 @@ export function SpeedTributeBar({
           aria-label="Quick add"
           className="flex min-w-0 flex-1 gap-2 overflow-x-auto scrollbar-thin pb-0.5"
         >
-          {presets.map((preset) => (
-            <button
-              key={preset.id}
-              type="button"
-              role="listitem"
-              onClick={() => onSelectPreset(preset)}
-              aria-label={`${preset.type === "income" ? "Income" : "Expense"} preset: ${preset.label}`}
-              className={cn(
-                "inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium transition-colors",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50",
-                preset.type === "income"
-                  ? "border-emerald-900/50 bg-emerald-950/40 text-emerald-200 hover:bg-emerald-900/50"
-                  : "border-slate-700/80 bg-slate-900/60 text-slate-200 hover:bg-slate-800/80"
-              )}
-            >
-              <span aria-hidden="true" className="text-sm leading-none">
-                {preset.icon}
-              </span>
-              <span className="whitespace-nowrap">{preset.label}</span>
-              {preset.amount != null && (
-                <span className="tabular-nums text-slate-500">
-                  ${preset.amount}
-                </span>
-              )}
-            </button>
-          ))}
+          {presets.map((preset) => {
+            const Icon = preset.icon;
+            return (
+              <button
+                key={preset.id}
+                type="button"
+                role="listitem"
+                onClick={() => onSelectPreset(preset)}
+                aria-label={`${preset.type === "income" ? "Income" : "Expense"} preset: ${preset.label}`}
+                className={cn(
+                  "inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-medium transition-colors",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50",
+                  preset.type === "income"
+                    ? "border-emerald-900/50 bg-emerald-950/40 text-emerald-200 hover:bg-emerald-900/50"
+                    : "border-slate-700/80 bg-slate-900/60 text-slate-200 hover:bg-slate-800/80"
+                )}
+              >
+                <Icon
+                  className="h-3.5 w-3.5 shrink-0"
+                  aria-hidden="true"
+                />
+                <span className="whitespace-nowrap">{preset.label}</span>
+                {preset.amount != null && (
+                  <span className="tabular-nums text-slate-500">
+                    ${preset.amount}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
       </div>
     </div>
