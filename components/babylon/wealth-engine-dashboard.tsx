@@ -147,6 +147,7 @@ export function WealthEngineDashboard() {
       protectedOverAvailable={engine.protectedOverAvailable}
       upcomingNeeds={engine.upcomingNeeds}
       availableAfterPlannedNeeds={engine.availableAfterPlannedNeeds}
+      remainingDebt={engine.remainingDebt}
       discreet={discreet}
       onAddAccount={engine.addAccount}
       onUpdateAccount={engine.updateAccount}
@@ -349,6 +350,7 @@ export function WealthEngineDashboard() {
                 protectedOverAvailable={engine.protectedOverAvailable}
                 availableAfterPlannedNeeds={engine.availableAfterPlannedNeeds}
                 upcomingNeeds={engine.upcomingNeeds}
+                remainingDebt={engine.remainingDebt}
                 expenses={engine.expenses}
                 dueAttention={engine.dueAttention}
                 onMarkPaid={engine.toggleExpenseSettled}
@@ -450,6 +452,7 @@ export function WealthEngineDashboard() {
                 protectedOverAvailable={engine.protectedOverAvailable}
                 upcomingNeeds={engine.upcomingNeeds}
                 availableAfterPlannedNeeds={engine.availableAfterPlannedNeeds}
+                remainingDebt={engine.remainingDebt}
                 discreet={discreet}
                 onAddAccount={engine.addAccount}
                 onUpdateAccount={engine.updateAccount}

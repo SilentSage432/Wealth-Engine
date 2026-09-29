@@ -62,6 +62,7 @@ interface MobileMoreProps {
   protectedOverAvailable: boolean;
   upcomingNeeds: number;
   availableAfterPlannedNeeds: AvailableAfterPlannedNeeds;
+  remainingDebt: number;
   discreet: boolean;
   onAddAccount: (input: FinancialAccountInput) => boolean;
   onUpdateAccount: (id: string, input: FinancialAccountInput) => boolean;
@@ -115,6 +116,7 @@ export function MobileMore({
   protectedOverAvailable,
   upcomingNeeds,
   availableAfterPlannedNeeds,
+  remainingDebt,
   discreet,
   onAddAccount,
   onUpdateAccount,
@@ -141,6 +143,7 @@ export function MobileMore({
           protectedOverAvailable={protectedOverAvailable}
           upcomingNeeds={upcomingNeeds}
           availableAfterPlannedNeeds={availableAfterPlannedNeeds}
+          remainingDebt={remainingDebt}
           discreet={discreet}
           onAddAccount={onAddAccount}
           onUpdateAccount={onUpdateAccount}

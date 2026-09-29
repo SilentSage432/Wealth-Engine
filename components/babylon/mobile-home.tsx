@@ -17,6 +17,16 @@ import type { AvailableAfterPlannedNeeds } from "@/lib/babylon/available-after-p
 import type { MobileDestination } from "@/lib/babylon/constants";
 import { formatDiscreetCurrency } from "@/lib/babylon/discreet";
 import {
+  ALREADY_SET_ASIDE_LABEL,
+  AVAILABLE_AFTER_PLANNED_NEEDS_LABEL,
+  alreadySetAsideExplain,
+  MONEY_AVAILABLE_LABEL,
+  MONEY_AVAILABLE_SCOPE,
+  RECORDED_DEBT_LABEL,
+  recordedDebtExplain,
+  UPCOMING_NEEDS_LABEL,
+} from "@/lib/babylon/financial-position-composition";
+import {
   phoneHomeActivityPreview,
   phoneHomeShowsDueAttention,
   phoneHomeUpcomingPreview,
@@ -30,6 +40,7 @@ interface MobileHomeProps {
   protectedOverAvailable: boolean;
   availableAfterPlannedNeeds: AvailableAfterPlannedNeeds;
   upcomingNeeds: number;
+  remainingDebt: number;
   expenses: readonly ExpenseEntry[];
   dueAttention: readonly DueAttentionItem[];
   onMarkPaid: (id: string) => void;
@@ -63,6 +74,7 @@ export function MobileHome({
   protectedOverAvailable,
   availableAfterPlannedNeeds,
   upcomingNeeds,
+  remainingDebt,
   expenses,
   dueAttention,
   onMarkPaid,
@@ -147,11 +159,12 @@ export function MobileHome({
       <section aria-label="Financial Position">
         <Card className="border-slate-800/80">
           <CardContent className="p-4">
-            <SectionLabel>Money Available</SectionLabel>
+            <SectionLabel>{MONEY_AVAILABLE_LABEL}</SectionLabel>
             <p className="mt-1 font-[family-name:var(--font-display)] text-4xl font-semibold tracking-tight text-slate-50 tabular-nums">
               {money(moneyAvailable)}
             </p>
             <p className="mt-2 text-xs leading-relaxed text-slate-500">
+              {MONEY_AVAILABLE_SCOPE}{" "}
               {describeMoneyAvailableEvidence({
                 load: balanceObservation?.load,
                 positions: accounts.map((account) =>
@@ -171,19 +184,30 @@ export function MobileHome({
             ) : null}
             <div className="mt-4 border-t border-slate-800/80 pt-3">
               <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                Protected Money
+                {ALREADY_SET_ASIDE_LABEL}
               </p>
               <p className="mt-1 font-[family-name:var(--font-display)] text-xl font-semibold tabular-nums text-slate-100">
                 {money(protectedMoney)}
               </p>
               <p className="mt-1 text-xs leading-relaxed text-slate-500">
-                Already included in Money Available.
+                {alreadySetAsideExplain(protectedMoney)}
               </p>
               {protectedOverAvailable ? (
                 <p role="alert" className="mt-2 text-xs leading-relaxed text-amber-200">
-                  Protected designations exceed Money Available.
+                  Already-set-aside amounts exceed Money Available.
                 </p>
               ) : null}
+            </div>
+            <div className="mt-4 border-t border-slate-800/80 pt-3">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                {RECORDED_DEBT_LABEL}
+              </p>
+              <p className="mt-1 font-[family-name:var(--font-display)] text-xl font-semibold tabular-nums text-slate-100">
+                {money(remainingDebt)}
+              </p>
+              <p className="mt-1 text-xs leading-relaxed text-slate-500">
+                {recordedDebtExplain(remainingDebt)}
+              </p>
             </div>
             <Button
               type="button"
@@ -200,18 +224,19 @@ export function MobileHome({
       <section aria-label="Available After Planned Needs">
         <Card className="border-slate-800/80">
           <CardContent className="p-4">
-            <SectionLabel>Available After Planned Needs</SectionLabel>
+            <SectionLabel>{AVAILABLE_AFTER_PLANNED_NEEDS_LABEL}</SectionLabel>
             <p className="mt-1 font-[family-name:var(--font-display)] text-4xl font-semibold tracking-tight text-slate-50 tabular-nums">
               {money(availableAfterPlannedNeeds.availableAfterPlannedNeeds)}
             </p>
             <p className="mt-2 text-xs leading-relaxed text-slate-500">
-              After protected money and known unpaid Needs.
+              After already-set-aside money and known unpaid Needs. Debt is not
+              subtracted.
             </p>
             {shortfall > 0 ? (
               <p className="mt-3 text-xs leading-relaxed text-amber-200">
                 Planned Needs Shortfall{" "}
                 <span className="tabular-nums">{money(shortfall)}</span>.
-                Protected money and unpaid Needs exceed Money Available.
+                Already-set-aside money and unpaid Needs exceed Money Available.
               </p>
             ) : null}
           </CardContent>
@@ -221,12 +246,13 @@ export function MobileHome({
       <section aria-label="Upcoming Needs">
         <Card className="border-slate-800/80">
           <CardContent className="p-4">
-            <SectionLabel>Upcoming Needs</SectionLabel>
+            <SectionLabel>{UPCOMING_NEEDS_LABEL}</SectionLabel>
             <p className="mt-1 font-[family-name:var(--font-display)] text-2xl font-semibold tabular-nums text-slate-50">
               {money(upcomingNeeds)}
             </p>
             <p className="mt-2 text-xs leading-relaxed text-slate-500">
-              Known unpaid Needs. Next bills can include Wants.
+              Known unpaid Needs competing for liquid money. Next bills can
+              include Wants.
             </p>
             {upcomingPreview.length > 0 ? (
               <ul className="mt-3 space-y-1.5">

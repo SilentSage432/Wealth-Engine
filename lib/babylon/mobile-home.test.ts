@@ -171,6 +171,23 @@ describe("phone Home source boundaries", () => {
     expect(moreSource).toContain("Close Month");
   });
 
+  it("keeps Home free of Protected Money as a steward-facing label", () => {
+    expect(homeSource).toContain("ALREADY_SET_ASIDE_LABEL");
+    expect(homeSource).toContain("RECORDED_DEBT_LABEL");
+    expect(homeSource).toContain("remainingDebt");
+    expect(homeSource).not.toMatch(/>\s*Protected Money\s*</);
+    expect(homeSource).not.toContain("Safe to Spend");
+    expect(homeSource).not.toContain("Net Available");
+  });
+
+  it("wires recorded debt into phone Home as sibling context", () => {
+    expect(homeBlock).toContain("remainingDebt={engine.remainingDebt}");
+    expect(homeBlock).toContain("moneyAvailable={engine.moneyAvailable}");
+    expect(homeBlock).toContain(
+      "availableAfterPlannedNeeds={engine.availableAfterPlannedNeeds}"
+    );
+  });
+
   it("leaves month-close attention on the phone header and keeps the desktop overview", () => {
     expect(headerSource).toContain("Review close");
     expect(desktopBlock).toContain("financialPosition");

@@ -1,5 +1,20 @@
 # Development Journal
 
+## 2026-09-29 — WE-FINANCIAL-POSITION-003 compose existing Financial Position truth
+
+### What changed
+- Composition and wording only. No Money Available, AAPN, Protected Money math, account kinds, Plaid, or debt calculations changed.
+- Desktop Financial Position and phone Home now state liquid scope (checking/savings/cash; not net worth), rename the steward-facing Protected Money block to Already Set Aside, clarify that tracked Wealth Building / Emergency Fund progress is separate, and surface Recorded Debt as sibling context (`engine.remainingDebt`) without subtracting it from Money Available or AAPN.
+- Shared labels/copy live in `lib/babylon/financial-position-composition.ts`. Domain field names (`protectedMoney`, openings) unchanged.
+
+### Validation
+- Focused: financial-position-composition, mobile-home, protected-money, available-after-planned-needs, financial-position, effective-financial-position — 6 files, 70 tests passed.
+- Full suite: 44 files, 590 tests passed (was 43 / 576; +1 file, +14 tests from composition contracts).
+- `tsc --noEmit`, lint, production build, and `git diff --check` passed.
+
+### Not in this tranche
+- No commit, push, deploy, credit-card model, liability accounts, schema, or net worth.
+
 ## 2026-09-29 — WE-IDENTITY-UX-001 relocate steward name configuration
 
 ### What changed

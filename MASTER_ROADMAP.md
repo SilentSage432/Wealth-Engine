@@ -52,6 +52,7 @@ A personal ledger that splits income 10% to Wealth Building, 20% to Debt Payoff,
 - [x] Plaid Link on the command bar and banks card (needs live PLAID_* + service role env)
 - [x] SecurityGate client-only mount (`ssr: false`) + PlaidLinkButton always-on DOM fallbacks
 - [x] Financial Position — local manual account balances and Money Available, separate from 10/20/70 (WE-BUDGET-002)
+- [x] Financial Position composition (WE-FINANCIAL-POSITION-003). Review candidate. Liquid scope copy (not net worth); Already Set Aside for existing designations; Recorded Debt sibling context without netting against Money Available or AAPN. No schema, account-kind, or formula change
 - [x] Paid vs Upcoming — settled spending, upcoming Needs, one-time legacy migration (WE-BUDGET-003)
 - [x] Existing protected money — designations inside Money Available, separate from tracked allocations (WE-BUDGET-004)
 - [x] Monthly recurring obligations — upcoming occurrences only, current month and next month (WE-BUDGET-005)

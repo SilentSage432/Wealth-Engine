@@ -52,6 +52,20 @@ import type { PlaidItemPublic } from "@/lib/babylon/plaid-schema";
 import {
   FINANCIAL_ACCOUNT_KINDS,
 } from "@/lib/babylon/financial-position";
+import {
+  ALREADY_SET_ASIDE_LABEL,
+  AVAILABLE_AFTER_PLANNED_NEEDS_LABEL,
+  availableAfterPlannedNeedsExplain,
+  alreadySetAsideExplain,
+  EXISTING_EMERGENCY_FUND_LABEL,
+  EXISTING_WEALTH_BUILDING_LABEL,
+  FINANCIAL_POSITION_HEADING,
+  MONEY_AVAILABLE_LABEL,
+  MONEY_AVAILABLE_SCOPE,
+  RECORDED_DEBT_LABEL,
+  recordedDebtExplain,
+  UPCOMING_NEEDS_LABEL,
+} from "@/lib/babylon/financial-position-composition";
 import { formatCurrency } from "@/lib/utils";
 import type { AvailableAfterPlannedNeeds } from "@/lib/babylon/available-after-planned-needs";
 import type {
@@ -76,6 +90,8 @@ interface FinancialPositionProps {
   protectedOverAvailable: boolean;
   upcomingNeeds: number;
   availableAfterPlannedNeeds: AvailableAfterPlannedNeeds;
+  /** Sum of recorded DebtEntry remaining balances. Sibling context only. */
+  remainingDebt: number;
   discreet?: boolean;
   /** Full keeps the orientation readings. Manage keeps account and designation editing. */
   presentation?: "full" | "manage";
@@ -252,6 +268,7 @@ export function FinancialPosition({
   protectedOverAvailable,
   upcomingNeeds,
   availableAfterPlannedNeeds,
+  remainingDebt,
   discreet = false,
   presentation = "full",
   onAddAccount,
@@ -458,15 +475,16 @@ export function FinancialPosition({
             <div className="min-w-0">
               <p className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
                 <Landmark className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                Financial Position
+                {FINANCIAL_POSITION_HEADING}
               </p>
               <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                Money Available
+                {MONEY_AVAILABLE_LABEL}
               </p>
               <p className="mt-1 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight text-slate-50 tabular-nums sm:text-4xl">
                 {money(moneyAvailable)}
               </p>
               <p className="mt-2 max-w-xl text-xs leading-relaxed text-slate-500">
+                {MONEY_AVAILABLE_SCOPE}{" "}
                 {describeMoneyAvailableEvidence({
                   load: balanceObservation?.load,
                   positions: accounts.map((account) =>
@@ -507,7 +525,7 @@ export function FinancialPosition({
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                  Protected Money
+                  {ALREADY_SET_ASIDE_LABEL}
                 </p>
                 <p className="mt-1 font-[family-name:var(--font-display)] text-xl font-semibold tabular-nums text-slate-100">
                   {money(protectedMoney)}
@@ -518,17 +536,16 @@ export function FinancialPosition({
               </Button>
             </div>
             <p className="mt-2 text-xs leading-relaxed text-slate-400">
-              Existing Wealth Building {money(openingWealthBuilding)} · Existing
-              Emergency Fund {money(openingEmergencyFund)}
+              {EXISTING_WEALTH_BUILDING_LABEL} {money(openingWealthBuilding)} ·{" "}
+              {EXISTING_EMERGENCY_FUND_LABEL} {money(openingEmergencyFund)}
             </p>
             <p className="mt-1 text-xs leading-relaxed text-slate-500">
-              These amounts are already included in your account balances. They
-              are not additional money.
+              {alreadySetAsideExplain(protectedMoney)}
             </p>
             {protectedOverAvailable ? (
               <p role="alert" className="mt-2 text-xs leading-relaxed text-amber-200">
-                Protected designations exceed your current Money Available.
-                Update your protected amounts or Financial Position.
+                Already-set-aside amounts exceed your current Money Available.
+                Update those amounts or Financial Position.
               </p>
             ) : null}
           </div>
@@ -536,26 +553,26 @@ export function FinancialPosition({
           {presentation === "full" ? (
           <div className="rounded-lg border border-slate-800/80 px-3 py-3 sm:px-4">
             <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-              Available After Planned Needs
+              {AVAILABLE_AFTER_PLANNED_NEEDS_LABEL}
             </p>
             <p className="mt-1 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight text-slate-50 tabular-nums sm:text-4xl">
               {money(availableAfterPlannedNeeds.availableAfterPlannedNeeds)}
             </p>
             <dl className="mt-3 space-y-1 text-xs text-slate-400">
               <div className="flex items-baseline justify-between gap-3">
-                <dt>Money Available</dt>
+                <dt>{MONEY_AVAILABLE_LABEL}</dt>
                 <dd className="tabular-nums text-slate-200">
                   {money(moneyAvailable)}
                 </dd>
               </div>
               <div className="flex items-baseline justify-between gap-3">
-                <dt>Protected Money</dt>
+                <dt>{ALREADY_SET_ASIDE_LABEL}</dt>
                 <dd className="tabular-nums text-slate-200">
                   −{money(protectedMoney)}
                 </dd>
               </div>
               <div className="flex items-baseline justify-between gap-3">
-                <dt>Upcoming Needs</dt>
+                <dt>{UPCOMING_NEEDS_LABEL}</dt>
                 <dd className="tabular-nums text-slate-200">
                   −{money(upcomingNeeds)}
                 </dd>
@@ -568,13 +585,11 @@ export function FinancialPosition({
                   {money(availableAfterPlannedNeeds.plannedNeedsShortfall)}
                 </span>
                 . {money(availableAfterPlannedNeeds.plannedNeedsShortfall)} short
-                of covering protected money and known Upcoming Needs.
+                of covering already-set-aside money and known Upcoming Needs.
               </p>
             ) : null}
             <p className="mt-3 text-xs leading-relaxed text-slate-500">
-              This counts every known unpaid Need. It does not subtract Wants,
-              your Living Budget, or allocations from past income. It is not a
-              promise that the remainder is safe to spend.
+              {availableAfterPlannedNeedsExplain()}
             </p>
             <p className="mt-1 text-xs leading-relaxed text-slate-500">
               Money Available uses an observed eligible balance when Wealth
@@ -585,6 +600,20 @@ export function FinancialPosition({
           ) : null}
 
           {presentation === "full" ? accountList : null}
+
+          {presentation === "full" ? (
+            <div className="rounded-lg border border-slate-800/80 px-3 py-3 sm:px-4">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                {RECORDED_DEBT_LABEL}
+              </p>
+              <p className="mt-1 font-[family-name:var(--font-display)] text-xl font-semibold tabular-nums text-slate-100">
+                {money(remainingDebt)}
+              </p>
+              <p className="mt-2 text-xs leading-relaxed text-slate-500">
+                {recordedDebtExplain(remainingDebt)}
+              </p>
+            </div>
+          ) : null}
         </CardContent>
       </Card>
 
@@ -598,16 +627,17 @@ export function FinancialPosition({
         <DialogContent className="sm:max-w-md">
           <form onSubmit={handleProtectedSubmit} className="space-y-4">
             <DialogHeader>
-              <DialogTitle>Already Set Aside</DialogTitle>
+              <DialogTitle>{ALREADY_SET_ASIDE_LABEL}</DialogTitle>
               <DialogDescription>
-                Money already designated for Wealth Building or the Emergency
-                Fund before Wealth Engine tracked it. These amounts are already
-                included in your account balances. They are not additional
-                money.
+                Existing designations inside Money Available. Not additional
+                cash, and not the Wealth Building or Emergency Fund totals
+                tracked from income and month close.
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-2">
-              <Label htmlFor="existing-wealth">Existing Wealth Building</Label>
+              <Label htmlFor="existing-wealth">
+                {EXISTING_WEALTH_BUILDING_LABEL}
+              </Label>
               <Input
                 id="existing-wealth"
                 type="number"
@@ -620,7 +650,9 @@ export function FinancialPosition({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="existing-emergency">Existing Emergency Fund</Label>
+              <Label htmlFor="existing-emergency">
+                {EXISTING_EMERGENCY_FUND_LABEL}
+              </Label>
               <Input
                 id="existing-emergency"
                 type="number"
