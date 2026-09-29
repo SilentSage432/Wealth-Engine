@@ -78,6 +78,7 @@ interface MobileMoreProps {
   accounts: FinancialAccount[];
   moneyAvailable: number;
   restrictedEffectiveTotal?: number;
+  deployablePosition?: number;
   openingWealthBuilding: number;
   openingEmergencyFund: number;
   protectedMoney: number;
@@ -147,6 +148,7 @@ export function MobileMore({
   accounts,
   moneyAvailable,
   restrictedEffectiveTotal = 0,
+  deployablePosition,
   openingWealthBuilding,
   openingEmergencyFund,
   protectedMoney,
@@ -179,6 +181,7 @@ export function MobileMore({
           accounts={accounts}
           moneyAvailable={moneyAvailable}
           restrictedEffectiveTotal={restrictedEffectiveTotal}
+          deployablePosition={deployablePosition}
           openingWealthBuilding={openingWealthBuilding}
           openingEmergencyFund={openingEmergencyFund}
           protectedMoney={protectedMoney}

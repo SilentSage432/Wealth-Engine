@@ -1,5 +1,22 @@
 # Development Journal
 
+## 2026-09-29 — WE-FINANCIAL-POSITION-LANGUAGE-001 owned / unavailable / available-to-use presentation
+
+### What changed
+- Steward-facing owned-liquid aggregate label is now Liquid Position (presentation only). Domain `moneyAvailable` and IC `money_available_cents` unchanged.
+- When Unavailable > 0, Financial Position shows Unavailable and derived Available to use (DeployablePosition). Zero-restriction stays quiet.
+- Already Set Aside remains full ProtectedOwned. AAPN context no longer uses a naïve Liquid − Protected − Needs minus waterfall.
+- Shortfall copy no longer duplicates the amount; Candidate A wording; `formatCurrency` always shows two fraction digits (`$921.20`).
+- Desktop Overview and phone Home share the vocabulary. No domain arithmetic, schema, SQL, or IC change.
+
+### Validation
+- Focused composition / restriction / protected / AAPN / IC tests passed.
+- Full suite: 48 files, 669 tests passed.
+- `tsc --noEmit` passed; eslint on touched files clean; production build passed; `git diff --check` clean.
+
+### Not in this tranche
+- No commit, push, deploy, or Supabase work.
+
 ## 2026-09-29 — WE-RESTRICTED-POSITION-003 owned vs unavailable vs deployable
 
 ### What changed

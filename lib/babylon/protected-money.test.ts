@@ -195,7 +195,7 @@ describe("existing protected money", () => {
     );
     const error = commitDesignations(state, 700, 500);
     expect(error).toBe(
-      "Protected designations exceed your current Money Available. Update your protected amounts or Financial Position."
+      "Protected designations exceed your current Liquid Position. Update your protected amounts or Financial Position."
     );
     expect(state.openingWealthBuilding).toBe(100);
     expect(state.openingEmergencyFund).toBe(50);

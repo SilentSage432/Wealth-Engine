@@ -1,6 +1,9 @@
 /**
  * Financial Position composition — labels and sibling context only.
  * Does not change Money Available, Protected Money, AAPN, or debt math.
+ *
+ * Steward-facing aggregate label is Liquid Position (owned liquid).
+ * Domain/runtime field remains `moneyAvailable`; IC stays `money_available_cents`.
  */
 
 import { deriveAvailableAfterPlannedNeeds } from "@/lib/babylon/available-after-planned-needs";
@@ -10,7 +13,7 @@ import type { DebtEntry } from "@/types/babylon";
 
 /** Desktop full-surface conceptual order inside Financial Position. */
 export const FINANCIAL_POSITION_TRUTH_ORDER = [
-  "money-available",
+  "liquid-position",
   "already-set-aside",
   "available-after-planned-needs",
   "accounts",
@@ -19,11 +22,24 @@ export const FINANCIAL_POSITION_TRUTH_ORDER = [
 
 export const FINANCIAL_POSITION_HEADING = "Financial Position";
 
-export const MONEY_AVAILABLE_LABEL = "Money Available";
+/**
+ * Steward-facing owned-liquid aggregate label.
+ * Domain field remains `moneyAvailable`; this is presentation only.
+ */
+export const LIQUID_POSITION_LABEL = "Liquid Position";
 
-/** Concise scope: liquid money known to Wealth Engine, not net worth. */
-export const MONEY_AVAILABLE_SCOPE =
-  "Liquid money from checking, savings, and cash. Not net worth.";
+/** @deprecated Prefer LIQUID_POSITION_LABEL. Same presentation string. */
+export const MONEY_AVAILABLE_LABEL = LIQUID_POSITION_LABEL;
+
+/**
+ * Concise scope: liquid money known to Wealth Engine, not net worth,
+ * not safe-to-spend, and not limited to deployable money.
+ */
+export const LIQUID_POSITION_SCOPE =
+  "Money currently held in checking, savings, and cash. Includes money that may be unavailable or already set aside. Not net worth.";
+
+/** @deprecated Prefer LIQUID_POSITION_SCOPE. */
+export const MONEY_AVAILABLE_SCOPE = LIQUID_POSITION_SCOPE;
 
 export const ALREADY_SET_ASIDE_LABEL = "Already Set Aside";
 
@@ -38,6 +54,9 @@ export const UPCOMING_NEEDS_LABEL = "Upcoming Needs";
 
 export const RECORDED_DEBT_LABEL = "Recorded Debt";
 
+/** Aggregate deployable remainder when Unavailable > 0. Derived, not persisted. */
+export const AVAILABLE_TO_USE_LABEL = "Available to use";
+
 /**
  * Existing designations only. Tracked Wealth Building and Emergency Fund
  * progress are owned elsewhere and must not be implied by a $0 here.
@@ -46,18 +65,22 @@ export function alreadySetAsideExplain(protectedMoney: number): string {
   if (protectedMoney <= 0) {
     return "No existing designation yet. Progress tracked from income and month close is separate.";
   }
-  return "Of Money Available, already designated for Wealth Building or the Emergency Fund — including money currently positioned in purpose accounts and any Existing amounts not located in those accounts. Not additional cash. Progress tracked from income and month close is separate.";
+  return "Of Liquid Position, already designated for Wealth Building or the Emergency Fund — including money currently positioned in purpose accounts and any Existing amounts not located in those accounts. Not additional cash. Progress tracked from income and month close is separate.";
 }
 
 export function recordedDebtExplain(remainingDebt: number): string {
   if (remainingDebt <= 0) {
     return "No remaining debt is recorded.";
   }
-  return "Current amount owed as recorded in Wealth Engine. Separate from Money Available. Not a live creditor statement.";
+  return "Current amount owed as recorded in Wealth Engine. Separate from Liquid Position. Not a live creditor statement.";
 }
 
+/**
+ * Candidate A: of deployable money, after deployable set-aside and unpaid Needs.
+ * Does not claim Unavailable and Already Set Aside are separate pools.
+ */
 export function availableAfterPlannedNeedsExplain(): string {
-  return "Of money available to use after unavailable amounts and already-set-aside Wealth/Emergency designations, then after known unpaid Needs. Unavailable and Already Set Aside may overlap. Does not subtract debt, Wants, Living Budget, or past allocations. Not a promise the remainder is safe to spend.";
+  return "Of money available to use, after Wealth/Emergency amounts already set aside and known unpaid Needs. Unavailable and Already Set Aside may overlap. Does not subtract debt, Wants, Living Budget, or past allocations. Not a promise the remainder is safe to spend.";
 }
 
 /** Aggregate label when some owned liquid is steward-unavailable. */
@@ -67,7 +90,15 @@ export function unavailableExplain(unavailableTotal: number): string {
   if (unavailableTotal <= 0) {
     return "No unavailable amount declared.";
   }
-  return "Of Money Available, presently unavailable for deployment. Still owned. Not Already Set Aside, debt, or borrowing capacity.";
+  return "Still owned, but presently unavailable to use.";
+}
+
+/**
+ * Candidate A shortfall: unmet Upcoming Needs against deployable unprotected money.
+ * Does not claim a shortfall in funding ProtectedOwned itself.
+ */
+export function plannedNeedsShortfallExplain(): string {
+  return "short of covering known Upcoming Needs with money currently available after set-aside purposes.";
 }
 
 export const WEALTH_BUILDING_POSITIONED_LABEL = "Wealth Building";
@@ -75,6 +106,31 @@ export const WEALTH_BUILDING_POSITIONED_LABEL = "Wealth Building";
 export const EMERGENCY_FUND_POSITIONED_LABEL = "Emergency Fund";
 
 export const CURRENTLY_POSITIONED_HINT = "currently positioned";
+
+/**
+ * Derived Available to use for presentation. Equals DeployablePosition.
+ * Do not persist. Quiet when Unavailable is zero.
+ */
+export function deriveAvailableToUsePresentation(input: {
+  moneyAvailable: number;
+  restrictedEffectiveTotal: number;
+  deployablePosition?: number;
+}): {
+  showUnavailable: boolean;
+  showAvailableToUse: boolean;
+  availableToUse: number;
+} {
+  const unavailable = Math.max(0, input.restrictedEffectiveTotal);
+  const availableToUse =
+    input.deployablePosition ??
+    Math.max(0, input.moneyAvailable - unavailable);
+  const showUnavailable = unavailable > 0;
+  return {
+    showUnavailable,
+    showAvailableToUse: showUnavailable,
+    availableToUse,
+  };
+}
 
 /**
  * Already Set Aside / Protected Money.

@@ -147,6 +147,7 @@ export function WealthEngineDashboard() {
       accounts={engine.accounts}
       moneyAvailable={engine.moneyAvailable}
       restrictedEffectiveTotal={engine.restrictedEffectiveTotal}
+      deployablePosition={engine.deployablePosition}
       openingWealthBuilding={engine.openingWealthBuilding}
       openingEmergencyFund={engine.openingEmergencyFund}
       protectedMoney={engine.protectedMoney}
@@ -381,6 +382,8 @@ export function WealthEngineDashboard() {
                 {debtRebaseBanner}
                 <MobileHome
                 moneyAvailable={engine.moneyAvailable}
+                restrictedEffectiveTotal={engine.restrictedEffectiveTotal}
+                deployablePosition={engine.deployablePosition}
                 protectedMoney={engine.protectedMoney}
                 protectedOverAvailable={engine.protectedOverAvailable}
                 availableAfterPlannedNeeds={engine.availableAfterPlannedNeeds}
@@ -483,6 +486,7 @@ export function WealthEngineDashboard() {
                 accounts={engine.accounts}
                 moneyAvailable={engine.moneyAvailable}
                 restrictedEffectiveTotal={engine.restrictedEffectiveTotal}
+                deployablePosition={engine.deployablePosition}
                 openingWealthBuilding={engine.openingWealthBuilding}
                 openingEmergencyFund={engine.openingEmergencyFund}
                 protectedMoney={engine.protectedMoney}

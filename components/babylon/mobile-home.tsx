@@ -19,11 +19,15 @@ import { formatDiscreetCurrency } from "@/lib/babylon/discreet";
 import {
   ALREADY_SET_ASIDE_LABEL,
   AVAILABLE_AFTER_PLANNED_NEEDS_LABEL,
+  AVAILABLE_TO_USE_LABEL,
   alreadySetAsideExplain,
-  MONEY_AVAILABLE_LABEL,
-  MONEY_AVAILABLE_SCOPE,
+  deriveAvailableToUsePresentation,
+  LIQUID_POSITION_LABEL,
+  LIQUID_POSITION_SCOPE,
+  plannedNeedsShortfallExplain,
   RECORDED_DEBT_LABEL,
   recordedDebtExplain,
+  UNAVAILABLE_LABEL,
   UPCOMING_NEEDS_LABEL,
 } from "@/lib/babylon/financial-position-composition";
 import {
@@ -36,6 +40,8 @@ import type { ActivityEvent, ExpenseEntry, FinancialAccount } from "@/types/baby
 
 interface MobileHomeProps {
   moneyAvailable: number;
+  restrictedEffectiveTotal?: number;
+  deployablePosition?: number;
   protectedMoney: number;
   protectedOverAvailable: boolean;
   availableAfterPlannedNeeds: AvailableAfterPlannedNeeds;
@@ -70,6 +76,8 @@ function SectionLabel({ children }: { children: string }) {
 
 export function MobileHome({
   moneyAvailable,
+  restrictedEffectiveTotal = 0,
+  deployablePosition,
   protectedMoney,
   protectedOverAvailable,
   availableAfterPlannedNeeds,
@@ -90,6 +98,11 @@ export function MobileHome({
   const upcomingPreview = phoneHomeUpcomingPreview(expenses, dueIds);
   const activity = phoneHomeActivityPreview(recentActivity);
   const shortfall = availableAfterPlannedNeeds.plannedNeedsShortfall;
+  const availableToUsePresentation = deriveAvailableToUsePresentation({
+    moneyAvailable,
+    restrictedEffectiveTotal,
+    deployablePosition,
+  });
 
   return (
     <div className="space-y-3">
@@ -159,12 +172,25 @@ export function MobileHome({
       <section aria-label="Financial Position">
         <Card className="border-slate-800/80">
           <CardContent className="p-4">
-            <SectionLabel>{MONEY_AVAILABLE_LABEL}</SectionLabel>
+            <SectionLabel>{LIQUID_POSITION_LABEL}</SectionLabel>
             <p className="mt-1 font-[family-name:var(--font-display)] text-4xl font-semibold tracking-tight text-slate-50 tabular-nums">
               {money(moneyAvailable)}
             </p>
+            {availableToUsePresentation.showUnavailable ? (
+              <p className="mt-2 text-xs leading-relaxed text-slate-400">
+                {UNAVAILABLE_LABEL}{" "}
+                <span className="tabular-nums text-slate-200">
+                  {money(restrictedEffectiveTotal)}
+                </span>
+                {" · "}
+                {AVAILABLE_TO_USE_LABEL}{" "}
+                <span className="tabular-nums text-slate-200">
+                  {money(availableToUsePresentation.availableToUse)}
+                </span>
+              </p>
+            ) : null}
             <p className="mt-2 text-xs leading-relaxed text-slate-500">
-              {MONEY_AVAILABLE_SCOPE}{" "}
+              {LIQUID_POSITION_SCOPE}{" "}
               {describeMoneyAvailableEvidence({
                 load: balanceObservation?.load,
                 positions: accounts.map((account) =>
@@ -194,7 +220,7 @@ export function MobileHome({
               </p>
               {protectedOverAvailable ? (
                 <p role="alert" className="mt-2 text-xs leading-relaxed text-amber-200">
-                  Already-set-aside amounts exceed Money Available.
+                  Already-set-aside amounts exceed Liquid Position.
                 </p>
               ) : null}
             </div>
@@ -229,14 +255,14 @@ export function MobileHome({
               {money(availableAfterPlannedNeeds.availableAfterPlannedNeeds)}
             </p>
             <p className="mt-2 text-xs leading-relaxed text-slate-500">
-              After already-set-aside money and known unpaid Needs. Debt is not
+              After set-aside purposes and known unpaid Needs. Debt is not
               subtracted.
             </p>
             {shortfall > 0 ? (
               <p className="mt-3 text-xs leading-relaxed text-amber-200">
                 Planned Needs Shortfall{" "}
-                <span className="tabular-nums">{money(shortfall)}</span>.
-                Already-set-aside money and unpaid Needs exceed Money Available.
+                <span className="tabular-nums">{money(shortfall)}</span>{" "}
+                {plannedNeedsShortfallExplain()}
               </p>
             ) : null}
           </CardContent>

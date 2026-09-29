@@ -125,7 +125,7 @@ describe("WE-ALLOCATION-EXECUTION-002 semantic lock copy", () => {
 
   it("Financial Position Recorded Debt remains sibling context wording", () => {
     const copy = recordedDebtExplain(800);
-    expect(copy).toContain("Separate from Money Available");
+    expect(copy).toContain("Separate from Liquid Position");
     expect(copy).toContain("Current amount owed");
     expect(copy.toLowerCase()).toContain("not a live creditor");
   });

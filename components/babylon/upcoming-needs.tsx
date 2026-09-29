@@ -36,7 +36,7 @@ function formatDueDay(isoDate: string): string {
 }
 
 /**
- * Unpaid Need obligations. Not subtracted from Money Available.
+ * Unpaid Need obligations. Not subtracted from Liquid Position.
  */
 export function UpcomingNeeds({
   upcomingNeeds,
@@ -62,7 +62,7 @@ export function UpcomingNeeds({
           </p>
           <p className="mt-2 max-w-xl text-xs leading-relaxed text-slate-500">
             Known Needs that are not paid yet. This is not subtracted from
-            Money Available. Mark them paid in the Ledger.
+            Liquid Position. Mark them paid in the Ledger.
           </p>
           {dueAttention.length > 0 ? (
             <div className="mt-4 border-t border-slate-800/80 pt-3">

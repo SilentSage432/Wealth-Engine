@@ -751,7 +751,7 @@ export function MonthlyPlanPanel({
             </DialogTitle>
             <DialogDescription>
               This saves a Monthly Plan revision. Live categories stay as they
-              are. Income is not recorded. Money Available is not changed.
+              are. Income is not recorded. Liquid Position is not changed.
             </DialogDescription>
           </DialogHeader>
           <dl className="space-y-2 text-sm">

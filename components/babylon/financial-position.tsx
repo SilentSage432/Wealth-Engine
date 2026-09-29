@@ -64,15 +64,18 @@ import {
 import {
   ALREADY_SET_ASIDE_LABEL,
   AVAILABLE_AFTER_PLANNED_NEEDS_LABEL,
+  AVAILABLE_TO_USE_LABEL,
   availableAfterPlannedNeedsExplain,
   alreadySetAsideExplain,
   CURRENTLY_POSITIONED_HINT,
+  deriveAvailableToUsePresentation,
   EMERGENCY_FUND_POSITIONED_LABEL,
   EXISTING_EMERGENCY_FUND_LABEL,
   EXISTING_WEALTH_BUILDING_LABEL,
   FINANCIAL_POSITION_HEADING,
-  MONEY_AVAILABLE_LABEL,
-  MONEY_AVAILABLE_SCOPE,
+  LIQUID_POSITION_LABEL,
+  LIQUID_POSITION_SCOPE,
+  plannedNeedsShortfallExplain,
   RECORDED_DEBT_LABEL,
   recordedDebtExplain,
   UNAVAILABLE_LABEL,
@@ -121,6 +124,8 @@ interface FinancialPositionProps {
   moneyAvailable: number;
   /** Aggregate steward-unavailable effective total. */
   restrictedEffectiveTotal?: number;
+  /** DeployablePosition for Available-to-use presentation. Derived, not persisted. */
+  deployablePosition?: number;
   openingWealthBuilding: number;
   openingEmergencyFund: number;
   protectedMoney: number;
@@ -315,6 +320,7 @@ export function FinancialPosition({
   accounts,
   moneyAvailable,
   restrictedEffectiveTotal = 0,
+  deployablePosition,
   openingWealthBuilding,
   openingEmergencyFund,
   protectedMoney,
@@ -337,6 +343,11 @@ export function FinancialPosition({
 }: FinancialPositionProps) {
   const money = (value: number) =>
     formatDiscreetCurrency(value, discreet, formatCurrency);
+  const availableToUsePresentation = deriveAvailableToUsePresentation({
+    moneyAvailable,
+    restrictedEffectiveTotal,
+    deployablePosition,
+  });
 
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -708,24 +719,34 @@ export function FinancialPosition({
                 {FINANCIAL_POSITION_HEADING}
               </p>
               <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                {MONEY_AVAILABLE_LABEL}
+                {LIQUID_POSITION_LABEL}
               </p>
               <p className="mt-1 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight text-slate-50 tabular-nums sm:text-4xl">
                 {money(moneyAvailable)}
               </p>
-              {restrictedEffectiveTotal > 0 ? (
-                <p className="mt-2 text-xs leading-relaxed text-slate-400">
-                  {UNAVAILABLE_LABEL}{" "}
-                  <span className="tabular-nums text-slate-200">
-                    {money(restrictedEffectiveTotal)}
-                  </span>
-                  <span className="mt-1 block text-slate-500">
-                    {unavailableExplain(restrictedEffectiveTotal)}
-                  </span>
-                </p>
+              {availableToUsePresentation.showUnavailable ? (
+                <div className="mt-2 space-y-1 text-xs leading-relaxed text-slate-400">
+                  <p>
+                    {UNAVAILABLE_LABEL}{" "}
+                    <span className="tabular-nums text-slate-200">
+                      {money(restrictedEffectiveTotal)}
+                    </span>
+                    <span className="mt-1 block text-slate-500">
+                      {unavailableExplain(restrictedEffectiveTotal)}
+                    </span>
+                  </p>
+                  {availableToUsePresentation.showAvailableToUse ? (
+                    <p>
+                      {AVAILABLE_TO_USE_LABEL}{" "}
+                      <span className="tabular-nums text-slate-200">
+                        {money(availableToUsePresentation.availableToUse)}
+                      </span>
+                    </p>
+                  ) : null}
+                </div>
               ) : null}
               <p className="mt-2 max-w-xl text-xs leading-relaxed text-slate-500">
-                {MONEY_AVAILABLE_SCOPE}{" "}
+                {LIQUID_POSITION_SCOPE}{" "}
                 {describeMoneyAvailableEvidence({
                   load: balanceObservation?.load,
                   positions: accounts.map((account) =>
@@ -801,7 +822,7 @@ export function FinancialPosition({
             ) : null}
             {protectedOverAvailable ? (
               <p role="alert" className="mt-2 text-xs leading-relaxed text-amber-200">
-                Already-set-aside amounts exceed your current Money Available.
+                Already-set-aside amounts exceed your current Liquid Position.
                 Update those amounts or Financial Position.
               </p>
             ) : null}
@@ -816,22 +837,31 @@ export function FinancialPosition({
               {money(availableAfterPlannedNeeds.availableAfterPlannedNeeds)}
             </p>
             <dl className="mt-3 space-y-1 text-xs text-slate-400">
-              <div className="flex items-baseline justify-between gap-3">
-                <dt>{MONEY_AVAILABLE_LABEL}</dt>
-                <dd className="tabular-nums text-slate-200">
-                  {money(moneyAvailable)}
-                </dd>
-              </div>
+              {availableToUsePresentation.showAvailableToUse ? (
+                <div className="flex items-baseline justify-between gap-3">
+                  <dt>{AVAILABLE_TO_USE_LABEL}</dt>
+                  <dd className="tabular-nums text-slate-200">
+                    {money(availableToUsePresentation.availableToUse)}
+                  </dd>
+                </div>
+              ) : (
+                <div className="flex items-baseline justify-between gap-3">
+                  <dt>{LIQUID_POSITION_LABEL}</dt>
+                  <dd className="tabular-nums text-slate-200">
+                    {money(moneyAvailable)}
+                  </dd>
+                </div>
+              )}
               <div className="flex items-baseline justify-between gap-3">
                 <dt>{ALREADY_SET_ASIDE_LABEL}</dt>
                 <dd className="tabular-nums text-slate-200">
-                  −{money(protectedMoney)}
+                  {money(protectedMoney)}
                 </dd>
               </div>
               <div className="flex items-baseline justify-between gap-3">
                 <dt>{UPCOMING_NEEDS_LABEL}</dt>
                 <dd className="tabular-nums text-slate-200">
-                  −{money(upcomingNeeds)}
+                  {money(upcomingNeeds)}
                 </dd>
               </div>
             </dl>
@@ -840,16 +870,15 @@ export function FinancialPosition({
                 Planned Needs Shortfall{" "}
                 <span className="tabular-nums">
                   {money(availableAfterPlannedNeeds.plannedNeedsShortfall)}
-                </span>
-                . {money(availableAfterPlannedNeeds.plannedNeedsShortfall)} short
-                of covering already-set-aside money and known Upcoming Needs.
+                </span>{" "}
+                {plannedNeedsShortfallExplain()}
               </p>
             ) : null}
             <p className="mt-3 text-xs leading-relaxed text-slate-500">
               {availableAfterPlannedNeedsExplain()}
             </p>
             <p className="mt-1 text-xs leading-relaxed text-slate-500">
-              Money Available uses an observed eligible balance when Wealth
+              Liquid Position uses an observed eligible balance when Wealth
               Engine has one, and the balance you entered otherwise. It does
               not explain why a balance changed.
             </p>
@@ -886,7 +915,7 @@ export function FinancialPosition({
             <DialogHeader>
               <DialogTitle>{ALREADY_SET_ASIDE_LABEL}</DialogTitle>
               <DialogDescription>
-                Existing designations inside Money Available. Not additional
+                Existing designations inside Liquid Position. Not additional
                 cash, and not the Wealth Building or Emergency Fund totals
                 tracked from income and month close.
               </DialogDescription>
@@ -1305,7 +1334,7 @@ export function FinancialPosition({
               {changeConfirm
                 ? accountPurposeLabel(changeConfirm.to)
                 : "new purpose"}
-              . Money Available and allocation history do not change.
+              . Liquid Position and allocation history do not change.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

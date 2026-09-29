@@ -295,7 +295,7 @@ describe("downstream financial position", () => {
     expect(protectedExceedsAvailable(50, 0, money)).toBe(true);
     expect(protectedExceedsAvailable(50, 0, sumAccountBalances(bundle.accounts))).toBe(false);
     expect(protectedDesignationError(50, 0, money)).toBe(
-      "Protected designations exceed your current Money Available. Update your protected amounts or Financial Position."
+      "Protected designations exceed your current Liquid Position. Update your protected amounts or Financial Position."
     );
     expect(protectedDesignationError(50, 0, money)).not.toBeNull();
     const planned = deriveAvailableAfterPlannedNeeds({

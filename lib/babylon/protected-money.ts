@@ -98,7 +98,7 @@ export function protectedDesignationError(
       currentEmergencyFundPosition
     )
   ) {
-    return "Protected designations exceed your current Money Available. Update your protected amounts or Financial Position.";
+    return "Protected designations exceed your current Liquid Position. Update your protected amounts or Financial Position.";
   }
   return null;
 }
