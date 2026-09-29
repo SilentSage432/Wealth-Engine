@@ -14,6 +14,7 @@ import {
   VaultCloudSession,
   VaultDataBackups,
   VaultResetLedger,
+  type ConflictCopyCompareResult,
 } from "@/components/babylon/vault-maintenance-panel";
 import { ProfileNameField } from "@/components/babylon/profile-name-field";
 import { WisdomBox } from "@/components/babylon/wisdom-box";
@@ -75,6 +76,7 @@ interface MobileMoreProps {
   onBootstrapCloud: () => void | Promise<void>;
   onHydrateCloud: () => void | Promise<void>;
   onCheckCloud: () => void | Promise<void>;
+  onCompareConflictCopies?: () => Promise<ConflictCopyCompareResult>;
   accounts: FinancialAccount[];
   moneyAvailable: number;
   restrictedEffectiveTotal?: number;
@@ -145,6 +147,7 @@ export function MobileMore({
   onBootstrapCloud,
   onHydrateCloud,
   onCheckCloud,
+  onCompareConflictCopies,
   accounts,
   moneyAvailable,
   restrictedEffectiveTotal = 0,
@@ -291,6 +294,7 @@ export function MobileMore({
           onBootstrapCloud={onBootstrapCloud}
           onHydrateCloud={onHydrateCloud}
           onCheckCloud={onCheckCloud}
+          onCompareConflictCopies={onCompareConflictCopies}
         />
         <DeviceNotifications />
         <VaultDataBackups

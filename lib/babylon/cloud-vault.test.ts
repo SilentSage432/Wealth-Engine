@@ -338,7 +338,15 @@ describe("cloud vault foundation", () => {
     expect(hook).not.toContain("cloud-hydrate");
     expect(hook).not.toContain("initializeCloudVault");
     expect(hook).not.toContain("updateCloudVault");
-    expect(hook).not.toContain("getCloudVault");
+    // Read-only conflict comparison may SELECT via getCloudVault; never write.
+    expect(hook).toContain("getCloudVault");
+    const compareBlock = hook.slice(
+      hook.indexOf("const compareConflictCopies"),
+      hook.indexOf("const selectNav")
+    );
+    expect(compareBlock).toContain("getCloudVault");
+    expect(compareBlock).not.toContain("updateCloudVault");
+    expect(compareBlock).not.toContain("applyVault");
     expect(hook).not.toContain("bindCloudOwnerId");
     expect(hook).not.toContain("upsertStewardProfile");
     expect(hook).not.toContain("cloudUpsert");

@@ -847,6 +847,23 @@
 - No webhook, polling, cron, attention UI, or automatic income, bill, or balance changes.
 - WE-SYNC-004 and `vault_data` are unchanged.
 
+## 2026-09-29 — WE-SYNC-CONFLICT-002 read-only structural conflict comparison
+
+### What changed
+- Pure `compareVaultStructure` in `lib/babylon/vault-structural-diff.ts` (Layer-1 counts only; no IDs/amounts/names).
+- Conflict-only **Compare copies** opens a read-only dialog: fresh `getCloudVault` SELECT + current local vault. Never CAS, applyVault, or baseline writes.
+- Groups: Financial records, Planning, System/metadata (activityLog separated).
+- Does not resolve, merge, or choose a copy.
+
+### Ownership
+- Diff domain: `lib/babylon/vault-structural-diff.ts`
+- Read orchestration: `hooks/useBabylonEngine.ts` (`compareConflictCopies`)
+- UI: `components/babylon/vault-maintenance-panel.tsx`
+
+### Not in this tranche
+- No WE-SYNC-005 choose-local / choose-cloud.
+- No AbortSignal. No schema/SQL. No paycheck changes.
+
 ## 2026-09-29 — WE-SYNC-RELIABILITY-002 / 002B bounded UI + single-flight occupancy
 
 ### What changed

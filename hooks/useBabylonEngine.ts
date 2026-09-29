@@ -30,7 +30,11 @@ import {
   logCloudSyncDiagnostic,
   performCloudSyncCheck,
 } from "@/lib/babylon/cloud-sync-check";
-import { financialVaultFingerprint } from "@/lib/babylon/cloud-vault";
+import { financialVaultFingerprint, getCloudVault } from "@/lib/babylon/cloud-vault";
+import {
+  compareVaultStructure,
+  type VaultStructuralDiff,
+} from "@/lib/babylon/vault-structural-diff";
 import {
   clearCloudSyncBaseline,
   readCloudSyncBaseline,
@@ -2234,6 +2238,45 @@ export function useBabylonEngine() {
     setPaySchedules((prev) => prev.filter((row) => row.id !== id));
   }, []);
 
+  /**
+   * Read-only structural comparison during sync conflict.
+   * Fresh cloud SELECT only. Never CAS, applyVault, or baseline writes.
+   */
+  const compareConflictCopies = useCallback(async (): Promise<
+    | {
+        ok: true;
+        cloudRevision: number;
+        schemaVersion: number;
+        baselineRevision: number | null;
+        diff: VaultStructuralDiff;
+      }
+    | { ok: false; reason: string }
+  > => {
+    const userId = cloudUserIdRef.current;
+    if (!userId) {
+      return { ok: false, reason: "Sign in to compare copies." };
+    }
+    if (vaultSync.kind !== "conflict") {
+      return {
+        ok: false,
+        reason: "Comparison is available during a sync conflict.",
+      };
+    }
+    const baselineRevision = vaultSync.baselineRevision;
+    const read = await getCloudVault(userId);
+    if (read.status !== "present") {
+      return { ok: false, reason: "Couldn't compare copies right now." };
+    }
+    const diff = compareVaultStructure(vaultRef.current, read.vaultData);
+    return {
+      ok: true,
+      cloudRevision: read.revision,
+      schemaVersion: read.schemaVersion,
+      baselineRevision,
+      diff,
+    };
+  }, [vaultSync]);
+
   const selectNav = useCallback((section: NavSection) => {
     setActiveNav(section);
     setSidebarOpen(false);
@@ -2249,6 +2292,7 @@ export function useBabylonEngine() {
     confirmCloudBootstrap,
     confirmCloudHydrate,
     confirmCloudCheck: requestCloudCheck,
+    compareConflictCopies,
     authOpen,
     setAuthOpen,
     handleAuthenticated,

@@ -24,11 +24,29 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   BOOTSTRAP_CONFIRM,
   HYDRATE_CONFIRM,
 } from "@/lib/babylon/cloud-setup";
+import type { VaultStructuralDiff } from "@/lib/babylon/vault-structural-diff";
 import { vaultSyncCopy, type VaultSyncView } from "@/lib/babylon/vault-sync";
 import { cn } from "@/lib/utils";
+
+export type ConflictCopyCompareResult =
+  | {
+      ok: true;
+      cloudRevision: number;
+      schemaVersion: number;
+      baselineRevision: number | null;
+      diff: VaultStructuralDiff;
+    }
+  | { ok: false; reason: string };
 
 interface VaultMaintenancePanelProps {
   onExportBackup: () => void;
@@ -43,6 +61,7 @@ interface VaultMaintenancePanelProps {
   onBootstrapCloud: () => void | Promise<void>;
   onHydrateCloud: () => void | Promise<void>;
   onCheckCloud: () => void | Promise<void>;
+  onCompareConflictCopies?: () => Promise<ConflictCopyCompareResult>;
 }
 
 interface VaultCloudSessionProps {
@@ -55,6 +74,7 @@ interface VaultCloudSessionProps {
   onBootstrapCloud: () => void | Promise<void>;
   onHydrateCloud: () => void | Promise<void>;
   onCheckCloud: () => void | Promise<void>;
+  onCompareConflictCopies?: () => Promise<ConflictCopyCompareResult>;
 }
 
 interface VaultDataBackupsProps {
@@ -84,6 +104,7 @@ export function VaultMaintenancePanel({
   onBootstrapCloud,
   onHydrateCloud,
   onCheckCloud,
+  onCompareConflictCopies,
 }: VaultMaintenancePanelProps) {
   return (
     <>
@@ -97,6 +118,7 @@ export function VaultMaintenancePanel({
         onBootstrapCloud={onBootstrapCloud}
         onHydrateCloud={onHydrateCloud}
         onCheckCloud={onCheckCloud}
+        onCompareConflictCopies={onCompareConflictCopies}
       />
       <VaultDataBackups
         onExportBackup={onExportBackup}
@@ -105,6 +127,226 @@ export function VaultMaintenancePanel({
         <VaultResetLedger onClearAllData={onClearAllData} />
       </VaultDataBackups>
       <AllocationReference />
+    </>
+  );
+}
+
+function CollectionRows({
+  title,
+  diff,
+  group,
+}: {
+  title: string;
+  diff: VaultStructuralDiff;
+  group: "financial" | "planning" | "system";
+}) {
+  const rows = diff.collections.filter((row) => row.group === group);
+  if (rows.length === 0) return null;
+  return (
+    <div className="space-y-2">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+        {title}
+      </p>
+      <ul className="space-y-2">
+        {rows.map((row) => (
+          <li
+            key={row.key}
+            className="rounded-md border border-slate-800/80 bg-slate-950/50 px-2.5 py-2 text-[11px] text-slate-300"
+          >
+            <p className="font-medium text-slate-200">{row.label}</p>
+            <p className="mt-1 text-slate-400">
+              Local only: {row.localOnly} · Cloud only: {row.cloudOnly} ·
+              Different on both: {row.sharedDifferent}
+            </p>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function ScalarRows({
+  title,
+  diff,
+  group,
+}: {
+  title: string;
+  diff: VaultStructuralDiff;
+  group: "financial" | "planning" | "system";
+}) {
+  const rows = diff.scalars.filter((row) => row.group === group);
+  if (rows.length === 0) return null;
+  return (
+    <div className="space-y-2">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+        {title}
+      </p>
+      <ul className="space-y-1.5">
+        {rows.map((row) => (
+          <li
+            key={row.key}
+            className="flex items-center justify-between gap-2 text-[11px] text-slate-300"
+          >
+            <span>{row.label}</span>
+            <span className="text-slate-400">
+              {row.status === "same" ? "Same" : "Different"}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function ConflictCopyCompare({
+  vaultSync,
+  onCompare,
+}: {
+  vaultSync: Extract<VaultSyncView, { kind: "conflict" }>;
+  onCompare: () => Promise<ConflictCopyCompareResult>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<Extract<
+    ConflictCopyCompareResult,
+    { ok: true }
+  > | null>(null);
+
+  const runCompare = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const outcome = await onCompare();
+      if (!outcome.ok) {
+        setResult(null);
+        setError(outcome.reason);
+        return;
+      }
+      setResult(outcome);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        className="h-8 w-full justify-center border-slate-800 bg-transparent text-xs text-slate-300 hover:bg-slate-900 hover:text-slate-100"
+        onClick={() => {
+          setOpen(true);
+          void runCompare();
+        }}
+      >
+        Compare copies
+      </Button>
+      <Dialog
+        open={open}
+        onOpenChange={(next) => {
+          setOpen(next);
+          if (!next) {
+            setError(null);
+            setResult(null);
+            setBusy(false);
+          }
+        }}
+      >
+        <DialogContent className="max-h-[min(90dvh,40rem)] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Compare preserved copies</DialogTitle>
+            <DialogDescription>
+              This comparison does not change either copy. It shows where this
+              device and the current cloud vault differ structurally.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 text-left">
+            <p className="text-[11px] text-slate-400">
+              Comparing: This device
+              {vaultSync.baselineRevision !== null
+                ? ` (last verified together at revision ${vaultSync.baselineRevision})`
+                : ""}
+              {" · "}
+              {result
+                ? `Cloud revision ${result.cloudRevision}`
+                : "Cloud (loading…)"}
+            </p>
+
+            {busy && (
+              <p className="flex items-center gap-2 text-xs text-slate-300">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                Reading cloud vault…
+              </p>
+            )}
+
+            {error && (
+              <div className="space-y-2">
+                <p className="text-xs text-amber-300/90">{error}</p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs"
+                  disabled={busy}
+                  onClick={() => void runCompare()}
+                >
+                  Try again
+                </Button>
+              </div>
+            )}
+
+            {result && !busy && (
+              <>
+                <div className="space-y-1.5 rounded-md border border-slate-800 bg-slate-950/60 p-3">
+                  {result.diff.summaryLines.map((line) => (
+                    <p
+                      key={line}
+                      className="text-xs leading-relaxed text-slate-200"
+                    >
+                      {line}
+                    </p>
+                  ))}
+                  <p className="pt-1 text-[11px] text-slate-400">
+                    Document identity:{" "}
+                    {result.diff.documentIdentity === "same"
+                      ? "Same"
+                      : "Different"}
+                  </p>
+                </div>
+
+                <CollectionRows
+                  title="Financial records"
+                  diff={result.diff}
+                  group="financial"
+                />
+                <ScalarRows
+                  title="Financial state"
+                  diff={result.diff}
+                  group="financial"
+                />
+                <CollectionRows
+                  title="Planning"
+                  diff={result.diff}
+                  group="planning"
+                />
+                <CollectionRows
+                  title="System / metadata"
+                  diff={result.diff}
+                  group="system"
+                />
+                <ScalarRows
+                  title="System scalars"
+                  diff={result.diff}
+                  group="system"
+                />
+              </>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
@@ -119,6 +361,7 @@ export function VaultCloudSession({
   onBootstrapCloud,
   onHydrateCloud,
   onCheckCloud,
+  onCompareConflictCopies,
 }: VaultCloudSessionProps) {
   const [signingOut, setSigningOut] = useState(false);
 
@@ -205,6 +448,12 @@ export function VaultCloudSession({
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
+          )}
+          {vaultSync.kind === "conflict" && onCompareConflictCopies && (
+            <ConflictCopyCompare
+              vaultSync={vaultSync}
+              onCompare={onCompareConflictCopies}
+            />
           )}
           {(vaultSync.kind === "offline_pending" ||
             vaultSync.kind === "pending_verification" ||

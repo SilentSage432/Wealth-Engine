@@ -2,7 +2,10 @@
 
 import { Landmark, X } from "lucide-react";
 import { ProfileNameField } from "@/components/babylon/profile-name-field";
-import { VaultMaintenancePanel } from "@/components/babylon/vault-maintenance-panel";
+import {
+  VaultMaintenancePanel,
+  type ConflictCopyCompareResult,
+} from "@/components/babylon/vault-maintenance-panel";
 import { Button } from "@/components/ui/button";
 import { NAV_ITEMS } from "@/lib/babylon/constants";
 import type { VaultSyncView } from "@/lib/babylon/vault-sync";
@@ -28,6 +31,7 @@ interface AppSidebarProps {
   onBootstrapCloud: () => void | Promise<void>;
   onHydrateCloud: () => void | Promise<void>;
   onCheckCloud: () => void | Promise<void>;
+  onCompareConflictCopies?: () => Promise<ConflictCopyCompareResult>;
 }
 
 export function AppSidebar({
@@ -49,6 +53,7 @@ export function AppSidebar({
   onBootstrapCloud,
   onHydrateCloud,
   onCheckCloud,
+  onCompareConflictCopies,
 }: AppSidebarProps) {
   return (
     <aside
@@ -118,6 +123,7 @@ export function AppSidebar({
           onBootstrapCloud={onBootstrapCloud}
           onHydrateCloud={onHydrateCloud}
           onCheckCloud={onCheckCloud}
+          onCompareConflictCopies={onCompareConflictCopies}
         />
       </div>
     </aside>

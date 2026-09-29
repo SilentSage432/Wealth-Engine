@@ -338,6 +338,7 @@ export function WealthEngineDashboard() {
             onBootstrapCloud={engine.confirmCloudBootstrap}
             onHydrateCloud={engine.confirmCloudHydrate}
             onCheckCloud={engine.confirmCloudCheck}
+            onCompareConflictCopies={engine.compareConflictCopies}
           />
         )}
 
@@ -486,6 +487,7 @@ export function WealthEngineDashboard() {
                 onBootstrapCloud={engine.confirmCloudBootstrap}
                 onHydrateCloud={engine.confirmCloudHydrate}
                 onCheckCloud={engine.confirmCloudCheck}
+                onCompareConflictCopies={engine.compareConflictCopies}
                 accounts={engine.accounts}
                 moneyAvailable={engine.moneyAvailable}
                 restrictedEffectiveTotal={engine.restrictedEffectiveTotal}
