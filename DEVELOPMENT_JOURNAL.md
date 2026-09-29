@@ -1,5 +1,38 @@
 # Development Journal
 
+## 2026-09-29 — WE-PLAN-UX-003A populated map acceptance prep
+
+### What changed
+- Confirmed empty Living purposes in acceptance were repository-correct: local vault `budgetTargets: []` (EMPTY_STATE). Wiring of `engine.budgetTargets` → `MonthlyPlanPanel` is intact. No invented defaults.
+- Acceptance path: Add → Category → create BudgetTargets. First-draft drafts now merge newly created live categories into open purposes without overwriting steward amounts (`mergeFirstDraftPurposes`). Revise drafts stay on revision seed.
+- Clarified empty-state copy. Tightened epistemic helper lines. Sticky Living completion banner for phone scrolling.
+- Added deterministic `$1,000,000` Bills overcommit + restore coverage, and working-amount change with preserved purpose assignments.
+
+### Validation
+- Targeted: 4 files, 57 tests passed.
+- Full suite: 43 files, 576 tests passed.
+- `tsc --noEmit`, lint, production build, and `git diff --check` passed.
+
+### Not in this tranche
+- No commit, push, deploy, schema change, historical comparison, or planner redesign.
+
+## 2026-09-29 — WE-PLAN-UX-003 interactive monthly financial map
+
+### What changed
+- Replaced the sequential Monthly Planning form with an interactive financial-map workspace on the shared `MonthlyPlanPanel`.
+- Domain field `planningBasis` is unchanged. User-facing language is “Plan [Month] around.” Preview still flows through `previewMonthlyPlan` and does not create Income, AllocationEvent, Money Available, or BudgetTarget changes.
+- Canonical Wealth / Debt / Living shares are a structural map element with relative widths and exact cents. Living purposes remain the interactive assignment surface. Unassigned / exact / overcommit states derive from preview cents via `lib/babylon/monthly-plan-map.ts`.
+- Wealth Building shows already-protected opening Wealth Building + this plan’s Wealth share as an intention overlay (“If this plan is executed”). Emergency Fund stays separate context. Known recurring commitments remain context and do not auto-assign.
+- No historical comparison, plan-vs-actual, Monthly Honesty, suggested amounts, or gamification. The planner is useful without historical comparison; that requires at least three complete comparable months later.
+
+### Validation
+- Targeted: `monthly-plan.test.ts`, `monthly-plan-ui.test.ts`, `monthly-plan-map.test.ts`, `mobile-budget.test.ts` — 4 files, 54 tests passed.
+- Full suite: 43 files, 573 tests passed.
+- `tsc --noEmit`, lint, production build, and `git diff --check` passed.
+
+### Not in this tranche
+- No commit, push, deploy, or Supabase apply.
+
 ## 2026-09-28 — WE-PLAID-RECOVERY-001A sticky Item-scoped repair clear
 
 ### What changed

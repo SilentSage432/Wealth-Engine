@@ -582,6 +582,38 @@ describe("monthly plan placement", () => {
     expect(domain).not.toContain("todayIso");
   });
 
+  it("presents a financial map, not a Planning Basis form", () => {
+    expect(panel).toContain("Plan {monthTitle} around");
+    expect(panel).toContain("Every planned dollar has a purpose.");
+    expect(panel).toContain("still needs a purpose.");
+    expect(panel).toContain("Overcommitted by");
+    expect(panel).toContain("If this plan is executed");
+    expect(panel).toContain("Canonical purpose");
+    expect(panel).toContain("Living purposes");
+    expect(panel).toContain("Wealth Building plan result");
+    expect(panel).toContain("Known commitments");
+    expect(panel).toContain("previewMonthlyPlan");
+    expect(panel).toContain("livingPurposeMapState");
+    expect(panel).toContain("planResultWealthBuilding");
+    expect(panel).toContain("mergeFirstDraftPurposes");
+    expect(panel).not.toContain("Planning Basis");
+    expect(panel).toContain("Working assumption — not income.");
+    expect(panel).toContain("Planned position if this map is followed");
+    expect(panel).toContain("Add → Category");
+  });
+
+  it("keeps the phone Budget core planning loop wired to the same map", () => {
+    expect(budget).toContain("{monthlyPlan}");
+    expect(budget.indexOf("{monthlyPlan}")).toBeLessThan(
+      budget.indexOf("<BudgetBlueprint")
+    );
+    expect(panel).toContain('aria-label="Monthly Plan"');
+    expect(panel).toContain('aria-label="10/20/70 split"');
+    expect(panel).toContain('aria-label="Living purposes"');
+    expect(panel).toContain("Finalize map");
+  });
+
+
   it("leaves Budget Blueprint on its live cap editor", () => {
     expect(blueprint).toContain("onUpdateTargetFull");
     expect(blueprint).toContain("onDeleteTarget");
