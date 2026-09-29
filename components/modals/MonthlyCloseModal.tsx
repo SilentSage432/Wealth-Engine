@@ -10,6 +10,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  monthCloseConfirmCopy,
+  monthCloseSweepDescription,
+} from "@/lib/babylon/allocation-execution-copy";
 import { formatDiscreetCurrency } from "@/lib/babylon/discreet";
 import { cn, formatCurrency } from "@/lib/utils";
 import type { MonthlyCloseSummary, SurplusDisposition } from "@/types/babylon";
@@ -35,37 +39,26 @@ const STEPS = [
 const SWEEPS: Array<{
   id: SurplusDisposition;
   title: string;
-  description: (surplus: number, hasDebt: boolean, money: (n: number) => string) => string;
   activeClass: string;
 }> = [
   {
     id: "split_50_50",
     title: "Split between Wealth Building and Debt Payoff",
-    description: (surplus, hasDebt, money) =>
-      hasDebt
-        ? `Split ${money(surplus)} between Wealth Building and Debt Payoff.`
-        : `Add ${money(surplus)} to Wealth Building. There is no active debt.`,
     activeClass: "border-emerald-500/40 bg-emerald-500/10",
   },
   {
     id: "wealth_boost",
     title: "100% to Wealth Building",
-    description: (surplus, _hasDebt, money) =>
-      `Add ${money(surplus)} to Wealth Building.`,
     activeClass: "border-emerald-500/40 bg-emerald-500/10",
   },
   {
     id: "rollover",
     title: "Roll into next month's Living Budget",
-    description: (surplus, _hasDebt, money) =>
-      `Carry ${money(surplus)} into next month's Living Budget.`,
     activeClass: "border-amber-500/40 bg-amber-500/10",
   },
   {
     id: "emergency_shield",
     title: "Add to Emergency Fund",
-    description: (surplus, _hasDebt, money) =>
-      `Add ${money(surplus)} to the Emergency Fund.`,
     activeClass: "border-amber-500/40 bg-amber-500/10",
   },
 ];
@@ -222,7 +215,12 @@ export function MonthlyCloseModal({
                       {sweep.title}
                     </p>
                     <p className="mt-1 text-xs text-slate-500">
-                      {sweep.description(surplus, hasActiveDebt, money)}
+                      {monthCloseSweepDescription(
+                        sweep.id,
+                        surplus,
+                        hasActiveDebt,
+                        money
+                      )}
                     </p>
                   </button>
                 ))}
@@ -235,14 +233,18 @@ export function MonthlyCloseModal({
           <div className="space-y-3">
             <div className="rounded-lg border border-slate-800 bg-slate-950/50 p-4 text-sm leading-relaxed text-slate-400">
               <p>
-                Confirming will close{" "}
-                <span className="text-slate-200">{summary.monthLabel}</span>,
-                mark this month&apos;s open expenses as paid, and apply{" "}
-                <span className="text-slate-200">{dispositionLabel}</span>
-                {surplus > 0 ? ` (${money(surplus)})` : ""}.
+                {monthCloseConfirmCopy({
+                  monthLabel: summary.monthLabel,
+                  dispositionLabel: dispositionLabel,
+                  surplus,
+                  money,
+                })}
               </p>
               <p className="mt-3 text-xs text-slate-500">
                 The closed month is saved for the cumulative allocation chart.
+                Surplus assignment updates tracked Wealth Building, modeled debt
+                progress, Living capacity, or the tracked Emergency Fund — not
+                bank balances.
               </p>
             </div>
             {error && (

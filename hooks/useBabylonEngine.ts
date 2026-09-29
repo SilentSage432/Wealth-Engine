@@ -23,6 +23,7 @@ import {
   type VaultSyncView,
 } from "@/lib/babylon/vault-sync";
 import { finalizeMonthlyPlanOnState } from "@/lib/babylon/monthly-plan";
+import { monthCloseActivitySubtitle } from "@/lib/babylon/allocation-execution-copy";
 import { emitVaultToast } from "@/lib/babylon/vault-toast";
 import {
   allocateIncome,
@@ -1359,16 +1360,7 @@ export function useBabylonEngine() {
       setPeriodArchives((prev) => [archive, ...prev]);
       setLastClosedMonthKey(currentMonthKey);
 
-      const subtitle =
-        disposition === "emergency_shield"
-          ? "Surplus added to Emergency Fund"
-          : disposition === "wealth_boost"
-            ? "Surplus added to Wealth Building"
-            : disposition === "split_50_50"
-              ? "Surplus split between Wealth Building and Debt Payoff"
-              : disposition === "rollover"
-                ? "Surplus rolled into next month's Living Budget"
-                : "Surplus split between Wealth Building and Debt Payoff";
+      const subtitle = monthCloseActivitySubtitle(disposition);
 
       pushActivity({
         kind: "close",

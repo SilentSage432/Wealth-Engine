@@ -28,7 +28,9 @@ describe("phone Budget composition", () => {
   });
 
   it("states the debt-free redirect without changing the 20% share", () => {
-    expect(phoneBudgetDebtShareNote(true)).toBe("Applied to active debt.");
+    expect(phoneBudgetDebtShareNote(true)).toBe(
+      "Allocated toward active debt."
+    );
     expect(phoneBudgetDebtShareNote(false)).toBe(
       "No active debt. This share goes to Wealth Building."
     );

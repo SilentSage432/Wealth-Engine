@@ -20,6 +20,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  modeledDebtProgressLabel,
+} from "@/lib/babylon/allocation-execution-copy";
 import { INTERVAL_LABELS, STREAM_KIND_LABELS } from "@/lib/babylon/constants";
 import { isDueWithinWeek, isOverdue } from "@/lib/babylon/engine";
 import { obligationIntervalLabel } from "@/lib/babylon/recurring-obligations";
@@ -535,7 +538,7 @@ export function LedgerMatrices({
                                   indicatorClassName="bg-amber-500"
                                 />
                                 <p className="text-[10px] text-slate-500">
-                                  {pct}% toward zero
+                                  {modeledDebtProgressLabel(pct)}
                                 </p>
                               </div>
                             </TableCell>

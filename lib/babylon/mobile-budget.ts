@@ -22,7 +22,4 @@ export const PHONE_BUDGET_DEEPER_ACTIONS = [
 
 export type PhoneBudgetDeeper = (typeof PHONE_BUDGET_DEEPER_ACTIONS)[number];
 
-export function phoneBudgetDebtShareNote(hasActiveDebt: boolean): string {
-  if (hasActiveDebt) return "Applied to active debt.";
-  return "No active debt. This share goes to Wealth Building.";
-}
+export { phoneBudgetDebtShareNote } from "@/lib/babylon/allocation-execution-copy";

@@ -9,6 +9,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  paycheckDebtHint,
+  paycheckLivingHint,
+  paycheckWealthHint,
+} from "@/lib/babylon/allocation-execution-copy";
 import { formatDiscreetCurrency } from "@/lib/babylon/discreet";
 import { cn, formatCurrency } from "@/lib/utils";
 import type { AllocationSplit, IncomeInput } from "@/types/babylon";
@@ -77,18 +82,14 @@ export function PaycheckSplitterModal({
 
             <SplitRow
               label="Wealth Building · 10%"
-              hint="Set aside for wealth building"
+              hint={paycheckWealthHint()}
               amount={preview.wealthShare}
               tone="emerald"
               money={money}
             />
             <SplitRow
               label="Debt Payoff · 20%"
-              hint={
-                hasActiveDebt
-                  ? "Applied to the smallest balance first"
-                  : "Redirected to Wealth Building"
-              }
+              hint={paycheckDebtHint(hasActiveDebt)}
               amount={preview.debtShare}
               tone="amber"
               money={money}
@@ -96,7 +97,7 @@ export function PaycheckSplitterModal({
             />
             <SplitRow
               label="Living Budget · 70%"
-              hint="This month's living budget"
+              hint={paycheckLivingHint()}
               amount={preview.expenditureShare}
               tone="slate"
               money={money}

@@ -149,6 +149,36 @@ This is the heart of Wealth Engine.
 
 Allocation shares are penny-exact: wealth + debt + expenditure equals the gross deposit, including when the 20% redirects into wealth. `todayIso` is the user's local calendar day. The labor rate used by Affordability Anchor is the latest recurring deposit per income `source`, not the sum of historical deposits.
 
+### Allocation ≠ Execution (WE-ALLOCATION-EXECUTION-002)
+
+Load-bearing semantic boundary:
+
+- **PURPOSE** — what the steward assigned money to accomplish (`AllocationEvent`, income shares, Monthly Plan intent, Protected Money designations).
+- **EXECUTION** — evidence that the intended financial action actually occurred (for Living Budget: settled `ExpenseEntry`; bank settlement and transfers are not yet first-class).
+- **POSITION** — what Wealth Engine currently knows about liquid money or recorded liability state (`FinancialAccount` / effective balances; `DebtEntry.remainingDebt`).
+- **OBSERVATION** — external evidence seen but not necessarily promoted to vault truth (Plaid transactions, balance observations, derived correlation).
+
+Locked principles:
+
+1. Allocation establishes purpose, not execution.
+2. Real-world execution requires evidence beyond an `AllocationEvent`.
+3. A position change does not establish the cause of that change (`balance_change_cause_unknown`).
+4. Deterministic observational correlation may propose execution but may not authoritatively assert it.
+5. Execution-dependent truth requires steward-confirmed or otherwise authoritative evidence.
+6. Deleting or reversing a purpose record must not be interpreted as reversing an independent real-world event.
+7. One economic purchase = one consumption event.
+8. Settlement, transfer, debt-principal movement, and allocation do not create economic consumption by themselves.
+
+**Three shares (math unchanged 10/20/70):**
+
+- **Wealth share** — historical modeled Wealth Building purpose accumulation (`goldRetained` / tracked allocation wealth). Not proof money moved to a separate account. Distinct from Already Set Aside / Protected Money (present-position designation inside Money Available).
+- **Debt share** — under current historical compatibility, income and qualifying month-close surplus may call `applyDebtAllocation`, which reduces `DebtEntry.remainingDebt` without account movement, creditor settlement, payment event, payment source, or external payment evidence. After those allocations, `remainingDebt` is **modeled debt progress / WE recorded balance**, not proven current creditor balance. `reverseDebtAllocation` on income delete restores that modeled progress. This compatibility debt must be deliberately resolved before authoritative settlement or payment-instrument work.
+- **Living share** — spending capacity. Actual consumption requires a settled `ExpenseEntry`.
+
+**Monthly Plan** remains future intent only and must not mutate income, Money Available, accounts, debt, or Protected Money.
+
+Settlement, payment-instrument, and credit-card models are **BLOCKED** until this foundation and historical compatibility of allocation-driven `remainingDebt` are deliberately resolved. Past allocations are reconstructable from `allocations[]` / income shares. Past actual creditor payments are not. Current `remainingDebt` may contain allocation-driven modeled progress. An authoritative creditor balance cannot be reconstructed from Wealth Engine history alone.
+
 Financial Position (`lib/babylon/financial-position.ts`) is separate from that split. `FinancialAccount.balance` and `asOf` are the steward's declaration and the fallback. `sumAccountBalances` remains that declaration sum. Operational Money Available is the rounded sum of effective account positions. It is not income, not Living Budget, and not safe-to-spend. Saving a declaration does not call `allocateIncome`. Paying an expense does not change a declaration.
 
 WE-BALANCE-001 keeps a cached Plaid balance beside that figure. Foreground transaction sync does not record that balance. When descriptors are absent, identity bootstrap may read `/accounts/get` once and discard the balances. The cached balance is recorded by the signed-in visibility refresh and by the daily observer. Those recordings store `current` and `available` separately for depository checking and savings, with currency and the time Wealth Engine stored the cache. The source is `accounts_get`. This is Plaid's cached balance. An unchanged cached reading refreshes that stored time. WE-BALANCE-FRESHNESS-005 keeps this path for the daily observer and adds a separate foreground institution reading. A change in current, available, or currency keeps one superseded predecessor. Credit, loan, investment, and cash are not comparable. A null `current`, a missing ISO currency, an unofficial currency, or any ISO currency other than USD makes the comparison unknown. `available` is never used as `current`.
@@ -261,7 +291,7 @@ WE-BALANCE-FRESHNESS-005 is the current contract. Production acceptance is pendi
 
 `observation_kind` is `cached_accounts_get` or `real_time_balance_get` for an observed account, and null for a declaration. A real-time account also has `institution_reading_age` of `fresh` or `aged`, compared with `REAL_TIME_BALANCE_FRESHNESS_MS` at read time. A cached or declared account has `institution_reading_age` null. An aged real-time reading is not a new institution reading. `cached_accounts_get_balance` is included only when at least one effective observed account is still a cached reading. `plaid_is_not_vault_truth` remains on every contract. The route still does not call Plaid.
 
-Debt original total is the sum of recorded original balances. Debt remaining total is the sum of recorded remaining balances. Debt cleared is original total minus remaining total, floored at zero.
+Debt original total is the sum of recorded original balances. Debt remaining total is the sum of recorded remaining balances. Debt cleared is original total minus remaining total, floored at zero. Those debt fields, and `purpose.current_month_allocated_*` / `tracked_wealth_allocation_cents`, describe Wealth Engine purpose assignment and modeled progress — **not** confirmed creditor payment or bank transfer. Contract schema and version are unchanged in WE-ALLOCATION-EXECUTION-002; consumers must not treat allocated/cleared amounts as settlement. A dedicated contract tranche may add an explicit unknown later if needed.
 
 **Never owns**
 
@@ -406,6 +436,7 @@ When a new concern appears, it must be assigned to exactly one row in this matri
 - **Infrastructure serves the domain.** Platforms are replaceable; wealth law is not.
 - **Presentation communicates the domain.** The interface teaches and displays; it does not prescribe alternate math.
 - **Evidence bounds knowledge.** The system should never know more than its evidence entitles it to know. WE-ATTENTION-006 stops the observational relationship layer at Correlated Internal Movement, Observed Repetition, and Isolated Observation. Isolation is a valid absence, not a failure. Do not add a relationship primitive merely to reduce the isolated population.
+- **Allocation ≠ Execution.** Allocation establishes purpose. Execution requires evidence beyond an allocation event. Position change does not establish cause. Modeled debt progress from `applyDebtAllocation` is historical compatibility, not creditor settlement. Settlement and payment-instrument work stay blocked until that compatibility is deliberately resolved (WE-ALLOCATION-EXECUTION-002).
 
 ---
 

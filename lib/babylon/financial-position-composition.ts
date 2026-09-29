@@ -53,7 +53,7 @@ export function recordedDebtExplain(remainingDebt: number): string {
   if (remainingDebt <= 0) {
     return "No remaining debt is recorded.";
   }
-  return "Remaining balances you recorded. Separate from Money Available.";
+  return "WE recorded remaining balances, including modeled allocation progress. Separate from Money Available. Not a live creditor statement.";
 }
 
 export function availableAfterPlannedNeedsExplain(): string {

@@ -1,5 +1,21 @@
 # Development Journal
 
+## 2026-09-29 — WE-ALLOCATION-EXECUTION-002 semantic lock + truthful language
+
+### What changed
+- Locked Allocation ≠ Execution in ARCHITECTURE / CHAT_HANDOFF / roadmap: purpose vs execution vs position vs observation; three-share truth; debt waterfall documented as modeled purpose progress (historical compatibility), not creditor settlement.
+- Truthful copy only via `lib/babylon/allocation-execution-copy.ts`: Month Close no longer claims it marks open expenses paid; Golden Triad / paycheck / phone Budget / ledgers remove "% paid off" / "Applied to…" overclaims; Wealth tracked vs Already Set Aside kept distinct; Emergency Fund / Debt Freedom qualified; Recorded Debt sibling wording clarified.
+- No change to allocateIncome, applyDebtAllocation, reverseDebtAllocation, 10/20/70 math, Money Available, Protected Money, AAPN, Monthly Plan, month-close mutations, Plaid, schema, or persistence. Intelligence Contract schema/version unchanged; architecture documents that allocated/cleared fields are not settlement.
+- Settlement / payment-instrument work remains blocked until historical compatibility of allocation-driven `remainingDebt` is deliberately resolved.
+
+### Validation
+- Focused: allocation-execution-copy, financial-position-composition, mobile-budget, monthly-plan-ui, engine, protected-money, available-after-planned-needs, financial-position — 8 files, 101 tests passed.
+- Full suite: 45 files, 601 tests passed (was 44 / 590; +1 file, +11 tests).
+- `tsc --noEmit`, lint, production build, and `git diff --check` passed.
+
+### Not in this tranche
+- No commit, push, deploy, debt math correction, settlement model, or schema.
+
 ## 2026-09-29 — WE-FINANCIAL-POSITION-003 compose existing Financial Position truth
 
 ### What changed

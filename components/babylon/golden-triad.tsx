@@ -19,6 +19,12 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import {
+  MODELED_REMAINING_HINT,
+  TRACKED_WEALTH_HINT,
+  WEALTH_PURPOSE_OUTSIDE_LIVING,
+  modeledDebtProgressLabel,
+} from "@/lib/babylon/allocation-execution-copy";
 import { formatDiscreetCurrency } from "@/lib/babylon/discreet";
 import { cn, formatCurrency } from "@/lib/utils";
 import type { ExpenditureBarTone, SparkPoint } from "@/types/babylon";
@@ -92,11 +98,11 @@ export function GoldenTriad({
             <p className="text-[10px] text-slate-500 sm:text-xs">
               {openingWealthBuilding > 0
                 ? `Existing ${money(openingWealthBuilding)} · Tracked ${money(goldRetained)}`
-                : "Set aside for wealth building"}
+                : TRACKED_WEALTH_HINT}
             </p>
             <p className="mt-1 hidden items-center gap-1 text-xs text-emerald-400 sm:inline-flex">
               <ArrowUpRight className="h-3 w-3" />
-              Protected from the Living Budget
+              {WEALTH_PURPOSE_OUTSIDE_LIVING}
             </p>
           </div>
           <div className="hidden sm:block">
@@ -135,9 +141,11 @@ export function GoldenTriad({
             indicatorClassName="bg-amber-500"
           />
           <div className="flex items-center justify-between text-[10px] sm:text-xs">
-            <span className="text-slate-500">{debtClearPct}% paid off</span>
+            <span className="text-slate-500">
+              {modeledDebtProgressLabel(debtClearPct)}
+            </span>
             <span className="tabular-nums text-amber-400/90">
-              {money(remainingDebt)} remaining
+              {money(remainingDebt)} {MODELED_REMAINING_HINT.toLowerCase()}
             </span>
           </div>
           {!hasActiveDebt && (

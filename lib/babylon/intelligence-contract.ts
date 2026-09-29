@@ -33,7 +33,11 @@ import {
 import { materializeRecurringObligations } from "@/lib/babylon/recurring-obligations";
 import type { ExpenseEntry, PersistedState } from "@/types/babylon";
 
-/** Machine-readable contract. Not the vault and not a Muse API. */
+/** Machine-readable contract. Not the vault and not a Muse API.
+ * purpose.current_month_allocated_* and debts.cleared_cents / remaining_cents
+ * are purpose assignment and modeled debt progress, not confirmed settlement.
+ * Allocation ≠ Execution (ARCHITECTURE.md).
+ */
 export const INTELLIGENCE_CONTRACT_VERSION = "3";
 
 const STANDING_UNKNOWNS = [
@@ -406,6 +410,8 @@ export function assembleIntelligenceContract(input: IntelligenceContractInput) {
         })),
     },
     debts: {
+      // remaining/cleared reflect WE recorded + allocation waterfall progress.
+      // Not confirmed creditor settlement. See Allocation ≠ Execution in ARCHITECTURE.
       debts,
       original_total_cents: intelligenceCents(originalDebt),
       remaining_total_cents: intelligenceCents(remainingDebt),

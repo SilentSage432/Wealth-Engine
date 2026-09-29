@@ -6,6 +6,8 @@
 **Architecture map:** [`ARCHITECTURE.md`](./ARCHITECTURE.md) — layers, dependency rules, canonical ownership matrix.
 
 ## Current state
+WE-ALLOCATION-EXECUTION-002 is a review candidate. Semantic lock and truthful language only: Allocation ≠ Execution. Income/month-close debt waterfall still reduces `remainingDebt` as modeled purpose progress (historical compatibility) — not proven creditor settlement. No change to `allocateIncome`, `applyDebtAllocation`, reverse, 10/20/70 math, Money Available, Protected Money, AAPN, Monthly Plan, Plaid, schema, or persistence. Settlement / payment-instrument work is blocked until this foundation and historical compatibility are deliberately resolved. Copy helpers: `lib/babylon/allocation-execution-copy.ts`.
+
 WE-FINANCIAL-POSITION-003 is a review candidate. Financial Position composition clarifies liquid money (checking, savings, cash — not net worth), labels existing designations as Already Set Aside (openings only; tracked Wealth Building and Emergency Fund stay on Golden Triad / month close), keeps Available After Planned Needs formula unchanged, and shows Recorded Debt as sibling context that does not reduce Money Available or AAPN. No account-kind, Plaid, schema, or 10/20/70 change.
 
 WE-PLAN-UX-003 is an implementation candidate. Production acceptance is pending. Monthly Planning is an interactive financial map on the shared `MonthlyPlanPanel`. Domain field `planningBasis` is unchanged; user-facing language is “Plan [Month] around.” Preview still uses `previewMonthlyPlan`. Finalize still appends only `monthlyPlans` and does not create Income, AllocationEvent, or Money Available / BudgetTarget changes. Living unassigned / exact / overcommit states are pure preview arithmetic (`lib/babylon/monthly-plan-map.ts`). Wealth Building shows opening Wealth Building + this plan’s Wealth share as an intention overlay. Known recurring commitments remain context and do not auto-assign. No historical comparison, plan-vs-actual, Monthly Honesty, or suggested amounts. The planner is useful without historical comparison; that requires at least three complete comparable months later.
@@ -100,18 +102,19 @@ Legacy expenses without `dueDate` soft-migrate to use `date`. Want expenses (`ca
 - `exportBackup` / `importBackup` — versioned vault including activity log, shield, period archives, accounts, protected designations, recurring rules, and finalized monthly plans. New exports are version 6. Version 1 imports with an empty account list. Versions 1 and 2 import unsettled expenses as paid. Versions 3–6 keep upcoming rows unpaid. Versions 1–3 import protected designations as 0. Versions 4–6 keep them. Versions 1–4 import with no recurring rules. Versions 5 and 6 keep them. Versions 1–5 import with no monthly plans. A version 6 file missing plans, rules, or protected amounts is rejected. Older builds reject version 6. Import does not duplicate a rule month that is already present or skipped
 
 ## Financial Position vs allocation
+- **Allocation ≠ Execution** — Allocation establishes purpose. Execution requires evidence beyond an `AllocationEvent`. Living consumption requires settled expenses. Wealth tracked allocation is not cash movement. Debt waterfall progress is modeled WE balance progress under historical compatibility, not proven creditor payment. Settlement / payment-instrument work is blocked until that compatibility is deliberately resolved.
 - **Financial Position** — manually entered current account balances
 - **Income** — newly received money that enters the 10/20/70 Allocation Engine
 - **Living Budget** — the 70% allocation produced from new income
 - **Money Available** — sum of current operational/effective account balances (checking, savings, cash). It is not safe-to-spend, not Living Budget remaining, and not net worth. Paying an expense does not change it. Existing protected designations are included in it and do not change it
 - **Already Set Aside (Protected Money)** — Existing Wealth Building plus Existing Emergency Fund openings. Portion of current Money Available the steward designated. Not additional cash. Not tracked allocation wealth or `emergencyShield`. Steward-facing label is Already Set Aside; domain field remains `protectedMoney`
-- **Tracked Wealth Building** — sum of recorded allocation wealth. The Wealth Building card adds the existing designation to this. Allocation charts stay tracked-only
-- **Tracked Emergency Fund** — `emergencyShield`, from month-close surplus only. The month-close balance adds the existing designation to this
+- **Tracked Wealth Building** — sum of recorded allocation wealth. The Wealth Building card adds the existing designation to this. Allocation charts stay tracked-only. Not proof funds sit in a separate account.
+- **Tracked Emergency Fund** — `emergencyShield`, from month-close surplus only. The month-close balance adds the existing designation to this. Not a bank transfer.
 - **Upcoming obligation** — an expense that is not yet paid (`isSettled: false`)
 - **Actual spending** — a paid expense. Living Budget remaining subtracts only this
 - **Upcoming Needs** — sum of every unpaid Need, including recurring occurrences already on the ledger and any unpaid Need dated further out. It is not limited to this month or the next seven days, and it is not subtracted from Money Available
 - **Available After Planned Needs** — Money Available minus Protected Money minus Upcoming Needs, floored at zero. Planned Needs Shortfall is the amount by which those two claims exceed Money Available. It is derived and not saved. It does not subtract Living Budget Remaining, tracked Wealth Building, tracked Emergency Fund contributions, Upcoming Wants, recorded debt, or paid expenses. Recurring rules are not subtracted; their generated unpaid Need rows are. Future paychecks are not included. It is not a promise that the remainder is safe to spend
-- **Recorded Debt (Financial Position context)** — sum of `DebtEntry.remainingDebt`, shown beside liquidity. Does not reduce Money Available or Available After Planned Needs. Not net worth and not a claim that all liabilities are recorded
+- **Recorded Debt (Financial Position context)** — sum of `DebtEntry.remainingDebt`, shown beside liquidity. Includes modeled allocation progress under current compatibility. Does not reduce Money Available or Available After Planned Needs. Not net worth, not a live creditor statement, and not a claim that all liabilities are recorded
 - **Recurring obligation** — a declared bill every N calendar months. A missing interval is monthly. It is not spending, not a category cap, and not added to Upcoming Needs until an occurrence exists
 - **Occurrence** — one month's Upcoming expense generated from that rule. It becomes spending only when marked paid
 - Overview places Financial Position, including Available After Planned Needs, then Upcoming Needs, then the Living Budget. Coming up, under Upcoming Needs, lists the next unpaid bills, including Wants. The derived figure uses the full Upcoming Needs total, not that preview. Month close does not settle unpaid expenses, change account balances, clear protected designations, or pay recurring bills
@@ -135,7 +138,7 @@ Legacy expenses without `dueDate` soft-migrate to use `date`. Want expenses (`ca
 - **Ledger** — income, expenses, and debts; paid marks on expenses. Phone lists stacked records. Desktop keeps the tables
 
 ## Known behaviors
-- Recording income runs `allocateIncome()` (penny-exact 10/20/70; shares sum to gross) and optionally `applyDebtAllocation()`.
+- Recording income runs `allocateIncome()` (penny-exact 10/20/70; shares sum to gross) and optionally `applyDebtAllocation()`. That debt reduction is modeled purpose progress, not confirmation a creditor was paid.
 - Financial "today" is the local calendar day (`todayIso`), not UTC. The ledger hook advances that day at the next local midnight (and when a backgrounded tab returns on a new day). The visible CommandBar clock is a local one-second timer on the desktop branch and does not rerender the dashboard. The phone header does not run a clock.
 - Main income rate is the latest recurring deposit per income source. Repeated paychecks from the same source do not stack into extra wages. `source` is the only way two simultaneous jobs stay separate.
 - Sidebar cloud state says "Cloud account connected" before a vault link. After a verified match it says "Up to date · revision N". Unsent edits say they are waiting or saved offline. A conflict says both copies were preserved. Sign-in itself is not labeled synced.
@@ -147,6 +150,7 @@ Legacy expenses without `dueDate` soft-migrate to use `date`. Want expenses (`ca
 - Overview does not embed the full Ledger.
 
 ## Next candidates (Phase 3)
+- WE-ALLOCATION-EXECUTION-002 review candidate (semantic lock + truthful language). Settlement / payment-instrument / credit-card models stay blocked until allocation/execution historical compatibility is deliberately resolved.
 - WE-ATTENTION-007B is implemented and waiting for acceptance in the running UI. Observational attention is still unwired. Do not start with another detector
 - Multi-currency / shared household vaults
 - Debt payment waterfall visualization

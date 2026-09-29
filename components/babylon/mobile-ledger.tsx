@@ -5,6 +5,10 @@ import { Check, Pencil, Trash2 } from "lucide-react";
 import { LedgerRecordEditors } from "@/components/babylon/ledger-record-editors";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import {
+  modeledDebtProgressAria,
+  modeledDebtProgressLabel,
+} from "@/lib/babylon/allocation-execution-copy";
 import { INTERVAL_LABELS, STREAM_KIND_LABELS } from "@/lib/babylon/constants";
 import { formatDiscreetCurrency } from "@/lib/babylon/discreet";
 import {
@@ -368,7 +372,8 @@ export function MobileLedger({
                           </p>
                         </div>
                         <p className="mt-1 text-xs text-slate-400">
-                          Total {money(row.totalDebt)} · {pct}% toward zero
+                          Total {money(row.totalDebt)} ·{" "}
+                          {modeledDebtProgressLabel(pct)}
                         </p>
                         <p className="mt-1 text-xs text-slate-400">
                           Monthly allocation {money(row.monthlyAllocation)} ·{" "}
@@ -378,7 +383,7 @@ export function MobileLedger({
                           value={pct}
                           className="mt-2 h-1.5"
                           indicatorClassName="bg-amber-500"
-                          aria-label={`${row.creditor} ${pct}% toward zero`}
+                          aria-label={modeledDebtProgressAria(row.creditor, pct)}
                         />
                         <div className="mt-2 flex justify-end">
                           <Button

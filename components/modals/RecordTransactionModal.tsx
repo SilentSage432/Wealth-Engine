@@ -951,9 +951,10 @@ export function RecordTransactionModal({
                 </p>
               </div>
               <p className="text-xs leading-relaxed text-slate-500">
-                Adding income applies 20% toward active debts, smallest balance
-                first. When every debt is paid off, that 20% is redirected to
-                Wealth Building.
+                Adding income allocates 20% toward active debts as modeled
+                progress (smallest balance first). That is not confirmation a
+                creditor was paid. When every debt reaches zero in Wealth Engine,
+                that 20% is redirected to Wealth Building.
               </p>
             </TabsContent>
 

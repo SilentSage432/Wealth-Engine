@@ -12,6 +12,7 @@ import {
 } from "recharts";
 import { ChartTooltipShell } from "@/components/babylon/chart-tooltip";
 import { Button } from "@/components/ui/button";
+import { debtFreedomProjectionNote } from "@/lib/babylon/allocation-execution-copy";
 import {
   formatMonthLabel,
   projectDebtFreedom,
@@ -165,13 +166,16 @@ export function DebtFreedomEngine({
           </p>
         )}
         <p className="mt-2 text-xs text-slate-500">
-          Monthly debt payment {money(monthlyDebtBudget)}
+          Monthly debt allocation {money(monthlyDebtBudget)}
           {projection.monthsRemaining != null
             ? ` · ${projection.monthsRemaining} months remaining`
             : ""}
           {projection.totalInterestPaid > 0
             ? ` · est. interest ${money(projection.totalInterestPaid)}`
             : ""}
+        </p>
+        <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
+          {debtFreedomProjectionNote()}
         </p>
       </div>
 
