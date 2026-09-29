@@ -1,4 +1,9 @@
 import {
+  DEBT_SEMANTICS_LEGACY,
+  DEBT_SEMANTICS_POSITION,
+  resolveDebtSemanticsVersion,
+} from "@/lib/babylon/debt-semantics";
+import {
   DISCRETIONARY_BUDGET_ID,
   EMPTY_STATE,
   STORAGE_KEY,
@@ -17,6 +22,7 @@ import type {
   ActivityKind,
   BudgetTarget,
   DebtEntry,
+  DebtPurposeAttribution,
   ExpenseEntry,
   ExpenseKind,
   FinancialAccount,
@@ -31,8 +37,8 @@ import type {
   SurplusDisposition,
 } from "@/types/babylon";
 
-/** Current export version. Version 6 adds finalized monthly plan revisions. */
-export const LEDGER_BACKUP_VERSION = 6 as const;
+/** Current export version. Version 7 adds debt-position epoch + purpose attributions. */
+export const LEDGER_BACKUP_VERSION = 7 as const;
 
 /** Local vault marker. 2 means `isSettled: false` is an Upcoming obligation. */
 export const EXPENSE_SEMANTICS_VERSION = 2 as const;
@@ -218,14 +224,29 @@ function parseDebtEntry(value: unknown): DebtEntry | null {
       ? value.interestRate
       : 0;
 
+  let legacyModeledRemaining: number | undefined;
+  if (value.legacyModeledRemaining !== undefined) {
+    if (
+      !isFiniteNumber(value.legacyModeledRemaining) ||
+      value.legacyModeledRemaining < 0
+    ) {
+      return null;
+    }
+    legacyModeledRemaining = roundMoney(value.legacyModeledRemaining);
+  }
+
   return {
     id: value.id,
     creditor: value.creditor.trim(),
     totalDebt: value.totalDebt,
-    remainingDebt: Math.min(value.totalDebt, Math.max(0, value.remainingDebt)),
+    // Authoritative owed may exceed original enrollment (interest / charges).
+    remainingDebt: Math.max(0, value.remainingDebt),
     monthlyAllocation: value.monthlyAllocation,
     createdAt: value.createdAt,
     interestRate,
+    ...(legacyModeledRemaining !== undefined
+      ? { legacyModeledRemaining }
+      : {}),
   };
 }
 
@@ -243,6 +264,31 @@ function parseFinancialAccount(value: unknown): FinancialAccount | null {
     kind: value.kind,
     balance: roundMoney(value.balance),
     asOf: value.asOf,
+  };
+}
+
+function parseDebtPurposeAttribution(
+  value: unknown
+): DebtPurposeAttribution | null {
+  if (!isRecord(value)) return null;
+  if (!isNonEmptyString(value.id)) return null;
+  if (!isNonEmptyString(value.allocationEventId)) return null;
+  if (!isNonEmptyString(value.debtId)) return null;
+  if (!isFiniteNumber(value.amount) || value.amount < 0) return null;
+  if (!isIsoDate(value.date)) return null;
+  if (
+    typeof value.monthKey !== "string" ||
+    !/^\d{4}-\d{2}$/.test(value.monthKey)
+  ) {
+    return null;
+  }
+  return {
+    id: value.id,
+    allocationEventId: value.allocationEventId,
+    debtId: value.debtId,
+    amount: roundMoney(value.amount),
+    date: value.date,
+    monthKey: value.monthKey,
   };
 }
 
@@ -455,6 +501,34 @@ export function normalizePersistedState(raw: unknown): PersistedState {
         .filter((plan): plan is MonthlyPlanRevision => plan !== null)
     : [];
 
+  const debtPurposeAttributions = Array.isArray(raw.debtPurposeAttributions)
+    ? raw.debtPurposeAttributions
+        .map(parseDebtPurposeAttribution)
+        .filter((row): row is DebtPurposeAttribution => row !== null)
+    : [];
+
+  const debtSemanticsVersion = resolveDebtSemanticsVersion(
+    raw.debtSemanticsVersion,
+    debts.length
+  );
+
+  let debtPositionEpochAt: string | null = null;
+  if (
+    typeof raw.debtPositionEpochAt === "string" &&
+    raw.debtPositionEpochAt.trim()
+  ) {
+    debtPositionEpochAt = raw.debtPositionEpochAt;
+  }
+  if (
+    debtSemanticsVersion === DEBT_SEMANTICS_POSITION &&
+    debts.length > 0 &&
+    !debtPositionEpochAt &&
+    raw.debtSemanticsVersion === DEBT_SEMANTICS_POSITION
+  ) {
+    // Explicit position epoch without timestamp still counts; keep null.
+    debtPositionEpochAt = null;
+  }
+
   return {
     incomes,
     expenses,
@@ -472,6 +546,9 @@ export function normalizePersistedState(raw: unknown): PersistedState {
     openingEmergencyFund,
     recurringObligations,
     monthlyPlans,
+    debtSemanticsVersion,
+    debtPositionEpochAt,
+    debtPurposeAttributions,
   };
 }
 
@@ -488,7 +565,8 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
     raw.version !== 3 &&
     raw.version !== 4 &&
     raw.version !== 5 &&
-    raw.version !== 6
+    raw.version !== 6 &&
+    raw.version !== 7
   ) {
     return null;
   }
@@ -500,13 +578,14 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
   if (!incomes || !expenses || !debts) return null;
 
   // Versions 1 and 2 counted unsettled rows as spent. Mark them paid on import
-  // so a later save does not turn old spending into Upcoming. Versions 3–6
+  // so a later save does not turn old spending into Upcoming. Versions 3–7
   // keep Upcoming unpaid.
   const settledExpenses =
     raw.version === 3 ||
     raw.version === 4 ||
     raw.version === 5 ||
-    raw.version === 6
+    raw.version === 6 ||
+    raw.version === 7
       ? expenses
       : settleLegacyExpenses(expenses);
 
@@ -563,7 +642,7 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
     typeof raw.displayName === "string" ? raw.displayName : "";
 
   // Version 1 has no account contract. Ignore any stray `accounts` field so a
-  // version-1 file cannot smuggle balances. Versions 2–6 require a valid list;
+  // version-1 file cannot smuggle balances. Versions 2–7 require a valid list;
   // one bad row rejects the whole backup.
   let accounts: FinancialAccount[] = [];
   if (
@@ -571,7 +650,8 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
     raw.version === 3 ||
     raw.version === 4 ||
     raw.version === 5 ||
-    raw.version === 6
+    raw.version === 6 ||
+    raw.version === 7
   ) {
     if (raw.accounts === undefined) return null;
     const parsed = parseArray(raw.accounts, parseFinancialAccount);
@@ -580,11 +660,16 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
   }
 
   // Versions 1–3 have no protected-designation contract. Force zero even if
-  // stray fields are present. Versions 4, 5, and 6 must include both amounts; a
+  // stray fields are present. Versions 4–7 must include both amounts; a
   // missing field rejects the backup instead of silently dropping a designation.
   let openingWealthBuilding = 0;
   let openingEmergencyFund = 0;
-  if (raw.version === 4 || raw.version === 5 || raw.version === 6) {
+  if (
+    raw.version === 4 ||
+    raw.version === 5 ||
+    raw.version === 6 ||
+    raw.version === 7
+  ) {
     const wealth = nonNegativeMoney(raw.openingWealthBuilding);
     const emergency = nonNegativeMoney(raw.openingEmergencyFund);
     if (wealth === null || emergency === null) return null;
@@ -593,10 +678,10 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
   }
 
   // Versions 1–4 have no recurring-rule contract. Force an empty list even if
-  // stray rules are present. Versions 5 and 6 must include the list; a missing
+  // stray rules are present. Versions 5–7 must include the list; a missing
   // list rejects the backup instead of silently dropping recurrence.
   let recurringObligations: RecurringObligation[] = [];
-  if (raw.version === 5 || raw.version === 6) {
+  if (raw.version === 5 || raw.version === 6 || raw.version === 7) {
     if (raw.recurringObligations === undefined) return null;
     const parsed = parseArray(raw.recurringObligations, parseRecurringObligation);
     if (!parsed) return null;
@@ -604,14 +689,53 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
   }
 
   // Versions 1–5 have no monthly-plan contract. Force an empty list even if
-  // stray revisions are present. Version 6 must include the list; a missing
+  // stray revisions are present. Versions 6–7 must include the list; a missing
   // or corrupt list rejects the backup instead of dropping historical intent.
   let monthlyPlans: MonthlyPlanRevision[] = [];
-  if (raw.version === 6) {
+  if (raw.version === 6 || raw.version === 7) {
     if (raw.monthlyPlans === undefined) return null;
     const parsed = parseArray(raw.monthlyPlans, parseMonthlyPlanRevision);
     if (!parsed) return null;
     monthlyPlans = parsed;
+  }
+
+  // Versions 1–6 have no debt-position epoch contract. Soft-migrate to legacy
+  // semantics when debts exist (fail-closed: modeled remaining is NOT treated
+  // as authoritative). Version 7 requires explicit epoch fields.
+  let debtSemanticsVersion: 1 | 2 = DEBT_SEMANTICS_LEGACY;
+  let debtPositionEpochAt: string | null = null;
+  let debtPurposeAttributions: DebtPurposeAttribution[] = [];
+  if (raw.version === 7) {
+    if (
+      raw.debtSemanticsVersion !== DEBT_SEMANTICS_LEGACY &&
+      raw.debtSemanticsVersion !== DEBT_SEMANTICS_POSITION
+    ) {
+      return null;
+    }
+    debtSemanticsVersion = raw.debtSemanticsVersion;
+    if (raw.debtPurposeAttributions === undefined) return null;
+    const parsed = parseArray(
+      raw.debtPurposeAttributions,
+      parseDebtPurposeAttribution
+    );
+    if (!parsed) return null;
+    debtPurposeAttributions = parsed;
+    if (raw.debtPositionEpochAt === null || raw.debtPositionEpochAt === undefined) {
+      debtPositionEpochAt = null;
+    } else if (
+      typeof raw.debtPositionEpochAt === "string" &&
+      raw.debtPositionEpochAt.trim()
+    ) {
+      debtPositionEpochAt = raw.debtPositionEpochAt;
+    } else {
+      return null;
+    }
+    // Position epoch with null stamp is valid for vaults born in the position
+    // era (empty debts at first save). Steward-rebased vaults carry a stamp.
+  } else {
+    debtSemanticsVersion = resolveDebtSemanticsVersion(undefined, debts.length);
+    debtPositionEpochAt = null;
+    debtPurposeAttributions = [];
   }
 
   return {
@@ -632,6 +756,9 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
     openingEmergencyFund,
     recurringObligations,
     monthlyPlans,
+    debtSemanticsVersion,
+    debtPositionEpochAt,
+    debtPurposeAttributions,
   };
 }
 
@@ -654,6 +781,9 @@ export function buildLedgerBackup(state: PersistedState): LedgerBackup {
     openingEmergencyFund: state.openingEmergencyFund,
     recurringObligations: state.recurringObligations,
     monthlyPlans: state.monthlyPlans,
+    debtSemanticsVersion: state.debtSemanticsVersion ?? DEBT_SEMANTICS_LEGACY,
+    debtPositionEpochAt: state.debtPositionEpochAt ?? null,
+    debtPurposeAttributions: state.debtPurposeAttributions ?? [],
   };
 }
 

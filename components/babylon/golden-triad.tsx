@@ -20,9 +20,11 @@ import {
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import {
+  CURRENTLY_OWED_HINT,
   MODELED_REMAINING_HINT,
   TRACKED_WEALTH_HINT,
   WEALTH_PURPOSE_OUTSIDE_LIVING,
+  debtPurposeAllocatedLabel,
   modeledDebtProgressLabel,
 } from "@/lib/babylon/allocation-execution-copy";
 import { formatDiscreetCurrency } from "@/lib/babylon/discreet";
@@ -38,6 +40,10 @@ interface GoldenTriadProps {
   originalDebt: number;
   remainingDebt: number;
   debtClearPct: number;
+  /** Aggregate AllocationEvent.debt purpose (post-epoch primary debt signal). */
+  debtAllocated: number;
+  /** True after steward debt-position rebase (or empty new vault). */
+  debtPositionEpoch: boolean;
   hasActiveDebt: boolean;
   expenditureRemaining: number;
   expenditureRemainingPct: number;
@@ -57,6 +63,8 @@ export function GoldenTriad({
   originalDebt,
   remainingDebt,
   debtClearPct,
+  debtAllocated,
+  debtPositionEpoch,
   hasActiveDebt,
   expenditureRemaining,
   expenditureRemainingPct,
@@ -124,10 +132,12 @@ export function GoldenTriad({
               </span>
             </CardDescription>
             <CardTitle className="mt-1.5 font-[family-name:var(--font-display)] text-xl font-semibold tracking-tight text-amber-300 sm:mt-2 sm:text-2xl md:text-3xl">
-              {money(clearedDebt)}
-              <span className="ml-1 text-xs font-normal text-slate-500 sm:text-sm md:text-base">
-                / {money(originalDebt || 0)}
-              </span>
+              {debtPositionEpoch ? money(debtAllocated) : money(clearedDebt)}
+              {!debtPositionEpoch && (
+                <span className="ml-1 text-xs font-normal text-slate-500 sm:text-sm md:text-base">
+                  / {money(originalDebt || 0)}
+                </span>
+              )}
             </CardTitle>
           </div>
           <div className="hidden rounded-lg bg-amber-500/10 p-2 text-amber-400 transition-transform duration-300 group-hover:scale-110 sm:block">
@@ -135,19 +145,32 @@ export function GoldenTriad({
           </div>
         </CardHeader>
         <CardContent className="space-y-2 p-3 pt-0 sm:space-y-3 sm:p-6 sm:pt-0">
-          <Progress
-            value={debtClearPct}
-            className="h-1.5 sm:h-2"
-            indicatorClassName="bg-amber-500"
-          />
-          <div className="flex items-center justify-between text-[10px] sm:text-xs">
-            <span className="text-slate-500">
-              {modeledDebtProgressLabel(debtClearPct)}
-            </span>
-            <span className="tabular-nums text-amber-400/90">
-              {money(remainingDebt)} {MODELED_REMAINING_HINT.toLowerCase()}
-            </span>
-          </div>
+          {debtPositionEpoch ? (
+            <div className="flex items-center justify-between gap-2 text-[10px] sm:text-xs">
+              <span className="text-slate-500">
+                {debtPurposeAllocatedLabel("Purpose")}
+              </span>
+              <span className="tabular-nums text-amber-400/90">
+                {money(remainingDebt)} {CURRENTLY_OWED_HINT.toLowerCase()}
+              </span>
+            </div>
+          ) : (
+            <>
+              <Progress
+                value={debtClearPct}
+                className="h-1.5 sm:h-2"
+                indicatorClassName="bg-amber-500"
+              />
+              <div className="flex items-center justify-between text-[10px] sm:text-xs">
+                <span className="text-slate-500">
+                  {modeledDebtProgressLabel(debtClearPct)}
+                </span>
+                <span className="tabular-nums text-amber-400/90">
+                  {money(remainingDebt)} {MODELED_REMAINING_HINT.toLowerCase()}
+                </span>
+              </div>
+            </>
+          )}
           {!hasActiveDebt && (
             <p className="hidden items-center gap-1 text-xs text-emerald-400 sm:inline-flex">
               <Sparkles className="h-3 w-3" />

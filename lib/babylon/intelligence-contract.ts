@@ -34,9 +34,12 @@ import { materializeRecurringObligations } from "@/lib/babylon/recurring-obligat
 import type { ExpenseEntry, PersistedState } from "@/types/babylon";
 
 /** Machine-readable contract. Not the vault and not a Muse API.
- * purpose.current_month_allocated_* and debts.cleared_cents / remaining_cents
- * are purpose assignment and modeled debt progress, not confirmed settlement.
- * Allocation ≠ Execution (ARCHITECTURE.md).
+ * purpose.current_month_allocated_* remain PURPOSE assignment (not settlement).
+ * debts.remaining_cents is vault remainingDebt: modeled progress before the
+ * debt-position epoch, steward-authoritative owed after. debts.cleared_cents
+ * stays original − remaining and is not creditor-confirmed payoff.
+ * Allocation ≠ Execution. Debt Purpose ≠ Debt Position ≠ Debt Execution.
+ * Contract version stays 3; field meanings clarified, not silently rewritten.
  */
 export const INTELLIGENCE_CONTRACT_VERSION = "3";
 

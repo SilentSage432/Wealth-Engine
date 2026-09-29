@@ -127,4 +127,8 @@ export const EMPTY_STATE: PersistedState = {
   openingEmergencyFund: 0,
   recurringObligations: [],
   monthlyPlans: [],
+  /** Empty vaults start in the debt-position epoch (nothing to rebase). */
+  debtSemanticsVersion: 2,
+  debtPositionEpochAt: null,
+  debtPurposeAttributions: [],
 };

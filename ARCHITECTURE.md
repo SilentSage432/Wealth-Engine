@@ -149,14 +149,16 @@ This is the heart of Wealth Engine.
 
 Allocation shares are penny-exact: wealth + debt + expenditure equals the gross deposit, including when the 20% redirects into wealth. `todayIso` is the user's local calendar day. The labor rate used by Affordability Anchor is the latest recurring deposit per income `source`, not the sum of historical deposits.
 
-### Allocation ≠ Execution (WE-ALLOCATION-EXECUTION-002)
+### Allocation ≠ Execution (WE-ALLOCATION-EXECUTION-002 / 005)
 
 Load-bearing semantic boundary:
 
-- **PURPOSE** — what the steward assigned money to accomplish (`AllocationEvent`, income shares, Monthly Plan intent, Protected Money designations).
-- **EXECUTION** — evidence that the intended financial action actually occurred (for Living Budget: settled `ExpenseEntry`; bank settlement and transfers are not yet first-class).
-- **POSITION** — what Wealth Engine currently knows about liquid money or recorded liability state (`FinancialAccount` / effective balances; `DebtEntry.remainingDebt`).
+- **PURPOSE** — what the steward assigned money to accomplish (`AllocationEvent`, income shares, Monthly Plan intent, Protected Money designations; post-epoch `DebtPurposeAttribution`).
+- **EXECUTION** — evidence that the intended financial action actually occurred (for Living Budget: settled `ExpenseEntry`; bank settlement and transfers are not yet first-class). **Debt execution is not implemented.**
+- **POSITION** — what Wealth Engine currently knows about liquid money or recorded liability state (`FinancialAccount` / effective balances; after the debt-position epoch, `DebtEntry.remainingDebt` is steward-authoritative current owed).
 - **OBSERVATION** — external evidence seen but not necessarily promoted to vault truth (Plaid transactions, balance observations, derived correlation).
+
+**Debt Purpose ≠ Debt Position ≠ Debt Execution.**
 
 Locked principles:
 
@@ -172,12 +174,12 @@ Locked principles:
 **Three shares (math unchanged 10/20/70):**
 
 - **Wealth share** — historical modeled Wealth Building purpose accumulation (`goldRetained` / tracked allocation wealth). Not proof money moved to a separate account. Distinct from Already Set Aside / Protected Money (present-position designation inside Money Available).
-- **Debt share** — under current historical compatibility, income and qualifying month-close surplus may call `applyDebtAllocation`, which reduces `DebtEntry.remainingDebt` without account movement, creditor settlement, payment event, payment source, or external payment evidence. After those allocations, `remainingDebt` is **modeled debt progress / WE recorded balance**, not proven current creditor balance. `reverseDebtAllocation` on income delete restores that modeled progress. This compatibility debt must be deliberately resolved before authoritative settlement or payment-instrument work.
+- **Debt share** — canonical aggregate purpose on `AllocationEvent.debt`. **Before** the debt-position epoch (`debtSemanticsVersion` 1): income and qualifying month-close surplus may still call `applyDebtAllocation`, mutating `remainingDebt` as modeled purpose progress (legacy). **After** steward all-or-nothing rebase (`debtSemanticsVersion` 2): allocation records per-creditor `DebtPurposeAttribution` and **does not** mutate authoritative `remainingDebt`. Active debt / debt-free redirect uses authoritative owed. Over-allocation preserves full aggregate purpose; creditor attribution never claims more than owed room. Empty new vaults start in the position era. Legacy vaults with debts require steward current-owed declarations for every debt before new semantics activate — no mixed era.
 - **Living share** — spending capacity. Actual consumption requires a settled `ExpenseEntry`.
 
 **Monthly Plan** remains future intent only and must not mutate income, Money Available, accounts, debt, or Protected Money.
 
-Settlement, payment-instrument, and credit-card models are **BLOCKED** until this foundation and historical compatibility of allocation-driven `remainingDebt` are deliberately resolved. Past allocations are reconstructable from `allocations[]` / income shares. Past actual creditor payments are not. Current `remainingDebt` may contain allocation-driven modeled progress. An authoritative creditor balance cannot be reconstructed from Wealth Engine history alone.
+Settlement, payment-instrument, and credit-card models remain **BLOCKED**. Debt execution is future. Past allocations are reconstructable from `allocations[]` / income shares. Past actual creditor payments are not. Pre-epoch `remainingDebt` may contain allocation-driven modeled progress; `legacyModeledRemaining` preserves that snapshot at rebase. An authoritative creditor balance cannot be reconstructed from Wealth Engine history alone — the steward supplies current owed at transition.
 
 Financial Position (`lib/babylon/financial-position.ts`) is separate from that split. `FinancialAccount.balance` and `asOf` are the steward's declaration and the fallback. `sumAccountBalances` remains that declaration sum. Operational Money Available is the rounded sum of effective account positions. It is not income, not Living Budget, and not safe-to-spend. Saving a declaration does not call `allocateIncome`. Paying an expense does not change a declaration.
 
@@ -436,7 +438,7 @@ When a new concern appears, it must be assigned to exactly one row in this matri
 - **Infrastructure serves the domain.** Platforms are replaceable; wealth law is not.
 - **Presentation communicates the domain.** The interface teaches and displays; it does not prescribe alternate math.
 - **Evidence bounds knowledge.** The system should never know more than its evidence entitles it to know. WE-ATTENTION-006 stops the observational relationship layer at Correlated Internal Movement, Observed Repetition, and Isolated Observation. Isolation is a valid absence, not a failure. Do not add a relationship primitive merely to reduce the isolated population.
-- **Allocation ≠ Execution.** Allocation establishes purpose. Execution requires evidence beyond an allocation event. Position change does not establish cause. Modeled debt progress from `applyDebtAllocation` is historical compatibility, not creditor settlement. Settlement and payment-instrument work stay blocked until that compatibility is deliberately resolved (WE-ALLOCATION-EXECUTION-002).
+- **Allocation ≠ Execution.** Allocation establishes purpose. Execution requires evidence beyond an allocation event. Position change does not establish cause. Debt Purpose ≠ Debt Position ≠ Debt Execution. After the debt-position epoch, purpose allocation does not mutate authoritative owed. Settlement and payment-instrument work stay blocked; debt execution is future (WE-ALLOCATION-EXECUTION-005).
 
 ---
 

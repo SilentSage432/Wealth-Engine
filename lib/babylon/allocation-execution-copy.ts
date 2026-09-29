@@ -2,11 +2,10 @@
  * Allocation ≠ Execution — user-facing copy helpers.
  *
  * PURPOSE: what money was assigned to accomplish.
- * EXECUTION: evidence the intended action actually occurred.
+ * POSITION: steward-authoritative current owed (after debt-position epoch).
+ * EXECUTION: evidence the intended action actually occurred (future).
  *
- * These strings do not change allocation math, debt waterfall, or persistence.
- * Income/month-close debt allocation still mutates remainingDebt as modeled
- * purpose progress (historical compatibility). That is not creditor settlement.
+ * Debt Purpose ≠ Debt Position ≠ Debt Execution.
  */
 
 import type { SurplusDisposition } from "@/types/babylon";
@@ -29,6 +28,13 @@ export function modeledDebtProgressAria(creditor: string, pct: number): string {
 }
 
 export const MODELED_REMAINING_HINT = "Modeled remaining";
+
+/** Post-epoch Golden Triad: authoritative owed, not modeled progress. */
+export const CURRENTLY_OWED_HINT = "Currently owed";
+
+export function debtPurposeAllocatedLabel(amountLabel: string): string {
+  return `${amountLabel} allocated toward debt`;
+}
 
 export function paycheckWealthHint(): string {
   return "Allocated toward Wealth Building";
@@ -62,7 +68,7 @@ export function monthCloseSweepDescription(
 ): string {
   if (id === "split_50_50" || id === "debt_wealth") {
     return hasDebt
-      ? `Assign ${money(surplus)} between tracked Wealth Building and modeled debt progress.`
+      ? `Assign ${money(surplus)} between tracked Wealth Building and debt purpose.`
       : `Assign ${money(surplus)} toward tracked Wealth Building. There is no active debt.`;
   }
   if (id === "wealth_boost") {
@@ -98,11 +104,11 @@ export function monthCloseActivitySubtitle(
     case "wealth_boost":
       return "Surplus assigned to tracked Wealth Building";
     case "split_50_50":
-      return "Surplus split between tracked Wealth Building and modeled debt progress";
+      return "Surplus split between tracked Wealth Building and debt purpose";
     case "rollover":
       return "Surplus rolled into next month's Living Budget";
     case "debt_wealth":
-      return "Surplus split between tracked Wealth Building and modeled debt progress";
+      return "Surplus split between tracked Wealth Building and debt purpose";
     default:
       return "Surplus disposition recorded";
   }

@@ -116,11 +116,12 @@ describe("Financial Position composition", () => {
     expect(recordedDebtExplain(0)).toBe("No remaining debt is recorded.");
   });
 
-  it("positive recorded debt copy names modeled progress without claiming a live creditor statement", () => {
+  it("positive recorded debt copy names current owed without claiming a live creditor statement", () => {
     const copy = recordedDebtExplain(800);
-    expect(copy).toContain("modeled allocation progress");
+    expect(copy).toContain("Current amount owed");
     expect(copy).toContain("Separate from Money Available");
     expect(copy.toLowerCase()).toContain("not a live creditor");
+    expect(copy).not.toContain("modeled allocation progress");
   });
 
   it("orders the desktop truth hierarchy without netting debt into liquidity", () => {

@@ -1,5 +1,23 @@
 # Development Journal
 
+## 2026-09-29 — WE-ALLOCATION-EXECUTION-005 debt purpose vs position transition
+
+### What changed
+- All-or-nothing debt-position epoch: legacy vaults with debts keep `applyDebtAllocation` mutation until steward declares current owed for every debt; then `remainingDebt` is authoritative POSITION and allocation stops mutating it.
+- Post-epoch: `addIncome` / `closeMonth` record aggregate `AllocationEvent.debt` plus per-creditor `DebtPurposeAttribution`; `deleteIncome` removes attributions without increasing owed. Over-allocation keeps full aggregate purpose; attribution caps at owed room.
+- Steward rebase modal + banner; Golden Triad distinguishes purpose allocated vs currently owed after epoch; Financial Position Recorded Debt copy updated.
+- Persistence: backup version 7; local/cloud JSON fields `debtSemanticsVersion`, `debtPositionEpochAt`, `debtPurposeAttributions`, optional `legacyModeledRemaining`. Cloud schema version stays 6 (soft-fill missing debt keys; no SQL).
+- No debt execution, settlement, payment instruments, or Plaid→DebtEntry authority. Intelligence Contract v3 preserved with clarified field notes.
+
+### Validation
+- Focused: debt-semantics, allocation-execution-copy, financial-position-composition, cloud-vault, monthly-plan, engine — passed.
+- Full suite: 46 files, 615 tests passed.
+- `tsc --noEmit`, lint, production build, and `git diff --check` passed.
+
+### Not in this tranche
+- No commit, push, deploy, Supabase SQL, or execution model during implementation review.
+- Finalized on main after acceptance (this finalize step).
+
 ## 2026-09-29 — WE-ALLOCATION-EXECUTION-002 semantic lock + truthful language
 
 ### What changed

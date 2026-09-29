@@ -25,6 +25,10 @@ const OWNER_B = "22222222-2222-4222-8222-222222222222";
 function populated(): PersistedState {
   return {
     ...EMPTY_STATE,
+    // Legacy vault with debts: stay pre-epoch until steward rebase.
+    debtSemanticsVersion: 1,
+    debtPositionEpochAt: null,
+    debtPurposeAttributions: [],
     displayName: "Ada",
     openingWealthBuilding: 40,
     openingEmergencyFund: 10,
@@ -115,6 +119,10 @@ function omitMonthlyPlans(state: PersistedState): Record<string, unknown> {
     ...serializeCloudVaultData(state),
   };
   delete document.monthlyPlans;
+  // Pre-debt-position schema-5/6 documents omit these soft-added keys.
+  delete document.debtSemanticsVersion;
+  delete document.debtPositionEpochAt;
+  delete document.debtPurposeAttributions;
   return document;
 }
 

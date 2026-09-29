@@ -440,7 +440,7 @@ describe("monthly recurring obligations", () => {
       recurringObligations: removed.rules,
       expenses: removed.expenses,
     });
-    expect(backup.version).toBe(6);
+    expect(backup.version).toBe(7);
     const restored = validateLedgerBackup(backup);
     expect(restored?.recurringObligations?.[0]?.skippedMonths).toEqual([
       "2026-08",

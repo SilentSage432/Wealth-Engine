@@ -24,6 +24,16 @@ import {
 } from "@/lib/babylon/vault-sync";
 import { finalizeMonthlyPlanOnState } from "@/lib/babylon/monthly-plan";
 import { monthCloseActivitySubtitle } from "@/lib/babylon/allocation-execution-copy";
+import {
+  buildDebtPurposeAttributions,
+  completeDebtPositionTransition,
+  DEBT_SEMANTICS_LEGACY,
+  DEBT_SEMANTICS_POSITION,
+  isDebtPositionEpoch,
+  needsDebtPositionTransition,
+  type DebtPositionDeclaration,
+  withoutAttributionsForIncome,
+} from "@/lib/babylon/debt-semantics";
 import { emitVaultToast } from "@/lib/babylon/vault-toast";
 import {
   allocateIncome,
@@ -97,6 +107,7 @@ import type {
   BudgetTarget,
   DebtEntry,
   DebtInput,
+  DebtPurposeAttribution,
   DonutSlice,
   ExpenditureBarTone,
   ExpenseEntry,
@@ -141,6 +152,15 @@ export function useBabylonEngine() {
     RecurringObligation[]
   >([]);
   const [monthlyPlans, setMonthlyPlans] = useState<MonthlyPlanRevision[]>([]);
+  const [debtSemanticsVersion, setDebtSemanticsVersion] = useState<number>(
+    DEBT_SEMANTICS_POSITION
+  );
+  const [debtPositionEpochAt, setDebtPositionEpochAt] = useState<string | null>(
+    null
+  );
+  const [debtPurposeAttributions, setDebtPurposeAttributions] = useState<
+    DebtPurposeAttribution[]
+  >([]);
   /** Profile name input value — may be empty; greeting uses a visual fallback. */
   const [username, setUsernameState] = useState("");
   /** Auth user id when a verified Supabase session is present; null = local-only. */
@@ -215,6 +235,9 @@ export function useBabylonEngine() {
     setOpeningEmergencyFund(stored.openingEmergencyFund);
     setRecurringObligations(stored.recurringObligations);
     setMonthlyPlans(stored.monthlyPlans);
+    setDebtSemanticsVersion(stored.debtSemanticsVersion);
+    setDebtPositionEpochAt(stored.debtPositionEpochAt);
+    setDebtPurposeAttributions(stored.debtPurposeAttributions);
     setUsernameState(loadUsername(stored.displayName));
     try {
       setIsDiscreetMode(
@@ -297,6 +320,9 @@ export function useBabylonEngine() {
       openingEmergencyFund,
       recurringObligations,
       monthlyPlans,
+      debtSemanticsVersion,
+      debtPositionEpochAt,
+      debtPurposeAttributions,
     };
     savePersistedState(payload);
   }, [
@@ -317,6 +343,9 @@ export function useBabylonEngine() {
     openingEmergencyFund,
     recurringObligations,
     monthlyPlans,
+    debtSemanticsVersion,
+    debtPositionEpochAt,
+    debtPurposeAttributions,
   ]);
 
   const vaultSnapshot = useMemo<PersistedState>(
@@ -337,6 +366,9 @@ export function useBabylonEngine() {
       openingEmergencyFund,
       recurringObligations,
       monthlyPlans,
+      debtSemanticsVersion,
+      debtPositionEpochAt,
+      debtPurposeAttributions,
     }),
     [
       incomes,
@@ -355,6 +387,9 @@ export function useBabylonEngine() {
       openingEmergencyFund,
       recurringObligations,
       monthlyPlans,
+      debtSemanticsVersion,
+      debtPositionEpochAt,
+      debtPurposeAttributions,
     ]
   );
   const vaultRef = useRef(vaultSnapshot);
@@ -384,6 +419,9 @@ export function useBabylonEngine() {
     setOpeningEmergencyFund(next.openingEmergencyFund);
     setRecurringObligations(next.recurringObligations);
     setMonthlyPlans(next.monthlyPlans);
+    setDebtSemanticsVersion(next.debtSemanticsVersion);
+    setDebtPositionEpochAt(next.debtPositionEpochAt);
+    setDebtPurposeAttributions(next.debtPurposeAttributions);
     setUsernameState(next.displayName);
   }, []);
 
@@ -612,6 +650,20 @@ export function useBabylonEngine() {
   const hasActiveDebt = useMemo(
     () => debts.some((d) => d.remainingDebt > 0),
     [debts]
+  );
+
+  const debtPositionEpoch = useMemo(
+    () => isDebtPositionEpoch(debtSemanticsVersion),
+    [debtSemanticsVersion]
+  );
+
+  const needsDebtTransition = useMemo(
+    () =>
+      needsDebtPositionTransition({
+        debtSemanticsVersion,
+        debts,
+      }),
+    [debtSemanticsVersion, debts]
   );
 
   const goldRetained = useMemo(
@@ -947,7 +999,24 @@ export function useBabylonEngine() {
       setAllocations((prev) => [event, ...prev]);
 
       if (split.debtShare > 0) {
-        setDebts((prev) => applyDebtAllocation(prev, split.debtShare));
+        if (debtPositionEpoch) {
+          const attributions = buildDebtPurposeAttributions({
+            debts,
+            amount: split.debtShare,
+            allocationEventId: event.id,
+            date: event.date,
+            monthKey: event.monthKey,
+            createId: generateId,
+          });
+          if (attributions.length > 0) {
+            setDebtPurposeAttributions((prev) => [
+              ...attributions,
+              ...prev,
+            ]);
+          }
+        } else {
+          setDebts((prev) => applyDebtAllocation(prev, split.debtShare));
+        }
       }
 
       pushActivity({
@@ -961,7 +1030,7 @@ export function useBabylonEngine() {
       setTributeOpen(false);
       return true;
     },
-    [hasActiveDebt, pushActivity]
+    [hasActiveDebt, debtPositionEpoch, debts, pushActivity]
   );
 
   /** Stage income for Paycheck Auto-Splitter review before vault commit. */
@@ -1098,11 +1167,14 @@ export function useBabylonEngine() {
       return false;
     }
 
+    const owed = roundMoney(input.totalDebt);
     const entry: DebtEntry = {
       id: generateId(),
       creditor: input.creditor.trim(),
-      totalDebt: roundMoney(input.totalDebt),
-      remainingDebt: roundMoney(input.totalDebt),
+      totalDebt: owed,
+      // Post-epoch: enrollment establishes authoritative position immediately.
+      // Pre-epoch: same field is still modeled until steward rebase.
+      remainingDebt: owed,
       monthlyAllocation: roundMoney(input.monthlyAllocation),
       createdAt: todayIso(),
       interestRate: roundMoney(Math.max(0, input.interestRate ?? 0)),
@@ -1352,7 +1424,24 @@ export function useBabylonEngine() {
           };
           setAllocations((prev) => [event, ...prev]);
           if (resolved.debt > 0) {
-            setDebts((prev) => applyDebtAllocation(prev, resolved.debt));
+            if (debtPositionEpoch) {
+              const attributions = buildDebtPurposeAttributions({
+                debts,
+                amount: resolved.debt,
+                allocationEventId: event.id,
+                date: event.date,
+                monthKey: event.monthKey,
+                createId: generateId,
+              });
+              if (attributions.length > 0) {
+                setDebtPurposeAttributions((prev) => [
+                  ...attributions,
+                  ...prev,
+                ]);
+              }
+            } else {
+              setDebts((prev) => applyDebtAllocation(prev, resolved.debt));
+            }
           }
         }
       }
@@ -1377,6 +1466,8 @@ export function useBabylonEngine() {
       expenditureRemaining,
       monthlyCloseSummary,
       hasActiveDebt,
+      debtPositionEpoch,
+      debts,
       pushActivity,
     ]
   );
@@ -1403,6 +1494,9 @@ export function useBabylonEngine() {
     setOpeningEmergencyFund(0);
     setRecurringObligations([]);
     setMonthlyPlans([]);
+    setDebtSemanticsVersion(DEBT_SEMANTICS_POSITION);
+    setDebtPositionEpochAt(null);
+    setDebtPurposeAttributions([]);
     setUsernameState("");
     setTributeOpen(false);
     setTributeMode("income");
@@ -1429,6 +1523,9 @@ export function useBabylonEngine() {
       openingEmergencyFund,
       recurringObligations,
       monthlyPlans,
+      debtSemanticsVersion,
+      debtPositionEpochAt,
+      debtPurposeAttributions,
     });
     const blob = new Blob([JSON.stringify(backup, null, 2)], {
       type: "application/json",
@@ -1459,6 +1556,9 @@ export function useBabylonEngine() {
     openingEmergencyFund,
     recurringObligations,
     monthlyPlans,
+    debtSemanticsVersion,
+    debtPositionEpochAt,
+    debtPurposeAttributions,
   ]);
 
   const importBackup = useCallback((raw: unknown): string | null => {
@@ -1484,6 +1584,13 @@ export function useBabylonEngine() {
       openingEmergencyFund: backup.openingEmergencyFund ?? 0,
       recurringObligations: backup.recurringObligations ?? [],
       monthlyPlans: backup.monthlyPlans ?? [],
+      debtSemanticsVersion:
+        backup.debtSemanticsVersion ??
+        (backup.debts.length === 0
+          ? DEBT_SEMANTICS_POSITION
+          : DEBT_SEMANTICS_LEGACY),
+      debtPositionEpochAt: backup.debtPositionEpochAt ?? null,
+      debtPurposeAttributions: backup.debtPurposeAttributions ?? [],
     };
 
     applyVault(next);
@@ -1533,18 +1640,30 @@ export function useBabylonEngine() {
     [moneyAvailable]
   );
 
-  const deleteIncome = useCallback((id: string) => {
-    setIncomes((prev) => {
-      const target = prev.find((i) => i.id === id);
-      if (target && target.debtShare > 0) {
-        setDebts((debtsPrev) =>
-          reverseDebtAllocation(debtsPrev, target.debtShare)
+  const deleteIncome = useCallback(
+    (id: string) => {
+      const linkedAllocationIds = allocations
+        .filter((a) => a.incomeId === id)
+        .map((a) => a.id);
+
+      setIncomes((prev) => {
+        const target = prev.find((i) => i.id === id);
+        if (target && target.debtShare > 0 && !debtPositionEpoch) {
+          setDebts((debtsPrev) =>
+            reverseDebtAllocation(debtsPrev, target.debtShare)
+          );
+        }
+        return prev.filter((i) => i.id !== id);
+      });
+      setAllocations((prev) => prev.filter((a) => a.incomeId !== id));
+      if (debtPositionEpoch && linkedAllocationIds.length > 0) {
+        setDebtPurposeAttributions((prev) =>
+          withoutAttributionsForIncome(prev, linkedAllocationIds)
         );
       }
-      return prev.filter((i) => i.id !== id);
-    });
-    setAllocations((prev) => prev.filter((a) => a.incomeId !== id));
-  }, []);
+    },
+    [allocations, debtPositionEpoch]
+  );
 
   const recurringRef = useRef(recurringObligations);
   const expensesRef = useRef(expenses);
@@ -1616,7 +1735,36 @@ export function useBabylonEngine() {
 
   const deleteDebt = useCallback((id: string) => {
     setDebts((prev) => prev.filter((d) => d.id !== id));
+    setDebtPurposeAttributions((prev) =>
+      prev.filter((row) => row.debtId !== id)
+    );
   }, []);
+
+  /**
+   * All-or-nothing steward rebase into the debt-position epoch.
+   * Incomplete / cancelled drafts never call this — no partial activation.
+   */
+  const completeDebtPositionRebase = useCallback(
+    (declarations: readonly DebtPositionDeclaration[]): string | null => {
+      const outcome = completeDebtPositionTransition({
+        debts,
+        declarations,
+        epochAt: new Date().toISOString(),
+      });
+      if (!outcome.ok) return outcome.reason;
+      setDebts(outcome.debts);
+      setDebtSemanticsVersion(outcome.debtSemanticsVersion);
+      setDebtPositionEpochAt(outcome.debtPositionEpochAt);
+      pushActivity({
+        kind: "budget",
+        title: "Debt position established",
+        subtitle:
+          "Current amounts owed recorded. Allocations no longer change what you owe.",
+      });
+      return null;
+    },
+    [debts, pushActivity]
+  );
 
   const previewAllocation = useCallback(
     (gross: number) => allocateIncome(gross, hasActiveDebt),
@@ -1698,6 +1846,12 @@ export function useBabylonEngine() {
     setDiscreetMode,
     toggleDiscreetMode,
     hasActiveDebt,
+    debtPositionEpoch,
+    needsDebtTransition,
+    debtSemanticsVersion,
+    debtPositionEpochAt,
+    debtPurposeAttributions,
+    completeDebtPositionRebase,
     goldRetained,
     openingWealthBuilding,
     openingEmergencyFund,

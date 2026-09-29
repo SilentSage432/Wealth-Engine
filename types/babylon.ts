@@ -272,12 +272,27 @@ export interface MonthlyCloseSummary {
 export interface DebtEntry {
   id: string;
   creditor: string;
+  /**
+   * Original enrollment principal. Progress denominators may use this.
+   * After the debt-position epoch, current owed may exceed this (interest /
+   * new charges via steward reconciliation).
+   */
   totalDebt: number;
+  /**
+   * Before debt-position epoch: modeled purpose progress (legacy).
+   * After epoch: steward-authoritative current amount owed (POSITION).
+   * Purpose allocation must not mutate this after epoch.
+   */
   remainingDebt: number;
   monthlyAllocation: number;
   createdAt: string;
   /** Annual percentage rate (0–100). Soft-migrates to 0 when absent. */
   interestRate: number;
+  /**
+   * Modeled remainingDebt immediately before steward position rebase.
+   * Legacy context only. Not creditor truth. Absent on post-epoch new debts.
+   */
+  legacyModeledRemaining?: number;
 }
 
 export interface AllocationEvent {
@@ -289,6 +304,19 @@ export interface AllocationEvent {
   wealth: number;
   debt: number;
   expenditure: number;
+}
+
+/**
+ * Per-creditor debt PURPOSE share for one AllocationEvent after the
+ * debt-position epoch. Not a payment and not a position change.
+ */
+export interface DebtPurposeAttribution {
+  id: string;
+  allocationEventId: string;
+  debtId: string;
+  amount: number;
+  date: string;
+  monthKey: string;
 }
 
 export interface PersistedState {
@@ -331,6 +359,23 @@ export interface PersistedState {
    * Not inferred from current caps, debts, or rules.
    */
   monthlyPlans: MonthlyPlanRevision[];
+  /**
+   * 1 = legacy modeled remainingDebt mutation from allocation.
+   * 2 = debt-position epoch: remainingDebt is authoritative owed.
+   * Missing on older vaults: empty debts → 2, else 1.
+   */
+  debtSemanticsVersion: number;
+  /**
+   * Local ISO datetime when the steward completed the all-or-nothing
+   * debt-position rebase. Null when not yet in the position epoch.
+   */
+  debtPositionEpochAt: string | null;
+  /**
+   * Per-creditor debt purpose attributions for post-epoch allocations.
+   * Missing on older vaults; loads as []. Legacy allocation events are never
+   * backfilled.
+   */
+  debtPurposeAttributions: DebtPurposeAttribution[];
 }
 
 export interface ChartMonthPoint {
@@ -391,8 +436,11 @@ export interface ExpenseInput {
  * reject version 5 instead of dropping them.
  * Version 6 stores finalized monthly plan revisions. Older builds reject
  * version 6 instead of dropping them.
+ * Version 7 stores debt-position epoch fields and per-creditor purpose
+ * attributions. Older builds reject version 7 instead of treating legacy
+ * remainingDebt as authoritative without confirmation.
  */
-export type LedgerBackupVersion = 1 | 2 | 3 | 4 | 5 | 6;
+export type LedgerBackupVersion = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
 export interface LedgerBackup {
   version: LedgerBackupVersion;
@@ -417,6 +465,12 @@ export interface LedgerBackup {
   recurringObligations?: RecurringObligation[];
   /** Present on version 6. Earlier versions import as an empty list. */
   monthlyPlans?: MonthlyPlanRevision[];
+  /** Present on version 7. Earlier versions import as legacy debt semantics. */
+  debtSemanticsVersion?: number;
+  /** Present on version 7. */
+  debtPositionEpochAt?: string | null;
+  /** Present on version 7. Earlier versions import as []. */
+  debtPurposeAttributions?: DebtPurposeAttribution[];
 }
 
 export interface AffordabilitySnapshot {

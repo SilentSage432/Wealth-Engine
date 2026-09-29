@@ -30,6 +30,7 @@ import { RecentActivityStrip } from "@/components/dashboard/RecentActivityStrip"
 import { TributeEnginesPanel } from "@/components/dashboard/TributeEnginesPanel";
 import { MonthlyCloseModal } from "@/components/modals/MonthlyCloseModal";
 import { AuthModal } from "@/components/modals/AuthModal";
+import { DebtPositionRebaseModal } from "@/components/modals/DebtPositionRebaseModal";
 import { PaycheckSplitterModal } from "@/components/modals/PaycheckSplitterModal";
 import { RecordTransactionModal } from "@/components/modals/RecordTransactionModal";
 import { useBabylonEngine } from "@/hooks/useBabylonEngine";
@@ -40,6 +41,7 @@ import type { MobileDestination } from "@/lib/babylon/constants";
 import { roundMoney } from "@/lib/babylon/engine";
 import type { QuickPreset } from "@/lib/babylon/presets";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 export function WealthEngineDashboard() {
   const engine = useBabylonEngine();
@@ -82,6 +84,7 @@ export function WealthEngineDashboard() {
   const [mobileDestination, setMobileDestination] =
     useState<MobileDestination>("home");
   const [accountEditorOpen, setAccountEditorOpen] = useState(false);
+  const [debtRebaseOpen, setDebtRebaseOpen] = useState(false);
   const desktopLayout = useDesktopLayout();
 
   const openTributeHotkey = useCallback(() => {
@@ -95,7 +98,8 @@ export function WealthEngineDashboard() {
       !monthlyCloseOpen &&
       !authOpen &&
       !paycheckOpen &&
-      !accountEditorOpen,
+      !accountEditorOpen &&
+      !debtRebaseOpen,
   });
 
   const handlePresetSelect = useCallback(
@@ -135,6 +139,7 @@ export function WealthEngineDashboard() {
   const showWisdom = engine.activeNav === "wisdom";
   const showOverview = engine.activeNav === "overview";
   const showLedgers = engine.activeNav === "ledgers";
+
   const discreet = engine.isDiscreetMode;
 
   const financialPosition = (
@@ -178,6 +183,8 @@ export function WealthEngineDashboard() {
       originalDebt={engine.originalDebt}
       remainingDebt={engine.remainingDebt}
       debtClearPct={engine.debtClearPct}
+      debtAllocated={engine.debtAllocated}
+      debtPositionEpoch={engine.debtPositionEpoch}
       hasActiveDebt={engine.hasActiveDebt}
       expenditureRemaining={engine.expenditureRemaining}
       expenditureRemainingPct={engine.expenditureRemainingPct}
@@ -188,6 +195,27 @@ export function WealthEngineDashboard() {
       discreet={discreet}
     />
   );
+
+  const debtRebaseBanner = engine.needsDebtTransition ? (
+    <div className="rounded-lg border border-amber-700/40 bg-amber-950/30 px-4 py-3 text-sm text-amber-100/90">
+      <p className="font-medium text-amber-200">
+        Confirm what you currently owe
+      </p>
+      <p className="mt-1 text-xs leading-relaxed text-amber-100/70">
+        Wealth Engine still uses modeled debt progress until you record each
+        creditor&apos;s current balance. Allocations will not change what you
+        owe after that.
+      </p>
+      <Button
+        type="button"
+        size="sm"
+        className="mt-3 bg-amber-600 text-slate-950 hover:bg-amber-500"
+        onClick={() => setDebtRebaseOpen(true)}
+      >
+        Establish current amounts owed
+      </Button>
+    </div>
+  ) : null;
 
   const focusCards = (
     <SpendingPowerFocus
@@ -344,7 +372,9 @@ export function WealthEngineDashboard() {
             )}
           >
             {!desktopLayout && mobileDestination === "home" && (
-              <MobileHome
+              <>
+                {debtRebaseBanner}
+                <MobileHome
                 moneyAvailable={engine.moneyAvailable}
                 protectedMoney={engine.protectedMoney}
                 protectedOverAvailable={engine.protectedOverAvailable}
@@ -360,6 +390,7 @@ export function WealthEngineDashboard() {
                 accounts={engine.accounts}
                 balanceObservation={balanceObservationView}
               />
+              </>
             )}
 
             {!desktopLayout && mobileDestination === "budget" && (
@@ -469,6 +500,7 @@ export function WealthEngineDashboard() {
                 <>
                   {showOverview && (
                     <>
+                      {debtRebaseBanner}
                       {financialPosition}
                       {upcomingNeedsCard}
                       {focusCards}
@@ -573,6 +605,14 @@ export function WealthEngineDashboard() {
           discreet={discreet}
           onOpenChange={engine.setMonthlyCloseOpen}
           onCloseMonth={engine.closeMonth}
+        />
+
+        <DebtPositionRebaseModal
+          open={debtRebaseOpen}
+          debts={engine.debts}
+          discreet={discreet}
+          onOpenChange={setDebtRebaseOpen}
+          onComplete={engine.completeDebtPositionRebase}
         />
 
         <AuthModal

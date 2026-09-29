@@ -447,7 +447,11 @@ export function applyDebtAllocation(
   let remaining = amount;
   const active = debts
     .map((d) => ({ ...d }))
-    .sort((a, b) => a.remainingDebt - b.remainingDebt);
+    .sort((a, b) => {
+      const byBalance = a.remainingDebt - b.remainingDebt;
+      if (byBalance !== 0) return byBalance;
+      return a.id.localeCompare(b.id);
+    });
 
   for (const debt of active) {
     if (remaining <= 0) break;

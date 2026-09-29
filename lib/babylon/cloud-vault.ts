@@ -13,8 +13,10 @@ import type { Json } from "@/lib/supabase/database.types";
 import type { PersistedState } from "@/types/babylon";
 
 /**
- * Financial document generation. This is backup version 6.
- * The localStorage key suffix "v2" is not a schema version.
+ * Financial document generation. This is backup version 6 generation with
+ * soft-added debt-position fields inside vault_data (no schemaVersion bump;
+ * no SQL upgrade RPC). Older schema-6 documents missing the three debt keys
+ * soft-migrate on read via normalizePersistedState.
  */
 export const CLOUD_VAULT_SCHEMA_VERSION = 6 as const;
 
@@ -38,7 +40,24 @@ export const CLOUD_VAULT_DATA_KEYS = [
   "openingEmergencyFund",
   "recurringObligations",
   "monthlyPlans",
+  "debtSemanticsVersion",
+  "debtPositionEpochAt",
+  "debtPurposeAttributions",
 ] as const satisfies readonly (keyof PersistedState)[];
+
+/** Schema-6 documents written before debt-position fields. Soft-filled on read. */
+const SCHEMA_6_WITHOUT_DEBT_KEYS = CLOUD_VAULT_DATA_KEYS.filter(
+  (key) =>
+    key !== "debtSemanticsVersion" &&
+    key !== "debtPositionEpochAt" &&
+    key !== "debtPurposeAttributions"
+);
+
+const DEBT_POSITION_CLOUD_KEYS = [
+  "debtSemanticsVersion",
+  "debtPositionEpochAt",
+  "debtPurposeAttributions",
+] as const;
 
 export type CloudVaultData = Pick<
   PersistedState,
@@ -328,30 +347,46 @@ export function serializeCloudVaultData(state: PersistedState): CloudVaultData {
     openingEmergencyFund: state.openingEmergencyFund,
     recurringObligations: state.recurringObligations,
     monthlyPlans: state.monthlyPlans,
+    debtSemanticsVersion: state.debtSemanticsVersion,
+    debtPositionEpochAt: state.debtPositionEpochAt,
+    debtPurposeAttributions: state.debtPurposeAttributions,
   };
 }
 
 /**
- * Accept a schema-6 document only when normalization would not change it.
+ * Accept a schema-6 document only when normalization would not change it,
+ * except soft-filled debt-position keys on older schema-6 payloads.
  * A failure is null. It is not an empty vault.
  */
 export function parseCloudVaultData(raw: unknown): PersistedState | null {
   if (!isRecord(raw)) return null;
   const keys = Object.keys(raw);
-  if (keys.length !== CLOUD_VAULT_DATA_KEYS.length) return null;
-  for (const key of CLOUD_VAULT_DATA_KEYS) {
+  const hasDebtKeys = DEBT_POSITION_CLOUD_KEYS.every((key) =>
+    Object.prototype.hasOwnProperty.call(raw, key)
+  );
+  const expectedKeys = hasDebtKeys
+    ? CLOUD_VAULT_DATA_KEYS
+    : SCHEMA_6_WITHOUT_DEBT_KEYS;
+  if (keys.length !== expectedKeys.length) return null;
+  for (const key of expectedKeys) {
     if (!Object.prototype.hasOwnProperty.call(raw, key)) return null;
+  }
+  // Reject partial debt-key presence (mixed / corrupt).
+  if (!hasDebtKeys) {
+    for (const key of DEBT_POSITION_CLOUD_KEYS) {
+      if (Object.prototype.hasOwnProperty.call(raw, key)) return null;
+    }
   }
   if (raw.expenseSemanticsVersion !== EXPENSE_SEMANTICS_VERSION) return null;
 
   const normalized = normalizePersistedState(raw);
-  for (const key of CLOUD_VAULT_DATA_KEYS) {
+  for (const key of expectedKeys) {
     if (canonicalJson(raw[key]) !== canonicalJson(normalized[key])) return null;
   }
   return normalized;
 }
 
-const SCHEMA_5_DATA_KEYS = CLOUD_VAULT_DATA_KEYS.filter(
+const SCHEMA_5_DATA_KEYS = SCHEMA_6_WITHOUT_DEBT_KEYS.filter(
   (key) => key !== "monthlyPlans"
 );
 
@@ -362,6 +397,9 @@ const SCHEMA_5_DATA_KEYS = CLOUD_VAULT_DATA_KEYS.filter(
 export function parseSchema5VaultData(raw: unknown): PersistedState | null {
   if (!isRecord(raw)) return null;
   if (Object.prototype.hasOwnProperty.call(raw, "monthlyPlans")) return null;
+  for (const key of DEBT_POSITION_CLOUD_KEYS) {
+    if (Object.prototype.hasOwnProperty.call(raw, key)) return null;
+  }
   const keys = Object.keys(raw);
   if (keys.length !== SCHEMA_5_DATA_KEYS.length) return null;
   for (const key of SCHEMA_5_DATA_KEYS) {

@@ -6,7 +6,9 @@
 **Architecture map:** [`ARCHITECTURE.md`](./ARCHITECTURE.md) — layers, dependency rules, canonical ownership matrix.
 
 ## Current state
-WE-ALLOCATION-EXECUTION-002 is a review candidate. Semantic lock and truthful language only: Allocation ≠ Execution. Income/month-close debt waterfall still reduces `remainingDebt` as modeled purpose progress (historical compatibility) — not proven creditor settlement. No change to `allocateIncome`, `applyDebtAllocation`, reverse, 10/20/70 math, Money Available, Protected Money, AAPN, Monthly Plan, Plaid, schema, or persistence. Settlement / payment-instrument work is blocked until this foundation and historical compatibility are deliberately resolved. Copy helpers: `lib/babylon/allocation-execution-copy.ts`.
+WE-ALLOCATION-EXECUTION-005 is accepted and finalized on main. PURPOSE + POSITION separation for debt: after all-or-nothing steward rebase, `remainingDebt` is authoritative current owed and income/month-close debt purpose no longer mutates it. Per-creditor `DebtPurposeAttribution` on new allocations only. Legacy vaults with debts keep modeled mutation until every debt is declared. Backup version 7; cloud schema stays 6 with soft-added JSON keys (no SQL). Debt execution / settlement / payment instruments not implemented. Intelligence Contract v3 preserved with clarified remaining_cents derivation.
+
+WE-ALLOCATION-EXECUTION-002 semantic lock remains: Allocation ≠ Execution. Debt Purpose ≠ Debt Position ≠ Debt Execution.
 
 WE-FINANCIAL-POSITION-003 is a review candidate. Financial Position composition clarifies liquid money (checking, savings, cash — not net worth), labels existing designations as Already Set Aside (openings only; tracked Wealth Building and Emergency Fund stay on Golden Triad / month close), keeps Available After Planned Needs formula unchanged, and shows Recorded Debt as sibling context that does not reduce Money Available or AAPN. No account-kind, Plaid, schema, or 10/20/70 change.
 
