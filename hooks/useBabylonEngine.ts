@@ -32,6 +32,10 @@ import {
 } from "@/lib/babylon/cloud-sync-check";
 import { financialVaultFingerprint, getCloudVault } from "@/lib/babylon/cloud-vault";
 import {
+  classifyVaultMonthlyPlans,
+  type MonthlyPlanLayer2,
+} from "@/lib/babylon/monthly-plan-semantic";
+import {
   compareVaultStructure,
   type VaultStructuralDiff,
 } from "@/lib/babylon/vault-structural-diff";
@@ -2249,6 +2253,7 @@ export function useBabylonEngine() {
         schemaVersion: number;
         baselineRevision: number | null;
         diff: VaultStructuralDiff;
+        monthlyPlans: MonthlyPlanLayer2;
       }
     | { ok: false; reason: string }
   > => {
@@ -2268,12 +2273,17 @@ export function useBabylonEngine() {
       return { ok: false, reason: "Couldn't compare copies right now." };
     }
     const diff = compareVaultStructure(vaultRef.current, read.vaultData);
+    const monthlyPlans = classifyVaultMonthlyPlans(
+      vaultRef.current,
+      read.vaultData
+    );
     return {
       ok: true,
       cloudRevision: read.revision,
       schemaVersion: read.schemaVersion,
       baselineRevision,
       diff,
+      monthlyPlans,
     };
   }, [vaultSync]);
 

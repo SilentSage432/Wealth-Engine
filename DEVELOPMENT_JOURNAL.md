@@ -847,6 +847,23 @@
 - No webhook, polling, cron, attention UI, or automatic income, bill, or balance changes.
 - WE-SYNC-004 and `vault_data` are unchanged.
 
+## 2026-09-29 — WE-SYNC-CONFLICT-004 monthly-plan semantic evidence
+
+### What changed
+- Pure `compareMonthlyPlanIntent` / `classifyUniqueMonthlyPlans` in `lib/babylon/monthly-plan-semantic.ts`.
+- Same conflict Compare copies read. Layer-2 appears only for exactly one local-only and one cloud-only monthly plan.
+- Compares civil `periodKey` and planning intent. Ignores `id`, `supersedesId`, `finalizedAt`, and revision for intent equivalence. Revision and supersedes Yes/No are reported separately.
+- Does not resolve, merge, or choose a copy.
+
+### Ownership
+- Semantic comparison: `lib/babylon/monthly-plan-semantic.ts`
+- Read orchestration: `hooks/useBabylonEngine.ts` (`compareConflictCopies`)
+- UI: `components/babylon/vault-maintenance-panel.tsx`
+
+### Not in this tranche
+- No account, epoch, or activity reconciliation.
+- No schema/SQL. Backup stays v10. Cloud schema stays 6. IC stays v3.
+
 ## 2026-09-29 — WE-SYNC-CONFLICT-002 read-only structural conflict comparison
 
 ### What changed

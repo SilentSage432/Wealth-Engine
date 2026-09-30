@@ -34,6 +34,7 @@ import {
   BOOTSTRAP_CONFIRM,
   HYDRATE_CONFIRM,
 } from "@/lib/babylon/cloud-setup";
+import type { MonthlyPlanLayer2 } from "@/lib/babylon/monthly-plan-semantic";
 import type { VaultStructuralDiff } from "@/lib/babylon/vault-structural-diff";
 import { vaultSyncCopy, type VaultSyncView } from "@/lib/babylon/vault-sync";
 import { cn } from "@/lib/utils";
@@ -45,6 +46,7 @@ export type ConflictCopyCompareResult =
       schemaVersion: number;
       baselineRevision: number | null;
       diff: VaultStructuralDiff;
+      monthlyPlans: MonthlyPlanLayer2;
     }
   | { ok: false; reason: string };
 
@@ -128,6 +130,51 @@ export function VaultMaintenancePanel({
       </VaultDataBackups>
       <AllocationReference />
     </>
+  );
+}
+
+function MonthlyPlanEvidence({
+  evidence,
+}: {
+  evidence: MonthlyPlanLayer2;
+}) {
+  if (evidence.status === "hidden") return null;
+  if (evidence.status === "multiple") {
+    return (
+      <div className="rounded-md border border-slate-800/80 bg-slate-950/50 px-2.5 py-2 text-[11px] text-slate-300">
+        <p className="font-medium text-slate-200">Monthly plan comparison</p>
+        <p className="mt-1 text-slate-400">
+          Multiple unique monthly plans require further review.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2 rounded-md border border-slate-800/80 bg-slate-950/50 px-2.5 py-2 text-[11px] text-slate-300">
+      <p className="font-medium text-slate-200">Monthly plan comparison</p>
+      {evidence.local && (
+        <div>
+          <p className="text-slate-400">This device</p>
+          <p>{evidence.local.monthLabel}</p>
+          <p>Revision {evidence.local.revision}</p>
+          <p>
+            Supersedes earlier plan: {evidence.local.supersedesEarlier ? "Yes" : "No"}
+          </p>
+        </div>
+      )}
+      {evidence.cloud && (
+        <div>
+          <p className="text-slate-400">Cloud</p>
+          <p>{evidence.cloud.monthLabel}</p>
+          <p>Revision {evidence.cloud.revision}</p>
+          <p>
+            Supersedes earlier plan: {evidence.cloud.supersedesEarlier ? "Yes" : "No"}
+          </p>
+        </div>
+      )}
+      <p className="text-slate-200">{evidence.copy}</p>
+    </div>
   );
 }
 
@@ -332,6 +379,7 @@ function ConflictCopyCompare({
                   diff={result.diff}
                   group="planning"
                 />
+                <MonthlyPlanEvidence evidence={result.monthlyPlans} />
                 <CollectionRows
                   title="System / metadata"
                   diff={result.diff}

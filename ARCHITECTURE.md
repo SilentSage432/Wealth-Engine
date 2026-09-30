@@ -429,6 +429,7 @@ Canonical ownership reference for Wealth Engine:
 | Revision sync | `lib/babylon/vault-sync.ts` | Application |
 | Bounded cloud check (UI timeout / single-flight occupancy) | `lib/babylon/cloud-sync-check.ts` | Application |
 | Read-only conflict structural comparison | `lib/babylon/vault-structural-diff.ts` | Domain |
+| Monthly-plan conflict intent evidence | `lib/babylon/monthly-plan-semantic.ts` | Domain |
 | Cloud owner binding | `lib/babylon/cloud-owner.ts` | Persistence |
 | Typed DB contract | `lib/supabase/database.types.ts` | Persistence |
 | Supabase browser client | `lib/supabase/client.ts` | Infrastructure |
