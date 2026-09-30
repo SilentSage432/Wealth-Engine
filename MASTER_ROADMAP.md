@@ -76,6 +76,7 @@ A personal ledger that splits income 10% to Wealth Building, 20% to Debt Payoff,
 - [x] WE-SYNC-RELIABILITY-004 keep a known conflict visible during cloud recheck (no reconcile)
 - [x] WE-SYNC-DIAG-005 privacy-safe runtime attribution for cloud-sync attempts (diagnostic only; does not identify the production Syncing cause)
 - [x] WE-SYNC-RELIABILITY-006 stop the conflict auto-push / queued-rerun loop (no reconcile)
+- [x] WE-SYNC-RECONCILIATION-006 reconcile one supported preserved-copy incident (fresh cloud evidence, cloud-first candidate, one CAS, verified readback; not choose-local / choose-cloud). 006A: Reconcile copies waits for an ephemeral steward confirmation that a current device backup was exported. The app does not verify that file.
 - [x] WE-IDENTITY-UX-001 — steward name configuration on management surfaces (sidebar / phone More); primary headers present greeting only
 - [x] WE-VISUAL-ICONS-001 — Quick Add uses lucide-react vector icons (no emoji application icons); behavior unchanged
 - [ ] Speed-Tribute 1-tap commit (presets + bar mount; full amount autofill / zero-modal path still open)

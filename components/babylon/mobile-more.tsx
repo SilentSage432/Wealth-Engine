@@ -15,6 +15,8 @@ import {
   VaultDataBackups,
   VaultResetLedger,
   type ConflictCopyCompareResult,
+  type ReconciliationConfirmResult,
+  type ReconciliationPreviewResult,
 } from "@/components/babylon/vault-maintenance-panel";
 import { ProfileNameField } from "@/components/babylon/profile-name-field";
 import { WisdomBox } from "@/components/babylon/wisdom-box";
@@ -78,6 +80,10 @@ interface MobileMoreProps {
   onHydrateCloud: () => void | Promise<void>;
   onCheckCloud: () => void | Promise<void>;
   onCompareConflictCopies?: () => Promise<ConflictCopyCompareResult>;
+  reconciliationActive?: boolean;
+  onPreviewReconciliation?: () => Promise<ReconciliationPreviewResult>;
+  onConfirmReconciliation?: () => Promise<ReconciliationConfirmResult>;
+  onCancelReconciliation?: () => void;
   accounts: FinancialAccount[];
   moneyAvailable: number;
   restrictedEffectiveTotal?: number;
@@ -150,6 +156,10 @@ export function MobileMore({
   onHydrateCloud,
   onCheckCloud,
   onCompareConflictCopies,
+  reconciliationActive = false,
+  onPreviewReconciliation,
+  onConfirmReconciliation,
+  onCancelReconciliation,
   accounts,
   moneyAvailable,
   restrictedEffectiveTotal = 0,
@@ -298,6 +308,11 @@ export function MobileMore({
           onHydrateCloud={onHydrateCloud}
           onCheckCloud={onCheckCloud}
           onCompareConflictCopies={onCompareConflictCopies}
+          reconciliationActive={reconciliationActive}
+          onPreviewReconciliation={onPreviewReconciliation}
+          onConfirmReconciliation={onConfirmReconciliation}
+          onCancelReconciliation={onCancelReconciliation}
+          onExportBackup={onExportBackup}
         />
         <DeviceNotifications />
         <VaultDataBackups

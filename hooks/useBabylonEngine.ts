@@ -35,7 +35,17 @@ import {
   takeOccupiedCloudCheckQueue,
   type CloudSyncRequestTrigger,
 } from "@/lib/babylon/cloud-sync-check";
-import { financialVaultFingerprint, getCloudVault } from "@/lib/babylon/cloud-vault";
+import {
+  financialVaultFingerprint,
+  getCloudVault,
+} from "@/lib/babylon/cloud-vault";
+import {
+  confirmPreservedCopyReconciliation,
+  logReconciliationDiagnostic,
+  previewPreservedCopyReconciliation,
+  type ReconciliationDeps,
+  type ReconciliationSnapshot,
+} from "@/lib/babylon/preserved-copy-reconciliation";
 import {
   classifyVaultMonthlyPlans,
   type MonthlyPlanLayer2,
@@ -46,6 +56,7 @@ import {
 } from "@/lib/babylon/vault-structural-diff";
 import {
   clearCloudSyncBaseline,
+  compareAndSwapCurrentVault,
   readCloudSyncBaseline,
   runCurrentVaultCycle,
   writeCloudSyncBaseline,
@@ -223,6 +234,17 @@ export function useBabylonEngine() {
    * including after human-facing UI timeout. Not the same as cloudBusy.
    */
   const syncingRef = useRef(false);
+  /** Held from a reconciliation preview until confirm settles or the steward cancels. */
+  const reconcilingRef = useRef(false);
+  const reconciliationSnapshotRef = useRef<ReconciliationSnapshot | null>(null);
+  const reconciliationPreviewGenRef = useRef(0);
+  /**
+   * Local fingerprint when this browser session first showed the conflict.
+   * Current-session mutation guard only. Not persisted, and not a match to an
+   * exported backup file.
+   */
+  const conflictLocalFingerprintRef = useRef<string | null>(null);
+  const [reconciliationActive, setReconciliationActive] = useState(false);
   /** Trigger waiting for occupancy. Null when nothing is queued. */
   const rerunSyncRef = useRef<CloudSyncRequestTrigger | null>(null);
   /** Monotonic; superseded attempts must not apply React state after UI timeout. */
@@ -465,6 +487,16 @@ export function useBabylonEngine() {
     setOwnerReady(true);
   }, [ownerEpoch]);
 
+  useEffect(() => {
+    if (vaultSync.kind !== "conflict") {
+      conflictLocalFingerprintRef.current = null;
+      return;
+    }
+    if (conflictLocalFingerprintRef.current === null) {
+      conflictLocalFingerprintRef.current = financialVaultFingerprint(vaultRef.current);
+    }
+  }, [vaultSync]);
+
   const applyVault = useCallback((next: PersistedState) => {
     savePersistedState(next);
     saveUsername(next.displayName);
@@ -499,6 +531,8 @@ export function useBabylonEngine() {
       setVaultSync({ kind: "signed_out" });
       return;
     }
+    // Reconciliation holds the cloud write. Do not queue a check into that CAS.
+    if (reconcilingRef.current) return;
     // Single-flight: coalesce Check cloud / online / visibility / auto-push
     // into one queued rerun while occupancy is held (including after UI timeout).
     const occupied = takeOccupiedCloudCheckQueue({
@@ -2333,6 +2367,9 @@ export function useBabylonEngine() {
     | { ok: false; reason: string }
   > => {
     const userId = cloudUserIdRef.current;
+    if (reconcilingRef.current) {
+      return { ok: false, reason: "Reconciliation is already running." };
+    }
     if (!userId) {
       return { ok: false, reason: "Sign in to compare copies." };
     }
@@ -2367,6 +2404,129 @@ export function useBabylonEngine() {
     setSidebarOpen(false);
   }, []);
 
+  const releasePreservedCopyHold = useCallback(() => {
+    if (!reconcilingRef.current) return;
+    reconcilingRef.current = false;
+    reconciliationSnapshotRef.current = null;
+    setReconciliationActive(false);
+    if (vaultSyncRef.current.kind === "conflict") {
+      pauseAutoPushRef.current = true;
+    }
+  }, []);
+
+  const preservedCopyDeps = useCallback((): ReconciliationDeps => {
+    return {
+      sessionUserId: cloudUserIdRef.current,
+      readOwner: readCloudOwnerId,
+      readSyncKind: () => vaultSyncRef.current.kind,
+      readBaseline: readCloudSyncBaseline,
+      readLocal: () => vaultRef.current,
+      readConflictLocalFingerprint: () => conflictLocalFingerprintRef.current,
+      readOccupied: () => {
+        if (syncingRef.current || cloudBusyRef.current) return "sync";
+        if (reconcilingRef.current) return "reconciliation";
+        return "clear";
+      },
+      reserve: () => {
+        if (syncingRef.current || cloudBusyRef.current) return "sync_occupied";
+        if (reconcilingRef.current) return "reconciliation_occupied";
+        reconcilingRef.current = true;
+        pauseAutoPushRef.current = true;
+        setReconciliationActive(true);
+        return "reserved";
+      },
+      release: releasePreservedCopyHold,
+      readCloud: async () => {
+        const userId = cloudUserIdRef.current;
+        if (!userId) return { status: "unauthenticated" };
+        return getCloudVault(userId);
+      },
+      pushCloud: (expectedRevision, state) => {
+        const userId = cloudUserIdRef.current;
+        if (!userId) return Promise.resolve({ status: "unauthenticated" });
+        return compareAndSwapCurrentVault(userId, expectedRevision, state);
+      },
+      applyLocal: (state) => {
+        const previous = loadPersistedState();
+        try {
+          applyVault(state);
+          const stored = loadPersistedState();
+          if (
+            financialVaultFingerprint(stored) !== financialVaultFingerprint(state)
+          ) {
+            applyVault(previous);
+            return false;
+          }
+          return true;
+        } catch {
+          try {
+            applyVault(previous);
+          } catch {
+            /* Cloud may already hold the combined copy. Do not mark this device converged. */
+          }
+          return false;
+        }
+      },
+      writeBaseline: (baseline) => writeCloudSyncBaseline(baseline),
+      onConverged: (revision) => {
+        const view = { kind: "clean" as const, revision };
+        vaultSyncRef.current = view;
+        setConflictRefreshNote(null);
+        setVaultSync(view);
+        setSyncBaseline(readCloudSyncBaseline());
+        pauseAutoPushRef.current = false;
+      },
+      log: logReconciliationDiagnostic,
+    };
+  }, [applyVault, releasePreservedCopyHold]);
+
+  const previewPreservedCopies = useCallback(async () => {
+    const generation = ++reconciliationPreviewGenRef.current;
+    const outcome = await previewPreservedCopyReconciliation(preservedCopyDeps());
+    if (generation !== reconciliationPreviewGenRef.current) {
+      if (outcome.ok) releasePreservedCopyHold();
+      return {
+        ok: false as const,
+        message:
+          "Reconciliation is available only while both copies are preserved. Nothing was changed.",
+      };
+    }
+    if (!outcome.ok) {
+      return { ok: false as const, message: outcome.message };
+    }
+    reconciliationSnapshotRef.current = outcome.snapshot;
+    return {
+      ok: true as const,
+      intro: outcome.intro,
+      bullets: outcome.bullets,
+      closing: outcome.closing,
+    };
+  }, [preservedCopyDeps, releasePreservedCopyHold]);
+
+  const confirmPreservedCopies = useCallback(async () => {
+    const snapshot = reconciliationSnapshotRef.current;
+    reconciliationSnapshotRef.current = null;
+    if (!snapshot) {
+      releasePreservedCopyHold();
+      return {
+        ok: false as const,
+        message:
+          "The copies changed after the preview. Nothing was written. Preview again.",
+      };
+    }
+    const outcome = await confirmPreservedCopyReconciliation(
+      preservedCopyDeps(),
+      snapshot
+    );
+    if (!outcome.ok) return { ok: false as const, message: outcome.message };
+    return { ok: true as const };
+  }, [preservedCopyDeps, releasePreservedCopyHold]);
+
+  const cancelPreservedCopies = useCallback(() => {
+    reconciliationPreviewGenRef.current += 1;
+    releasePreservedCopyHold();
+  }, [releasePreservedCopyHold]);
+
   return {
     hydrated,
     /** True when a Supabase session is present. This is not vault synchronization. */
@@ -2379,6 +2539,10 @@ export function useBabylonEngine() {
     confirmCloudHydrate,
     confirmCloudCheck,
     compareConflictCopies,
+    reconciliationActive,
+    previewPreservedCopies,
+    confirmPreservedCopies,
+    cancelPreservedCopies,
     authOpen,
     setAuthOpen,
     handleAuthenticated,

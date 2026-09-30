@@ -1,5 +1,46 @@
 # Development Journal
 
+## 2026-09-30 — WE-SYNC-RECONCILIATION-006A current backup confirmation
+
+### What changed
+- Reconcile copies stays disabled until the steward checks that they exported a current backup of this device. The dialog can run the existing export action. The checkbox is component state and is cleared on cancel and on a new preview.
+- The app does not read the backup file and does not treat the session conflict fingerprint as proof that an exported file matches the vault. That fingerprint remains a current-session mutation guard.
+- Backup format stays v10. Cloud schema stays 6. Intelligence Contract stays v3. No SQL.
+
+### Ownership
+- Enablement rule: `canConfirmPreservedCopies` in `lib/babylon/preserved-copy-reconciliation.ts`
+- Dialog state: `components/babylon/vault-maintenance-panel.tsx`
+
+## 2026-09-30 — WE-SYNC-RECONCILIATION-006 reconcile preserved copies
+
+### What changed
+- Established conflicts can offer Reconcile preserved copies. There is no Use local / Use cloud action.
+- Preview reads the current cloud vault and refuses unless the fresh structural evidence matches the supported incident: no competing accounts, identical shared financial collections, the same financial scalars, and monthly plans whose phone-only revisions are other months with a valid combined revision chain.
+- The candidate starts as the fresh cloud vault. Phone-only monthly plans are appended unchanged. Activity is a deterministic id union. Cloud debt-position epoch stays. Unknown fields stay with cloud.
+- Account safety is zero local-only and zero shared-different accounts, with one or more cloud-only accounts. The incident showed four cloud-only accounts. That count is not a financial invariant, so it is not hard-coded.
+- Confirmation is bound to an in-memory snapshot. Confirm re-reads cloud and stops if the evidence changed. Exactly one compare-and-swap. No automatic retry. The phone vault and baseline change only after readback revision and fingerprint match.
+- While reconciliation is active, Check cloud, Compare copies, and auto-push stay out of the CAS. A refused reconciliation leaves the conflict quiescent.
+- Backup stays v10. Cloud schema stays 6. Intelligence Contract stays v3. No SQL.
+
+### Ownership
+- Predicate, candidate, and CAS/readback sequence: `lib/babylon/preserved-copy-reconciliation.ts`
+- Occupancy and canonical local apply: `hooks/useBabylonEngine.ts`
+- The single cloud write: `compareAndSwapCurrentVault` in `lib/babylon/vault-sync.ts`
+- Steward copy: `components/babylon/vault-maintenance-panel.tsx`
+- Monthly-plan chain: existing `monthlyPlanRevisionHistoryError`
+
+### Validation
+- Reconciliation tests in `lib/babylon/preserved-copy-reconciliation.test.ts` passed, including the incident-shape success, the refusal matrix, and CAS/readback failures.
+- WE-SYNC-RELIABILITY-006 feedback-loop tests and WE-SYNC-DIAG-005 attribution tests passed.
+- Cloud-sync check, vault-sync, cloud-vault, structural-diff UI, and monthly-plan semantic tests passed.
+- Full suite: 60 files, 883 tests passed.
+- `tsc --noEmit` passed. ESLint on touched TypeScript files clean. Production build passed. `git diff --check` clean.
+
+### Not in this tranche
+- No commit, push, deploy, or production reconciliation.
+- No generic merge, device UUID, operation log, or new cloud schema.
+- September was not closed.
+
 ## 2026-09-30 — WE-SYNC-RELIABILITY-006 stop the conflict auto-push loop
 
 ### What changed

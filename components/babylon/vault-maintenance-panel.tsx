@@ -27,6 +27,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -36,6 +37,11 @@ import {
   HYDRATE_CONFIRM,
 } from "@/lib/babylon/cloud-setup";
 import type { MonthlyPlanLayer2 } from "@/lib/babylon/monthly-plan-semantic";
+import {
+  canConfirmPreservedCopies,
+  CURRENT_BACKUP_CONFIRMATION_LABEL,
+  CURRENT_BACKUP_PROMPT,
+} from "@/lib/babylon/preserved-copy-reconciliation";
 import type { VaultStructuralDiff } from "@/lib/babylon/vault-structural-diff";
 import { vaultSyncCopy, type VaultSyncView } from "@/lib/babylon/vault-sync";
 import { cn } from "@/lib/utils";
@@ -50,6 +56,14 @@ export type ConflictCopyCompareResult =
       monthlyPlans: MonthlyPlanLayer2;
     }
   | { ok: false; reason: string };
+
+export type ReconciliationPreviewResult =
+  | { ok: true; intro: string; bullets: string[]; closing: string }
+  | { ok: false; message: string };
+
+export type ReconciliationConfirmResult =
+  | { ok: true }
+  | { ok: false; message: string };
 
 interface VaultMaintenancePanelProps {
   onExportBackup: () => void;
@@ -66,6 +80,10 @@ interface VaultMaintenancePanelProps {
   onHydrateCloud: () => void | Promise<void>;
   onCheckCloud: () => void | Promise<void>;
   onCompareConflictCopies?: () => Promise<ConflictCopyCompareResult>;
+  reconciliationActive?: boolean;
+  onPreviewReconciliation?: () => Promise<ReconciliationPreviewResult>;
+  onConfirmReconciliation?: () => Promise<ReconciliationConfirmResult>;
+  onCancelReconciliation?: () => void;
 }
 
 interface VaultCloudSessionProps {
@@ -80,6 +98,11 @@ interface VaultCloudSessionProps {
   onHydrateCloud: () => void | Promise<void>;
   onCheckCloud: () => void | Promise<void>;
   onCompareConflictCopies?: () => Promise<ConflictCopyCompareResult>;
+  reconciliationActive?: boolean;
+  onPreviewReconciliation?: () => Promise<ReconciliationPreviewResult>;
+  onConfirmReconciliation?: () => Promise<ReconciliationConfirmResult>;
+  onCancelReconciliation?: () => void;
+  onExportBackup: () => void;
 }
 
 interface VaultDataBackupsProps {
@@ -111,6 +134,10 @@ export function VaultMaintenancePanel({
   onHydrateCloud,
   onCheckCloud,
   onCompareConflictCopies,
+  reconciliationActive = false,
+  onPreviewReconciliation,
+  onConfirmReconciliation,
+  onCancelReconciliation,
 }: VaultMaintenancePanelProps) {
   return (
     <>
@@ -126,6 +153,11 @@ export function VaultMaintenancePanel({
         onHydrateCloud={onHydrateCloud}
         onCheckCloud={onCheckCloud}
         onCompareConflictCopies={onCompareConflictCopies}
+        reconciliationActive={reconciliationActive}
+        onPreviewReconciliation={onPreviewReconciliation}
+        onConfirmReconciliation={onConfirmReconciliation}
+        onCancelReconciliation={onCancelReconciliation}
+        onExportBackup={onExportBackup}
       />
       <VaultDataBackups
         onExportBackup={onExportBackup}
@@ -250,12 +282,192 @@ function ScalarRows({
   );
 }
 
+function ReconcilePreservedCopies({
+  disabled,
+  onPreview,
+  onConfirm,
+  onCancel,
+  onExportBackup,
+}: {
+  disabled: boolean;
+  onPreview: () => Promise<ReconciliationPreviewResult>;
+  onConfirm: () => Promise<ReconciliationConfirmResult>;
+  onCancel: () => void;
+  onExportBackup: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [backupConfirmed, setBackupConfirmed] = useState(false);
+  const [preview, setPreview] = useState<Extract<
+    ReconciliationPreviewResult,
+    { ok: true }
+  > | null>(null);
+
+  const close = () => {
+    if (busy) return;
+    onCancel();
+    setOpen(false);
+    setError(null);
+    setPreview(null);
+    setBackupConfirmed(false);
+  };
+
+  const start = async () => {
+    setOpen(true);
+    setBusy(true);
+    setError(null);
+    setPreview(null);
+    setBackupConfirmed(false);
+    try {
+      const outcome = await onPreview();
+      if (!outcome.ok) {
+        setError(outcome.message);
+        return;
+      }
+      setPreview(outcome);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const confirm = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const outcome = await onConfirm();
+      if (!outcome.ok) {
+        setPreview(null);
+        setError(outcome.message);
+        return;
+      }
+      setPreview(null);
+      setOpen(false);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        disabled={disabled}
+        className="h-8 w-full justify-center border-slate-800 bg-transparent text-xs text-slate-300 hover:bg-slate-900 hover:text-slate-100"
+        onClick={() => {
+          void start();
+        }}
+      >
+        Reconcile preserved copies
+      </Button>
+      <Dialog
+        open={open}
+        onOpenChange={(next) => {
+          if (!next) close();
+          else setOpen(true);
+        }}
+      >
+        <DialogContent className="max-h-[min(90dvh,40rem)] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Reconcile preserved copies</DialogTitle>
+            <DialogDescription>
+              This checks the current cloud copy before anything is written.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 text-left">
+            {busy && (
+              <p className="flex items-center gap-2 text-xs text-slate-300">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                {preview ? "Writing the combined copy…" : "Reading cloud vault…"}
+              </p>
+            )}
+            {error && <p className="text-xs text-amber-300/90">{error}</p>}
+            {preview && !busy && (
+              <>
+                <p className="text-xs leading-relaxed text-slate-200">
+                  {preview.intro}
+                </p>
+                <p className="text-xs text-slate-300">This will:</p>
+                <ul className="list-disc space-y-1 pl-4 text-xs leading-relaxed text-slate-200">
+                  {preview.bullets.map((line) => (
+                    <li key={line}>{line}</li>
+                  ))}
+                </ul>
+                <p className="text-xs leading-relaxed text-slate-300">
+                  {preview.closing}
+                </p>
+                <p className="text-xs leading-relaxed text-slate-200">
+                  {CURRENT_BACKUP_PROMPT}
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8 border-slate-800 bg-transparent text-xs text-slate-300"
+                  onClick={onExportBackup}
+                >
+                  Export backup
+                </Button>
+                <label className="flex items-start gap-2 text-xs leading-relaxed text-slate-200">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5"
+                    checked={backupConfirmed}
+                    onChange={(event) => setBackupConfirmed(event.target.checked)}
+                  />
+                  {CURRENT_BACKUP_CONFIRMATION_LABEL}
+                </label>
+              </>
+            )}
+          </div>
+          <DialogFooter className="gap-2 sm:justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={busy}
+              className="border-slate-800 bg-transparent text-xs text-slate-300"
+              onClick={close}
+            >
+              Cancel
+            </Button>
+            {preview && !error && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={
+                  !canConfirmPreservedCopies({
+                    previewReady: true,
+                    currentBackupConfirmed: backupConfirmed,
+                    busy,
+                  })
+                }
+                className="border-slate-800 bg-transparent text-xs text-slate-100"
+                onClick={() => {
+                  void confirm();
+                }}
+              >
+                Reconcile copies
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
 function ConflictCopyCompare({
   vaultSync,
   onCompare,
+  disabled = false,
 }: {
   vaultSync: Extract<VaultSyncView, { kind: "conflict" }>;
   onCompare: () => Promise<ConflictCopyCompareResult>;
+  disabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -288,6 +500,7 @@ function ConflictCopyCompare({
         variant="outline"
         size="sm"
         className="h-8 w-full justify-center border-slate-800 bg-transparent text-xs text-slate-300 hover:bg-slate-900 hover:text-slate-100"
+        disabled={busy || disabled}
         onClick={() => {
           setOpen(true);
           void runCompare();
@@ -416,6 +629,11 @@ export function VaultCloudSession({
   onHydrateCloud,
   onCheckCloud,
   onCompareConflictCopies,
+  reconciliationActive = false,
+  onPreviewReconciliation,
+  onConfirmReconciliation,
+  onCancelReconciliation,
+  onExportBackup,
 }: VaultCloudSessionProps) {
   const [signingOut, setSigningOut] = useState(false);
 
@@ -518,8 +736,21 @@ export function VaultCloudSession({
             <ConflictCopyCompare
               vaultSync={vaultSync}
               onCompare={onCompareConflictCopies}
+              disabled={reconciliationActive}
             />
           )}
+          {vaultSync.kind === "conflict" &&
+            onPreviewReconciliation &&
+            onConfirmReconciliation &&
+            onCancelReconciliation && (
+              <ReconcilePreservedCopies
+                disabled={cloudBusy || reconciliationActive}
+                onPreview={onPreviewReconciliation}
+                onConfirm={onConfirmReconciliation}
+                onCancel={onCancelReconciliation}
+                onExportBackup={onExportBackup}
+              />
+            )}
           {(vaultSync.kind === "offline_pending" ||
             vaultSync.kind === "pending_verification" ||
             vaultSync.kind === "local_dirty" ||
@@ -530,7 +761,7 @@ export function VaultCloudSession({
               type="button"
               variant="outline"
               size="sm"
-              disabled={cloudBusy}
+              disabled={cloudBusy || reconciliationActive}
               className="h-8 w-full justify-center border-slate-800 bg-transparent text-xs text-slate-300 hover:bg-slate-900 hover:text-slate-100"
               onClick={() => {
                 void onCheckCloud();

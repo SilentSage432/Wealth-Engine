@@ -340,6 +340,10 @@ export function WealthEngineDashboard() {
             onHydrateCloud={engine.confirmCloudHydrate}
             onCheckCloud={engine.confirmCloudCheck}
             onCompareConflictCopies={engine.compareConflictCopies}
+            reconciliationActive={engine.reconciliationActive}
+            onPreviewReconciliation={engine.previewPreservedCopies}
+            onConfirmReconciliation={engine.confirmPreservedCopies}
+            onCancelReconciliation={engine.cancelPreservedCopies}
           />
         )}
 
@@ -490,6 +494,10 @@ export function WealthEngineDashboard() {
                 onHydrateCloud={engine.confirmCloudHydrate}
                 onCheckCloud={engine.confirmCloudCheck}
                 onCompareConflictCopies={engine.compareConflictCopies}
+                reconciliationActive={engine.reconciliationActive}
+                onPreviewReconciliation={engine.previewPreservedCopies}
+                onConfirmReconciliation={engine.confirmPreservedCopies}
+                onCancelReconciliation={engine.cancelPreservedCopies}
                 accounts={engine.accounts}
                 moneyAvailable={engine.moneyAvailable}
                 restrictedEffectiveTotal={engine.restrictedEffectiveTotal}

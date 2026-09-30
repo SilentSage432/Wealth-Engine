@@ -6,7 +6,11 @@
 **Architecture map:** [`ARCHITECTURE.md`](./ARCHITECTURE.md) — layers, dependency rules, canonical ownership matrix.
 
 ## Current state
-WE-SYNC-RELIABILITY-006 is a local repair, not committed. Production showed `auto_push` queueing during Syncing and the following `queued_rerun` terminating `conflict`, then repeating. A terminal conflict now drops a queued `auto_push`. Manual Check cloud still runs one preserved recheck. No reconciliation.
+WE-SYNC-RECONCILIATION-006A requires the steward to confirm they exported a current backup of this device before Reconcile copies enables. That checkbox is dialog state only. The app does not verify an exported file. The session conflict fingerprint remains a current-session mutation guard. Backup format stays v10. Cloud schema 6. IC v3.
+
+WE-SYNC-RECONCILIATION-006 is a local implementation, not committed. On an established conflict the steward can choose Reconcile preserved copies. Preview is a fresh read-only cloud SELECT. The supported shape keeps cloud accounts and identical shared financial records, appends phone-only monthly-plan revisions when the combined chain validates, and unions activity by id. Different planning months are compatible history. One CAS, then readback, and only then local convergence. Fail closed outside that evidence. No generic conflict resolver. Canonical cloud / device identity remains separate. Backup v10. Cloud schema 6. IC v3. Do not run this against production from this tranche.
+
+WE-SYNC-RELIABILITY-006 is a local repair, not committed. Production showed `auto_push` queueing during Syncing and the following `queued_rerun` terminating `conflict`, then repeating. A terminal conflict now drops a queued `auto_push`. Manual Check cloud still runs one preserved recheck. Reconciliation is the separate tranche above.
 
 WE-PAYCHECK-PLANNER-UI-004 is an **implementation candidate**. Finalized Monthly Plan shows read-only **Fund this month** (funding responsibilities + temporal obligation context). Steward can author Expected pay schedule (paySchedules only). Expected ≠ Income. No matching / funding edits / Attention. Backup v10; cloud schema 6; IC v3 unchanged.
 

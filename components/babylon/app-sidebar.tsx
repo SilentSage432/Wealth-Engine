@@ -5,6 +5,8 @@ import { ProfileNameField } from "@/components/babylon/profile-name-field";
 import {
   VaultMaintenancePanel,
   type ConflictCopyCompareResult,
+  type ReconciliationConfirmResult,
+  type ReconciliationPreviewResult,
 } from "@/components/babylon/vault-maintenance-panel";
 import { Button } from "@/components/ui/button";
 import { NAV_ITEMS } from "@/lib/babylon/constants";
@@ -33,6 +35,10 @@ interface AppSidebarProps {
   onHydrateCloud: () => void | Promise<void>;
   onCheckCloud: () => void | Promise<void>;
   onCompareConflictCopies?: () => Promise<ConflictCopyCompareResult>;
+  reconciliationActive?: boolean;
+  onPreviewReconciliation?: () => Promise<ReconciliationPreviewResult>;
+  onConfirmReconciliation?: () => Promise<ReconciliationConfirmResult>;
+  onCancelReconciliation?: () => void;
 }
 
 export function AppSidebar({
@@ -56,6 +62,10 @@ export function AppSidebar({
   onHydrateCloud,
   onCheckCloud,
   onCompareConflictCopies,
+  reconciliationActive = false,
+  onPreviewReconciliation,
+  onConfirmReconciliation,
+  onCancelReconciliation,
 }: AppSidebarProps) {
   return (
     <aside
@@ -127,6 +137,10 @@ export function AppSidebar({
           onHydrateCloud={onHydrateCloud}
           onCheckCloud={onCheckCloud}
           onCompareConflictCopies={onCompareConflictCopies}
+          reconciliationActive={reconciliationActive}
+          onPreviewReconciliation={onPreviewReconciliation}
+          onConfirmReconciliation={onConfirmReconciliation}
+          onCancelReconciliation={onCancelReconciliation}
         />
       </div>
     </aside>

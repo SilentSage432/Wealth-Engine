@@ -1118,6 +1118,8 @@ describe("conflict recheck wiring", () => {
     );
     expect(panel).toContain("Checking whether this conflict is still current…");
     expect(panel).toContain("{conflictRefreshNote}");
-    expect(panel).not.toContain("Reconcile preserved copies");
+    expect(panel).toContain("Reconcile preserved copies");
+    expect(panel).not.toContain("Use local");
+    expect(panel).not.toContain("Use cloud");
   });
 });

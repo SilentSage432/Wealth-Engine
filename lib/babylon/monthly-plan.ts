@@ -133,7 +133,8 @@ function isFinalizedAt(value: string): boolean {
   return Number.isFinite(parsed);
 }
 
-function revisionHistoryError(
+/** Whole-list revision chain. Null means the list is a valid per-period sequence. */
+export function monthlyPlanRevisionHistoryError(
   plans: readonly MonthlyPlanRevision[]
 ): MonthlyPlanFinalizeResult | null {
   const ids = new Set<string>();
@@ -581,7 +582,7 @@ export function finalizeMonthlyPlanRevision(
   const categories = preparedCategories.categories;
   const debts = preparedDebts.debts;
 
-  const history = revisionHistoryError(plans);
+  const history = monthlyPlanRevisionHistoryError(plans);
   if (history) return history;
   if (plans.some((plan) => plan.id === input.id.trim())) {
     return reject(

@@ -632,6 +632,19 @@ function pullClean(
   return stop({ kind: "clean", revision: next.revision }, next, pushed, true, false, stored);
 }
 
+export function compareAndSwapCurrentVault(
+  sessionUserId: string,
+  expectedRevision: number,
+  state: PersistedState
+): Promise<CloudVaultUpdateResult> {
+  return updateCloudVault(
+    sessionUserId,
+    expectedRevision,
+    CLOUD_VAULT_SCHEMA_VERSION,
+    state
+  );
+}
+
 export function runCurrentVaultCycle(
   sessionUserId: string,
   readMemory: () => PersistedState
