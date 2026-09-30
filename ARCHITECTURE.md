@@ -104,7 +104,7 @@ Presentation consumes the Application layer. It displays what the engine and wor
 - User actions and recording flows
 - Ledger mutations and derived metric exposure
 - Monthly close and surplus disposition workflows
-- Auth session awareness and revision sync (`lib/babylon/vault-sync.ts`, bounded check orchestration in `lib/babylon/cloud-sync-check.ts`). Human-facing interim checking/syncing is bounded to 25 seconds; underlying revision-aware reconciliation remains single-flight until the active cycle Promise settles. A UI timeout does not imply the cloud operation did not commit — a later cycle determines truth via read-first + CAS + pending verification. The sync baseline is not part of the financial vault.
+- Auth session awareness and revision sync (`lib/babylon/vault-sync.ts`, bounded check orchestration in `lib/babylon/cloud-sync-check.ts`). Human-facing interim checking/syncing is bounded to 25 seconds; underlying revision-aware reconciliation remains single-flight until the active cycle Promise settles. A UI timeout does not imply the cloud operation did not commit — a later cycle determines truth via read-first + CAS + pending verification. The sync baseline is not part of the financial vault. WE-SYNC-DIAG-005 adds privacy-safe `[cloud-sync]` console attribution (trigger, prior kind, attempt id). It does not change sync semantics, persist diagnostics, or log financial contents.
 - Local vault lifecycle in concert with persistence adapters
 - The financial calendar day (`todayIso`), advanced at the next local midnight rather than once per second
 - `GET /api/intelligence` (WE-MUSE-002). One read-only contract for the single steward, authorized by the server-only `INTELLIGENCE_READ_SECRET`. WE-MUSE-003 production acceptance succeeded: Sindarin authenticated through its Secure Vault connector and understood the contract without a sample payload. WE-MUSE-004 corrected one boundary code and recorded the v1 semantics below. WE-RECONCILE-001B2 moves the current contract to version `2`. Automated validation passed. Production acceptance is pending. The response is assembled fresh from the vault, the stored notification timezone, and owner-scoped stored balance evidence. It does not call Plaid. It does not return the vault, raw Plaid transactions, or notification internals. A failed balance-evidence read uses declarations and says the evidence is unavailable. It does not write. Unknown stays unknown. The secret is not set by this change.
@@ -428,6 +428,7 @@ Canonical ownership reference for Wealth Engine:
 | Explicit cloud setup | `lib/babylon/cloud-setup.ts` | Application |
 | Revision sync | `lib/babylon/vault-sync.ts` | Application |
 | Bounded cloud check (UI timeout / single-flight occupancy) | `lib/babylon/cloud-sync-check.ts` | Application |
+| Cloud-sync attempt attribution (console only) | `lib/babylon/cloud-sync-check.ts` | Application |
 | Conflict refresh keeps the known conflict on screen | `lib/babylon/cloud-sync-check.ts` | Application |
 | Data & Cloud build label | `lib/babylon/build-identity.ts` | Presentation |
 | Read-only conflict structural comparison | `lib/babylon/vault-structural-diff.ts` | Domain |

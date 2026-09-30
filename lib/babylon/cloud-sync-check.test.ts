@@ -711,26 +711,33 @@ describe("cloud sync check orchestration", () => {
     const spy = vi.spyOn(console, "info").mockImplementation(() => {});
     logCloudSyncDiagnostic({
       type: "ui_timeout",
-      opId: 1,
+      trigger: "manual",
+      attemptId: 1,
+      previousKind: "local_dirty",
+      preserveEstablishedConflict: false,
     });
     logCloudSyncDiagnostic({
       type: "occupied_after_ui_timeout",
-      opId: 1,
+      trigger: "manual",
+      attemptId: 1,
+      previousKind: "local_dirty",
+      preserveEstablishedConflict: false,
     });
     logCloudSyncDiagnostic({
       type: "late_settle",
-      opId: 1,
+      trigger: "manual",
+      attemptId: 1,
       outcome: "resolved",
+      discardedAfterDeadline: true,
+      resultingKind: "clean",
     });
     logCloudSyncDiagnostic({
       type: "start",
-      opId: 1,
-      interim: "syncing",
-      baselineRevision: 39,
-      pendingRevision: false,
-      fingerprintMatch: false,
-      online: true,
-      visibilityState: "visible",
+      trigger: "manual",
+      previousKind: "conflict",
+      preserveEstablishedConflict: true,
+      attemptId: 1,
+      queuedRerun: false,
     });
     const serialized = JSON.stringify(spy.mock.calls);
     expect(serialized).not.toContain("Groceries");

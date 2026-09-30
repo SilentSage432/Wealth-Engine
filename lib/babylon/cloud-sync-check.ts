@@ -60,44 +60,181 @@ export function shouldPauseAutoPush(view: VaultSyncView): boolean {
   );
 }
 
+/**
+ * Request source, named at the call to requestCloudCheck.
+ * Not inferred later and not persisted.
+ */
+export type CloudSyncRequestTrigger =
+  | "manual"
+  | "mount"
+  | "visibility"
+  | "online"
+  | "auto_push"
+  | "queued_rerun"
+  | "bootstrap"
+  | "hydrate"
+  | "clear"
+  | "import";
+
+export type CloudSyncCheckAttribution = {
+  trigger: CloudSyncRequestTrigger;
+  previousKind: VaultSyncView["kind"];
+  queuedRerun: boolean;
+};
+
+type AttemptDiagnosticFields = {
+  trigger: CloudSyncRequestTrigger;
+  previousKind: VaultSyncView["kind"];
+  preserveEstablishedConflict: boolean;
+  attemptId: number;
+  queuedRerun: boolean;
+};
+
 export type CloudSyncDiagnosticEvent =
+  | ({ type: "start" } & AttemptDiagnosticFields)
+  | ({ type: "interim_paint"; nextKind: "syncing" } & AttemptDiagnosticFields)
   | {
-      type: "start";
-      opId: number;
-      interim: "checking" | "syncing";
-      baselineRevision: number | null;
-      pendingRevision: boolean;
-      fingerprintMatch: boolean;
-      online: boolean;
-      visibilityState: DocumentVisibilityState | "unknown";
+      type: "retry_queued";
+      trigger: CloudSyncRequestTrigger;
+      currentKind: VaultSyncView["kind"];
+      activeAttemptId: number;
     }
-  | { type: "terminal"; opId: number; kind: VaultSyncView["kind"] }
-  | { type: "ui_timeout"; opId: number }
-  | { type: "occupied_after_ui_timeout"; opId: number }
-  | { type: "late_settle"; opId: number; outcome: "resolved" | "rejected" }
-  | { type: "retry_queued"; opId: number }
-  | { type: "exception"; opId: number; name: string; message: string }
-  | { type: "stale"; opId: number; activeOpId: number }
+  | {
+      type: "terminal";
+      trigger: CloudSyncRequestTrigger;
+      previousKind: VaultSyncView["kind"];
+      terminalKind: VaultSyncView["kind"];
+      preserveEstablishedConflict: boolean;
+      attemptId: number;
+    }
+  | {
+      type: "ui_timeout";
+      trigger: CloudSyncRequestTrigger;
+      attemptId: number;
+      previousKind: VaultSyncView["kind"];
+      preserveEstablishedConflict: boolean;
+    }
+  | {
+      type: "occupied_after_ui_timeout";
+      trigger: CloudSyncRequestTrigger;
+      attemptId: number;
+      previousKind: VaultSyncView["kind"];
+      preserveEstablishedConflict: boolean;
+    }
+  | {
+      type: "late_settle";
+      trigger: CloudSyncRequestTrigger;
+      attemptId: number;
+      outcome: "resolved" | "rejected";
+      /** The cycle result was not applied after the human-facing deadline. */
+      discardedAfterDeadline: true;
+      resultingKind?: VaultSyncView["kind"];
+    }
+  | {
+      type: "exception";
+      attemptId: number;
+      trigger: CloudSyncRequestTrigger;
+      name: string;
+      message: string;
+    }
+  | {
+      type: "stale";
+      attemptId: number;
+      trigger: CloudSyncRequestTrigger;
+      activeAttemptId: number;
+    }
   /** @deprecated Use ui_timeout */
   | { type: "timeout"; opId: number };
+
+/**
+ * Keys that may appear on a [cloud-sync] console payload.
+ * Anything else is dropped before logging.
+ */
+export const CLOUD_SYNC_DIAGNOSTIC_ALLOWLIST = [
+  "type",
+  "trigger",
+  "previousKind",
+  "nextKind",
+  "currentKind",
+  "terminalKind",
+  "resultingKind",
+  "preserveEstablishedConflict",
+  "attemptId",
+  "activeAttemptId",
+  "queuedRerun",
+  "outcome",
+  "discardedAfterDeadline",
+  "opId",
+  "name",
+  "message",
+] as const;
+
+const CLOUD_SYNC_DIAGNOSTIC_ALLOWED_KEYS = new Set<string>(
+  CLOUD_SYNC_DIAGNOSTIC_ALLOWLIST
+);
+
+function isCloudSyncDiagnosticPrimitive(value: unknown): boolean {
+  const kind = typeof value;
+  return kind === "string" || kind === "number" || kind === "boolean";
+}
+
+/** Runtime privacy gate. Drops unknown keys and non-primitive values. */
+export function projectCloudSyncDiagnostic(
+  event: CloudSyncDiagnosticEvent
+): CloudSyncDiagnosticEvent {
+  const source = event as unknown as Record<string, unknown>;
+  const projected: Record<string, unknown> = {};
+  for (const key of Object.keys(source)) {
+    if (!CLOUD_SYNC_DIAGNOSTIC_ALLOWED_KEYS.has(key)) continue;
+    const value = source[key];
+    if (!isCloudSyncDiagnosticPrimitive(value)) continue;
+    projected[key] = value;
+  }
+  return projected as unknown as CloudSyncDiagnosticEvent;
+}
 
 export function logCloudSyncDiagnostic(event: CloudSyncDiagnosticEvent): void {
   if (typeof console === "undefined" || typeof console.info !== "function") {
     return;
   }
-  console.info("[cloud-sync]", event);
+  console.info("[cloud-sync]", projectCloudSyncDiagnostic(event));
 }
 
-export function readCloudSyncRuntimeContext(): {
-  online: boolean;
-  visibilityState: DocumentVisibilityState | "unknown";
+/**
+ * Occupancy coalesce used by requestCloudCheck.
+ * A repeated request while a rerun is already queued does not emit another event.
+ */
+export function takeOccupiedCloudCheckQueue(input: {
+  occupied: boolean;
+  alreadyQueued: boolean;
+  trigger: CloudSyncRequestTrigger;
+  currentKind: VaultSyncView["kind"];
+  activeAttemptId: number;
+}): {
+  handled: boolean;
+  rerunQueued: boolean;
+  event: Extract<CloudSyncDiagnosticEvent, { type: "retry_queued" }> | null;
 } {
-  if (typeof navigator === "undefined") {
-    return { online: true, visibilityState: "unknown" };
+  if (!input.occupied) {
+    return {
+      handled: false,
+      rerunQueued: input.alreadyQueued,
+      event: null,
+    };
   }
-  const visibilityState =
-    typeof document !== "undefined" ? document.visibilityState : "unknown";
-  return { online: navigator.onLine, visibilityState };
+  if (input.alreadyQueued) {
+    return { handled: true, rerunQueued: true, event: null };
+  }
+  return {
+    handled: true,
+    rerunQueued: true,
+    event: {
+      type: "retry_queued",
+      trigger: input.trigger,
+      currentKind: input.currentKind,
+      activeAttemptId: input.activeAttemptId,
+    },
+  };
 }
 
 type UiOrCycleRace =
@@ -235,8 +372,27 @@ export type PerformCloudSyncCheckInput = {
    * may still replace it.
    */
   preserveEstablishedConflict?: boolean;
+  /**
+   * Named at requestCloudCheck. Omitted only by direct unit callers that
+   * predate attribution; the hook always supplies it.
+   */
+  attribution?: CloudSyncCheckAttribution;
   log?: (event: CloudSyncDiagnosticEvent) => void;
 };
+
+function resolveCloudSyncAttribution(input: PerformCloudSyncCheckInput): {
+  trigger: CloudSyncRequestTrigger;
+  previousKind: VaultSyncView["kind"];
+  queuedRerun: boolean;
+  preserveEstablishedConflict: boolean;
+} {
+  return {
+    trigger: input.attribution?.trigger ?? "mount",
+    previousKind: input.attribution?.previousKind ?? "checking",
+    queuedRerun: input.attribution?.queuedRerun === true,
+    preserveEstablishedConflict: input.preserveEstablishedConflict === true,
+  };
+}
 
 export type PerformCloudSyncCheckCallbacks = {
   userId: string;
@@ -273,63 +429,115 @@ export async function performCloudSyncCheck(
   const baseline = input.readBaseline();
   const fingerprint = input.readFingerprint();
   const interim = interimVaultSyncView(baseline, fingerprint);
-  const runtime = readCloudSyncRuntimeContext();
   const timeoutMs = input.timeoutMs ?? CLOUD_SYNC_ATTEMPT_TIMEOUT_MS;
-  const preserveConflict = input.preserveEstablishedConflict === true;
+  const attribution = resolveCloudSyncAttribution(input);
+
+  const emit = (event: CloudSyncDiagnosticEvent) => {
+    log(projectCloudSyncDiagnostic(event));
+  };
 
   const notePreservedConflict = () => {
     callbacks.onPauseAutoPush(true);
     callbacks.onConflictRefreshFailed?.();
   };
 
+  const paintRecoverableTerminal = () => {
+    const terminal = recoverableSyncFailureView();
+    callbacks.setVaultSync(terminal);
+    emit({
+      type: "terminal",
+      trigger: attribution.trigger,
+      previousKind: attribution.previousKind,
+      terminalKind: terminal.kind,
+      preserveEstablishedConflict: false,
+      attemptId: input.attemptId,
+    });
+  };
+
   // Deadline exists before any new Syncing paint. The cycle is not aborted.
   const deadline = beginCloudSyncUiDeadline(timeoutMs);
   let raced: UiOrCycleRace;
   try {
-    if (!preserveConflict) {
+    emit({
+      type: "start",
+      trigger: attribution.trigger,
+      previousKind: attribution.previousKind,
+      preserveEstablishedConflict: attribution.preserveEstablishedConflict,
+      attemptId: input.attemptId,
+      queuedRerun: attribution.queuedRerun,
+    });
+    if (!attribution.preserveEstablishedConflict) {
+      if (interim.kind === "syncing") {
+        emit({
+          type: "interim_paint",
+          trigger: attribution.trigger,
+          previousKind: attribution.previousKind,
+          nextKind: "syncing",
+          preserveEstablishedConflict: false,
+          attemptId: input.attemptId,
+          queuedRerun: attribution.queuedRerun,
+        });
+      }
       callbacks.setVaultSync(interim);
     }
-    log({
-      type: "start",
-      opId: input.attemptId,
-      interim: interim.kind,
-      baselineRevision: baseline?.revision ?? null,
-      pendingRevision: Boolean(baseline?.pendingRevision),
-      fingerprintMatch: baseline ? fingerprint === baseline.fingerprint : false,
-      online: runtime.online,
-      visibilityState: runtime.visibilityState,
-    });
 
     const cyclePromise = input.runCycle();
     raced = await raceCycleAgainstDeadline(cyclePromise, deadline.expired);
 
     if (raced.kind === "ui_timeout") {
-      log({ type: "ui_timeout", opId: input.attemptId });
-      log({ type: "timeout", opId: input.attemptId });
+      emit({
+        type: "ui_timeout",
+        trigger: attribution.trigger,
+        attemptId: input.attemptId,
+        previousKind: attribution.previousKind,
+        preserveEstablishedConflict: attribution.preserveEstablishedConflict,
+      });
+      emit({ type: "timeout", opId: input.attemptId });
       input.supersedeInFlightAttempts();
       callbacks.onPauseAutoPush(true);
-      if (preserveConflict) {
+      if (attribution.preserveEstablishedConflict) {
         notePreservedConflict();
       } else {
-        callbacks.setVaultSync(recoverableSyncFailureView());
+        paintRecoverableTerminal();
       }
       callbacks.onUiTimeout?.();
-      log({ type: "occupied_after_ui_timeout", opId: input.attemptId });
-
-    try {
-      await cyclePromise;
-      log({ type: "late_settle", opId: input.attemptId, outcome: "resolved" });
-    } catch (error) {
-      const name = error instanceof Error ? error.name : "Error";
-      const message = error instanceof Error ? error.message : "unknown";
-      log({
-        type: "late_settle",
-        opId: input.attemptId,
-        outcome: "rejected",
+      emit({
+        type: "occupied_after_ui_timeout",
+        trigger: attribution.trigger,
+        attemptId: input.attemptId,
+        previousKind: attribution.previousKind,
+        preserveEstablishedConflict: attribution.preserveEstablishedConflict,
       });
-      log({ type: "exception", opId: input.attemptId, name, message });
-    }
-    // Late CycleResult must not apply React vault / baseline / success UI.
+
+      try {
+        const late = await cyclePromise;
+        emit({
+          type: "late_settle",
+          trigger: attribution.trigger,
+          attemptId: input.attemptId,
+          outcome: "resolved",
+          discardedAfterDeadline: true,
+          resultingKind: late.view.kind,
+        });
+      } catch (error) {
+        const name = error instanceof Error ? error.name : "Error";
+        const message = error instanceof Error ? error.message : "unknown";
+        emit({
+          type: "late_settle",
+          trigger: attribution.trigger,
+          attemptId: input.attemptId,
+          outcome: "rejected",
+          discardedAfterDeadline: true,
+        });
+        emit({
+          type: "exception",
+          attemptId: input.attemptId,
+          trigger: attribution.trigger,
+          name,
+          message,
+        });
+      }
+      // Late CycleResult must not apply React vault / baseline / success UI.
       return { status: "timeout" };
     }
 
@@ -337,54 +545,74 @@ export async function performCloudSyncCheck(
       const error = raced.error;
       const name = error instanceof Error ? error.name : "Error";
       const message = error instanceof Error ? error.message : "unknown";
-      log({ type: "exception", opId: input.attemptId, name, message });
+      emit({
+        type: "exception",
+        attemptId: input.attemptId,
+        trigger: attribution.trigger,
+        name,
+        message,
+      });
       input.supersedeInFlightAttempts();
       callbacks.onPauseAutoPush(true);
-      if (preserveConflict) {
+      if (attribution.preserveEstablishedConflict) {
         notePreservedConflict();
       } else {
-        callbacks.setVaultSync(recoverableSyncFailureView());
+        paintRecoverableTerminal();
       }
       return { status: "exception" };
     }
 
-  const outcome = raced.result;
+    const outcome = raced.result;
 
-  if (input.isSuperseded()) {
-    log({
-      type: "stale",
-      opId: input.attemptId,
-      activeOpId: input.readActiveAttemptId(),
-    });
-    return { status: "stale" };
-  }
-
-  try {
-    applyCloudSyncCycleOutcome({
-      outcome,
-      userId: callbacks.userId,
-      applyVault: callbacks.applyVault,
-      setSyncBaseline: callbacks.setSyncBaseline,
-      setOwnerUserId: callbacks.setOwnerUserId,
-      setVaultSync: callbacks.setVaultSync,
-      onPauseAutoPush: callbacks.onPauseAutoPush,
-    });
-  } catch (error) {
-    const name = error instanceof Error ? error.name : "Error";
-    const message = error instanceof Error ? error.message : "unknown";
-    log({ type: "exception", opId: input.attemptId, name, message });
-    input.supersedeInFlightAttempts();
-    callbacks.onPauseAutoPush(true);
-    if (preserveConflict) {
-      notePreservedConflict();
-    } else {
-      callbacks.setVaultSync(recoverableSyncFailureView());
+    if (input.isSuperseded()) {
+      emit({
+        type: "stale",
+        attemptId: input.attemptId,
+        trigger: attribution.trigger,
+        activeAttemptId: input.readActiveAttemptId(),
+      });
+      return { status: "stale" };
     }
-    return { status: "exception" };
-  }
 
-  log({ type: "terminal", opId: input.attemptId, kind: outcome.view.kind });
-  return { status: "completed", terminalKind: outcome.view.kind };
+    try {
+      applyCloudSyncCycleOutcome({
+        outcome,
+        userId: callbacks.userId,
+        applyVault: callbacks.applyVault,
+        setSyncBaseline: callbacks.setSyncBaseline,
+        setOwnerUserId: callbacks.setOwnerUserId,
+        setVaultSync: callbacks.setVaultSync,
+        onPauseAutoPush: callbacks.onPauseAutoPush,
+      });
+    } catch (error) {
+      const name = error instanceof Error ? error.name : "Error";
+      const message = error instanceof Error ? error.message : "unknown";
+      emit({
+        type: "exception",
+        attemptId: input.attemptId,
+        trigger: attribution.trigger,
+        name,
+        message,
+      });
+      input.supersedeInFlightAttempts();
+      callbacks.onPauseAutoPush(true);
+      if (attribution.preserveEstablishedConflict) {
+        notePreservedConflict();
+      } else {
+        paintRecoverableTerminal();
+      }
+      return { status: "exception" };
+    }
+
+    emit({
+      type: "terminal",
+      trigger: attribution.trigger,
+      previousKind: attribution.previousKind,
+      terminalKind: outcome.view.kind,
+      preserveEstablishedConflict: attribution.preserveEstablishedConflict,
+      attemptId: input.attemptId,
+    });
+    return { status: "completed", terminalKind: outcome.view.kind };
   } finally {
     deadline.clear();
   }

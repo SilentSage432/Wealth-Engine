@@ -30,6 +30,8 @@ import {
   CONFLICT_REFRESH_INCOMPLETE_COPY,
   logCloudSyncDiagnostic,
   performCloudSyncCheck,
+  takeOccupiedCloudCheckQueue,
+  type CloudSyncRequestTrigger,
 } from "@/lib/babylon/cloud-sync-check";
 import { financialVaultFingerprint, getCloudVault } from "@/lib/babylon/cloud-vault";
 import {
@@ -222,6 +224,12 @@ export function useBabylonEngine() {
   const rerunSyncRef = useRef(false);
   /** Monotonic; superseded attempts must not apply React state after UI timeout. */
   const cloudSyncAttemptIdRef = useRef(0);
+  /**
+   * Why the next owner-ready effect should call requestCloudCheck.
+   * Starts as mount. Visibility, online, and other checkEpoch sources
+   * overwrite it immediately before they increment checkEpoch.
+   */
+  const cloudCheckTriggerRef = useRef<CloudSyncRequestTrigger>("mount");
   const [checkEpoch, setCheckEpoch] = useState(0);
   const [ownerEpoch, setOwnerEpoch] = useState(0);
   const [ownerUserId, setOwnerUserId] = useState<string | null>(null);
@@ -479,7 +487,10 @@ export function useBabylonEngine() {
     setUsernameState(next.displayName);
   }, []);
 
-  const requestCloudCheck = useCallback(async () => {
+  const requestCloudCheck = useCallback(async (
+    trigger: CloudSyncRequestTrigger,
+    queuedRerun = false
+  ) => {
     const userId = cloudUserIdRef.current;
     if (!userId) {
       setVaultSync({ kind: "signed_out" });
@@ -487,17 +498,22 @@ export function useBabylonEngine() {
     }
     // Single-flight: coalesce Check cloud / online / visibility / auto-push
     // into one queued rerun while occupancy is held (including after UI timeout).
-    if (syncingRef.current) {
-      if (!rerunSyncRef.current) {
-        rerunSyncRef.current = true;
-        logCloudSyncDiagnostic({
-          type: "retry_queued",
-          opId: cloudSyncAttemptIdRef.current,
-        });
+    const occupied = takeOccupiedCloudCheckQueue({
+      occupied: syncingRef.current,
+      alreadyQueued: rerunSyncRef.current,
+      trigger,
+      currentKind: vaultSyncRef.current.kind,
+      activeAttemptId: cloudSyncAttemptIdRef.current,
+    });
+    if (occupied.handled) {
+      rerunSyncRef.current = occupied.rerunQueued;
+      if (occupied.event) {
+        logCloudSyncDiagnostic(occupied.event);
       }
       return;
     }
-    const establishedConflict = vaultSyncRef.current.kind === "conflict";
+    const previousKind = vaultSyncRef.current.kind;
+    const establishedConflict = previousKind === "conflict";
     // A known conflict stays fail-closed. Recheck must not clear auto-push pause.
     if (establishedConflict) {
       pauseAutoPushRef.current = true;
@@ -522,6 +538,11 @@ export function useBabylonEngine() {
           readFingerprint: () => financialVaultFingerprint(vaultRef.current),
           runCycle: () => runCurrentVaultCycle(userId, () => vaultRef.current),
           preserveEstablishedConflict: establishedConflict,
+          attribution: {
+            trigger,
+            previousKind,
+            queuedRerun,
+          },
         },
         {
           userId,
@@ -551,13 +572,19 @@ export function useBabylonEngine() {
       setCloudBusy(false);
       if (rerunSyncRef.current) {
         rerunSyncRef.current = false;
-        void requestCloudCheck();
+        void requestCloudCheck("queued_rerun", true);
       }
     }
   }, [applyVault]);
 
+  const confirmCloudCheck = useCallback(() => {
+    return requestCloudCheck("manual");
+  }, [requestCloudCheck]);
+
   useEffect(() => {
     if (!hydrated || !ownerReady) return;
+    const trigger = cloudCheckTriggerRef.current;
+    cloudCheckTriggerRef.current = "mount";
     if (!cloudUserId) {
       setVaultSync({ kind: "signed_out" });
       return;
@@ -566,13 +593,13 @@ export function useBabylonEngine() {
       setVaultSync({ kind: "owner_mismatch" });
       return;
     }
-    void requestCloudCheck();
+    void requestCloudCheck(trigger);
   }, [hydrated, ownerReady, cloudUserId, ownerUserId, checkEpoch, requestCloudCheck]);
 
   useEffect(() => {
     if (!hydrated || !cloudUserId || !syncBaseline || pauseAutoPushRef.current) return;
     if (financialVaultFingerprint(vaultSnapshot) === syncBaseline.fingerprint) return;
-    void requestCloudCheck();
+    void requestCloudCheck("auto_push");
   }, [hydrated, cloudUserId, vaultSnapshot, syncBaseline, requestCloudCheck]);
 
   useEffect(() => {
@@ -581,12 +608,14 @@ export function useBabylonEngine() {
       if (vaultSyncRef.current.kind !== "conflict") {
         pauseAutoPushRef.current = false;
       }
+      cloudCheckTriggerRef.current = "visibility";
       setCheckEpoch((value) => value + 1);
     };
     const onOnline = () => {
       if (vaultSyncRef.current.kind !== "conflict") {
         pauseAutoPushRef.current = false;
       }
+      cloudCheckTriggerRef.current = "online";
       setCheckEpoch((value) => value + 1);
     };
     document.addEventListener("visibilitychange", onWake);
@@ -608,6 +637,7 @@ export function useBabylonEngine() {
       if (!result.ok) {
         emitVaultToast({ tone: "error", message: result.reason, durationMs: 0 });
         setOwnerEpoch((value) => value + 1);
+        cloudCheckTriggerRef.current = "bootstrap";
         setCheckEpoch((value) => value + 1);
         return;
       }
@@ -618,6 +648,7 @@ export function useBabylonEngine() {
       setSyncBaseline(readCloudSyncBaseline());
       setOwnerUserId(userId);
       setOwnerEpoch((value) => value + 1);
+      cloudCheckTriggerRef.current = "bootstrap";
       setCheckEpoch((value) => value + 1);
       emitVaultToast({
         tone: "success",
@@ -639,6 +670,7 @@ export function useBabylonEngine() {
       if (!result.ok) {
         emitVaultToast({ tone: "error", message: result.reason, durationMs: 0 });
         setOwnerEpoch((value) => value + 1);
+        cloudCheckTriggerRef.current = "hydrate";
         setCheckEpoch((value) => value + 1);
         return;
       }
@@ -650,6 +682,7 @@ export function useBabylonEngine() {
       setSyncBaseline(readCloudSyncBaseline());
       setOwnerUserId(userId);
       setOwnerEpoch((value) => value + 1);
+      cloudCheckTriggerRef.current = "hydrate";
       setCheckEpoch((value) => value + 1);
       emitVaultToast({
         tone: "success",
@@ -1622,6 +1655,7 @@ export function useBabylonEngine() {
     clearCloudSyncBaseline();
     setSyncBaseline(null);
     pauseAutoPushRef.current = false;
+    cloudCheckTriggerRef.current = "clear";
     setCheckEpoch((value) => value + 1);
     setIncomes([]);
     setExpenses([]);
@@ -1743,6 +1777,7 @@ export function useBabylonEngine() {
 
     applyVault(next);
     pauseAutoPushRef.current = false;
+    cloudCheckTriggerRef.current = "import";
     setCheckEpoch((value) => value + 1);
     setTributeOpen(false);
     setTributeMode("income");
@@ -2327,7 +2362,7 @@ export function useBabylonEngine() {
     cloudBusy,
     confirmCloudBootstrap,
     confirmCloudHydrate,
-    confirmCloudCheck: requestCloudCheck,
+    confirmCloudCheck,
     compareConflictCopies,
     authOpen,
     setAuthOpen,

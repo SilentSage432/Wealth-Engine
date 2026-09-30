@@ -1,5 +1,28 @@
 # Development Journal
 
+## 2026-09-30 — WE-SYNC-DIAG-005 attribute cloud-sync attempts
+
+### What changed
+- Privacy-safe `[cloud-sync]` console events now name the request trigger, the vault-sync kind before the attempt, whether conflict preservation was on, the attempt id, and whether the attempt is a queued rerun.
+- An `interim_paint` event is emitted only immediately before the existing Syncing view is painted, so one reproduction can name that attempt.
+- Diagnostic only. No financial data, no persistence, no sync semantic change, and no reconciliation. The attempt that painted Syncing in production is still unknown.
+
+### Ownership
+- Diagnostics: `lib/babylon/cloud-sync-check.ts`
+- Trigger call sites: `hooks/useBabylonEngine.ts`
+
+### Validation
+- Diagnostic attribution tests: 13 passed.
+- Cloud-sync check tests: 30 passed.
+- Vault-sync 16, cloud-vault 9, structural-diff UI 10, monthly-plan semantic 12: passed.
+- Full suite: 58 files, 834 tests passed.
+- `tsc --noEmit` passed; eslint on touched TypeScript files clean; production build passed; `git diff --check` clean.
+
+### Not in this tranche
+- No state-machine repair, merge, or choose-local / choose-cloud.
+- No in-app diagnostic surface. No Supabase, SQL, service worker, or financial-domain change.
+- Backup stays v10. Cloud schema stays 6. Intelligence Contract stays v3.
+
 ## 2026-09-29 — WE-PAYCHECK-PLANNER-UI-004 surface paycheck funding path
 
 ### What changed
