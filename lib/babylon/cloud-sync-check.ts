@@ -237,6 +237,34 @@ export function takeOccupiedCloudCheckQueue(input: {
   };
 }
 
+/**
+ * Remember which request is waiting for occupancy.
+ * A later explicit request replaces a queued auto_push so conflict quiesce
+ * cannot discard a steward, visibility, or online check.
+ * Another auto_push does not replace an explicit request.
+ */
+export function rememberQueuedCloudCheck(
+  queued: CloudSyncRequestTrigger | null,
+  incoming: CloudSyncRequestTrigger
+): CloudSyncRequestTrigger {
+  if (queued === null) return incoming;
+  if (queued === "auto_push" && incoming !== "auto_push") return incoming;
+  return queued;
+}
+
+/**
+ * A terminal conflict must not launch the automatic rerun that arrived while
+ * that attempt was occupied. Explicit queued requests still run once.
+ */
+export function shouldLaunchQueuedCloudCheck(input: {
+  queued: CloudSyncRequestTrigger | null;
+  vaultKind: VaultSyncView["kind"];
+}): boolean {
+  if (input.queued === null) return false;
+  if (input.queued === "auto_push" && input.vaultKind === "conflict") return false;
+  return true;
+}
+
 type UiOrCycleRace =
   | { kind: "settled"; result: CycleResult }
   | { kind: "rejected"; error: unknown }

@@ -30,6 +30,8 @@ import {
   CONFLICT_REFRESH_INCOMPLETE_COPY,
   logCloudSyncDiagnostic,
   performCloudSyncCheck,
+  rememberQueuedCloudCheck,
+  shouldLaunchQueuedCloudCheck,
   takeOccupiedCloudCheckQueue,
   type CloudSyncRequestTrigger,
 } from "@/lib/babylon/cloud-sync-check";
@@ -221,7 +223,8 @@ export function useBabylonEngine() {
    * including after human-facing UI timeout. Not the same as cloudBusy.
    */
   const syncingRef = useRef(false);
-  const rerunSyncRef = useRef(false);
+  /** Trigger waiting for occupancy. Null when nothing is queued. */
+  const rerunSyncRef = useRef<CloudSyncRequestTrigger | null>(null);
   /** Monotonic; superseded attempts must not apply React state after UI timeout. */
   const cloudSyncAttemptIdRef = useRef(0);
   /**
@@ -500,13 +503,16 @@ export function useBabylonEngine() {
     // into one queued rerun while occupancy is held (including after UI timeout).
     const occupied = takeOccupiedCloudCheckQueue({
       occupied: syncingRef.current,
-      alreadyQueued: rerunSyncRef.current,
+      alreadyQueued: rerunSyncRef.current !== null,
       trigger,
       currentKind: vaultSyncRef.current.kind,
       activeAttemptId: cloudSyncAttemptIdRef.current,
     });
     if (occupied.handled) {
-      rerunSyncRef.current = occupied.rerunQueued;
+      rerunSyncRef.current = rememberQueuedCloudCheck(
+        rerunSyncRef.current,
+        trigger
+      );
       if (occupied.event) {
         logCloudSyncDiagnostic(occupied.event);
       }
@@ -547,6 +553,8 @@ export function useBabylonEngine() {
         {
           userId,
           setVaultSync: (view) => {
+            // Publish before React renders so a same-turn rerun sees this kind.
+            vaultSyncRef.current = view;
             setConflictRefreshNote(null);
             setVaultSync(view);
           },
@@ -570,8 +578,14 @@ export function useBabylonEngine() {
       syncingRef.current = false;
       cloudBusyRef.current = false;
       setCloudBusy(false);
-      if (rerunSyncRef.current) {
-        rerunSyncRef.current = false;
+      const queued = rerunSyncRef.current;
+      rerunSyncRef.current = null;
+      if (
+        shouldLaunchQueuedCloudCheck({
+          queued,
+          vaultKind: vaultSyncRef.current.kind,
+        })
+      ) {
         void requestCloudCheck("queued_rerun", true);
       }
     }
@@ -598,6 +612,7 @@ export function useBabylonEngine() {
 
   useEffect(() => {
     if (!hydrated || !cloudUserId || !syncBaseline || pauseAutoPushRef.current) return;
+    if (vaultSyncRef.current.kind === "conflict") return;
     if (financialVaultFingerprint(vaultSnapshot) === syncBaseline.fingerprint) return;
     void requestCloudCheck("auto_push");
   }, [hydrated, cloudUserId, vaultSnapshot, syncBaseline, requestCloudCheck]);

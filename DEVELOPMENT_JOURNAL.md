@@ -1,5 +1,28 @@
 # Development Journal
 
+## 2026-09-30 — WE-SYNC-RELIABILITY-006 stop the conflict auto-push loop
+
+### What changed
+- A terminal conflict no longer launches a queued `auto_push`. The queue remembers the request that arrived while a check was occupied, and an explicit request still runs once.
+- The sync view is published on the ref before React renders, so that decision sees `conflict` rather than the interim Syncing kind.
+- The local-dirty effect does not call `auto_push` while that ref is `conflict`.
+- No reconciliation. Backup stays v10. Cloud schema stays 6. Intelligence Contract stays v3.
+
+### Ownership
+- Queue decision: `lib/babylon/cloud-sync-check.ts`
+- Effect and relaunch: `hooks/useBabylonEngine.ts`
+
+### Validation
+- Feedback-loop tests, including the pre-repair counterexample: 10 passed.
+- Diagnostic attribution tests: 13 passed. Cloud-sync check tests: 30 passed.
+- Vault-sync 16, cloud-vault 9, structural-diff UI 10, monthly-plan semantic 12: passed.
+- Full suite: 59 files, 844 tests passed.
+- `tsc --noEmit` passed; eslint on touched TypeScript files clean; production build passed; `git diff --check` clean.
+
+### Not in this tranche
+- No merge, choose-local / choose-cloud, or financial mutation.
+- Diagnostics from WE-SYNC-DIAG-005 stay. No Supabase, SQL, or service-worker change.
+
 ## 2026-09-30 — WE-SYNC-DIAG-005 attribute cloud-sync attempts
 
 ### What changed
