@@ -69,7 +69,7 @@ Infrastructure Layer
 
 **Owns**
 
-- `components/babylon/*` (including the desktop quick-add bar, the phone header, bottom navigation, phone Home, phone Budget, phone Ledger, and phone More, and desktop Overview / Ledger / Financial Guidance)
+- `components/babylon/*` (including the phone header, bottom navigation, phone Home, phone Budget, phone Ledger, and phone More, and desktop Overview / Ledger / Financial Guidance)
 - `components/dashboard/*`
 - `components/modals/*`
 - `components/ui/*`
@@ -129,7 +129,6 @@ This is the heart of Wealth Engine.
 - `lib/babylon/engine.ts` — allocation, variance, affordability, and related pure calculations
 - `types/babylon.ts` — canonical type contracts for ledger and derived models
 - Domain constants that bound system vocabulary (`lib/babylon/constants.ts`)
-- Speed-Tribute quick presets (`lib/babylon/presets.ts`) — chip vocabulary; lucide-react icon components (same system as nav); resolvers map onto canonical kinds
 - Debt freedom / surplus disposition math (`projectDebtFreedom`, `resolveSurplusDisposition` in `lib/babylon/engine.ts`)
 - Read-only Intelligence Contract (`lib/babylon/intelligence-contract.ts`). It composes existing deterministic readings. The current contract is version `2`. Automated validation passed. Production acceptance is pending. Version `1` remains the previously accepted contract. It does not own allocation rules, Attention rules, or persistence. The semantic reference is below.
 - Discreet mask contract (`lib/babylon/discreet.ts`)
@@ -406,7 +405,6 @@ Canonical ownership reference for Wealth Engine:
 | Affordability and income-type totals | `lib/babylon/engine.ts` | Domain |
 | Type contracts | `types/babylon.ts` | Domain |
 | Domain vocabulary / bounds | `lib/babylon/constants.ts` | Domain |
-| Speed-Tribute quick presets | `lib/babylon/presets.ts` | Domain |
 | Debt freedom / surplus disposition math | `lib/babylon/engine.ts` | Domain |
 | Discreet mask contract | `lib/babylon/discreet.ts` | Domain |
 | Vault PIN / WebAuthn gate | `lib/babylon/security.ts`, `components/babylon/security-gate.tsx`, `components/babylon/security-gate.client.tsx` (`ssr: false`), `components/babylon/vault-error-boundary.tsx` | Infrastructure / Presentation |

@@ -78,8 +78,8 @@ A personal ledger that splits income 10% to Wealth Building, 20% to Debt Payoff,
 - [x] WE-SYNC-RELIABILITY-006 stop the conflict auto-push / queued-rerun loop (no reconcile)
 - [x] WE-SYNC-RECONCILIATION-006 reconcile one supported preserved-copy incident (fresh cloud evidence, cloud-first candidate, one CAS, verified readback; not choose-local / choose-cloud). 006A: Reconcile copies waits for an ephemeral steward confirmation that a current device backup was exported. The app does not verify that file.
 - [x] WE-IDENTITY-UX-001 — steward name configuration on management surfaces (sidebar / phone More); primary headers present greeting only
-- [x] WE-VISUAL-ICONS-001 — Quick Add uses lucide-react vector icons (no emoji application icons); behavior unchanged
-- [ ] Speed-Tribute 1-tap commit (presets + bar mount; full amount autofill / zero-modal path still open)
+- [x] WE-VISUAL-ICONS-001 — Quick Add used lucide-react vector icons (no emoji application icons); later removed in WE-UX-CLEANUP-001
+- [x] WE-UX-CLEANUP-001 — desktop Overview Quick Add strip removed. Header Add stays. Add income and add expense stay. No financial, sync, or schema change
 - [x] Plaid observational transaction sync (WE-ATTENTION-002). `20260926_plaid_transaction_sync.sql` is written and not applied from the app. No attention UI
 - [x] Plaid foreground observation sync (WE-ATTENTION-003A). One signed-in request per Item after the list is ready. No webhook, polling, or attention UI. Production stored 339 observations across 5 account ids. Vault stayed revision 4 / schema 5
 - [x] Plaid account identity (WE-ATTENTION-003C). Observational name, mask, type, and subtype from the existing sync payload. `20260927_plaid_accounts.sql` is written and not applied from the app. No balances, interpretation, or attention UI. The temporary foreground probe is removed
@@ -147,7 +147,6 @@ Canonical map: [`ARCHITECTURE.md`](./ARCHITECTURE.md) (layers, dependency rules,
 | Period close / surplus | `hooks/useBabylonEngine.ts` (`closeMonth`, `splitSurplusToDebtWealth`) |
 | Ledger state + persistence | `hooks/useBabylonEngine.ts` |
 | Type contracts | `types/babylon.ts` |
-| Speed-Tribute presets | `lib/babylon/presets.ts` |
 | Cloud relational schema | `supabase/migrations/*` |
 | Supabase browser client | `lib/supabase/client.ts` |
 | Auth session methods | `lib/supabase/auth.ts` |

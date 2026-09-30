@@ -1,5 +1,27 @@
 # Development Journal
 
+## 2026-09-30 — WE-UX-CLEANUP-001 remove Quick Add strip
+
+### What changed
+- Desktop Overview no longer reserves a sticky band under the header for Quick Add shortcuts (Lowe's Paycheck, Groceries, Gas / Transit, Coffee / Treat, Rent / Housing).
+- The header Add action is unchanged. Income and expense recording stay on the existing modal.
+- Phone Home never mounted this strip.
+
+### Ownership
+- Removed presentation: `components/babylon/speed-tribute-bar.tsx`
+- Removed unused preset vocabulary: `lib/babylon/presets.ts`
+- Mount site: `components/babylon/wealth-engine-dashboard.tsx` (desktop sticky header is `CommandBar` only)
+
+### Validation
+- No dedicated Quick Add component test existed. The full suite includes the dashboard source checks.
+- Full suite: 60 files, 889 tests passed.
+- `tsc --noEmit` passed. ESLint on touched TypeScript files clean. Production build passed. `git diff --check` clean.
+
+### Not in this tranche
+- No financial calculation, persistence, sync, Plaid, month close, reconciliation, or notification change.
+- No Supabase, SQL, or schema change.
+- No header redesign.
+
 ## 2026-09-30 — WE-SYNC-RECONCILIATION-006A current backup confirmation
 
 ### What changed

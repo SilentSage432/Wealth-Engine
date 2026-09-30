@@ -21,7 +21,6 @@ import { MonthlyPlanPanel } from "@/components/babylon/monthly-plan-panel";
 import { MobileMore } from "@/components/babylon/mobile-more";
 import { QuickStats } from "@/components/babylon/quick-stats";
 import { SecurityGate } from "@/components/babylon/security-gate.client";
-import { SpeedTributeBar } from "@/components/babylon/speed-tribute-bar";
 import { SpendingPowerFocus } from "@/components/babylon/spending-power-focus";
 import { VaultLoading } from "@/components/babylon/vault-loading";
 import { WisdomBox } from "@/components/babylon/wisdom-box";
@@ -39,7 +38,6 @@ import { usePlaidConnections } from "@/hooks/usePlaidConnections";
 import { useTributeHotkeys } from "@/hooks/useTributeHotkeys";
 import type { MobileDestination } from "@/lib/babylon/constants";
 import { roundMoney } from "@/lib/babylon/engine";
-import type { QuickPreset } from "@/lib/babylon/presets";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
@@ -101,13 +99,6 @@ export function WealthEngineDashboard() {
       !accountEditorOpen &&
       !debtRebaseOpen,
   });
-
-  const handlePresetSelect = useCallback(
-    (preset: QuickPreset) => {
-      openTribute(preset.type === "income" ? "income" : "expense");
-    },
-    [openTribute]
-  );
 
   const monthlyDebtBudget = useMemo(() => {
     const fromAllocations = roundMoney(
@@ -350,22 +341,19 @@ export function WealthEngineDashboard() {
         <div className={cn("min-w-0", desktopLayout && "pl-72")}>
           <div className="sticky top-0 z-30 bg-slate-950">
             {desktopLayout ? (
-              <>
-                <CommandBar
-                  username={engine.username}
-                  monthAlreadyClosed={engine.monthlyCloseSummary.alreadyClosed}
-                  isDiscreetMode={discreet}
-                  plaidLaunching={launching}
-                  plaidInitializing={!hydrated}
-                  onOpenSidebar={() => engine.setSidebarOpen(true)}
-                  onRecordTribute={() => engine.openTribute("income")}
-                  onOpenMonthlyClose={() => engine.setMonthlyCloseOpen(true)}
-                  openMonthMessage={engine.monthCloseAttention?.message ?? null}
-                  onToggleDiscreetMode={engine.toggleDiscreetMode}
-                  onLinkBank={handleLinkBank}
-                />
-                <SpeedTributeBar onSelectPreset={handlePresetSelect} />
-              </>
+              <CommandBar
+                username={engine.username}
+                monthAlreadyClosed={engine.monthlyCloseSummary.alreadyClosed}
+                isDiscreetMode={discreet}
+                plaidLaunching={launching}
+                plaidInitializing={!hydrated}
+                onOpenSidebar={() => engine.setSidebarOpen(true)}
+                onRecordTribute={() => engine.openTribute("income")}
+                onOpenMonthlyClose={() => engine.setMonthlyCloseOpen(true)}
+                openMonthMessage={engine.monthCloseAttention?.message ?? null}
+                onToggleDiscreetMode={engine.toggleDiscreetMode}
+                onLinkBank={handleLinkBank}
+              />
             ) : (
               <MobileHeader
                 username={engine.username}
