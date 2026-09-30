@@ -1,11 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import type { FinancialPositionBalanceObservation } from "@/components/babylon/financial-position";
 import {
   BALANCE_EVIDENCE_UNAVAILABLE_LABEL,
   describeMoneyAvailableEvidence,
+  moneyAvailableEvidenceIsFreshExplanation,
   operationalAccountPosition,
 } from "@/lib/babylon/balance-evidence-load";
 import {
@@ -67,6 +69,15 @@ function formatDueDay(isoDate: string): string {
   });
 }
 
+const HOW_THIS_IS_CALCULATED_LABEL = "How this is calculated";
+
+const HOME_CALCULATION_IDS = [
+  "home-position-hero-calculation",
+  "home-position-set-aside-calculation",
+  "home-position-debt-calculation",
+  "home-aapn-calculation",
+].join(" ");
+
 function SectionLabel({ children }: { children: string }) {
   return (
     <h2 className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
@@ -104,6 +115,20 @@ export function MobileHome({
     restrictedEffectiveTotal,
     deployablePosition,
   });
+  const [calculationOpen, setCalculationOpen] = useState(false);
+  const evidenceInput = {
+    load: balanceObservation?.load,
+    positions: accounts.map((account) =>
+      operationalAccountPosition({
+        account,
+        load: balanceObservation?.load,
+      })
+    ),
+    nowMs: Date.now(),
+  };
+  const evidenceDescription = describeMoneyAvailableEvidence(evidenceInput);
+  const freshEvidenceExplanation =
+    moneyAvailableEvidenceIsFreshExplanation(evidenceInput);
 
   return (
     <div className="space-y-3">
@@ -198,9 +223,6 @@ export function MobileHome({
                       : money(restrictedEffectiveTotal)}
                   </span>
                 </p>
-                <p className="mt-2 text-xs leading-relaxed text-slate-500">
-                  {availableToUseExplain()}
-                </p>
               </>
             ) : (
               <>
@@ -211,27 +233,42 @@ export function MobileHome({
                 >
                   {money(moneyAvailable)}
                 </p>
-                <p className="mt-2 text-xs leading-relaxed text-slate-500">
-                  {LIQUID_POSITION_SCOPE}{" "}
-                  {describeMoneyAvailableEvidence({
-                    load: balanceObservation?.load,
-                    positions: accounts.map((account) =>
-                      operationalAccountPosition({
-                        account,
-                        load: balanceObservation?.load,
-                      })
-                    ),
-                    nowMs: Date.now(),
-                  })}{" "}
-                  Separate from your Living Budget.
-                </p>
               </>
+            )}
+            {freshEvidenceExplanation ? null : (
+              <p className="mt-2 text-xs leading-relaxed text-slate-500">
+                {evidenceDescription}
+              </p>
             )}
             {balanceObservation?.load.status === "unavailable" ? (
               <p className="mt-2 text-xs leading-relaxed text-slate-500">
                 {BALANCE_EVIDENCE_UNAVAILABLE_LABEL}
               </p>
             ) : null}
+            <Button
+              type="button"
+              variant="outline"
+              className="mt-3"
+              aria-expanded={calculationOpen}
+              aria-controls={HOME_CALCULATION_IDS}
+              onClick={() => setCalculationOpen((open) => !open)}
+            >
+              {HOW_THIS_IS_CALCULATED_LABEL}
+            </Button>
+            <div id="home-position-hero-calculation" hidden={!calculationOpen}>
+              {availableToUsePresentation.heroKind === "available-to-use" ? (
+                <p className="mt-2 text-xs leading-relaxed text-slate-500">
+                  {availableToUseExplain()}
+                  {freshEvidenceExplanation ? <> {evidenceDescription}</> : null}
+                </p>
+              ) : (
+                <p className="mt-2 text-xs leading-relaxed text-slate-500">
+                  {LIQUID_POSITION_SCOPE}{" "}
+                  {freshEvidenceExplanation ? <>{evidenceDescription} </> : null}
+                  Separate from your Living Budget.
+                </p>
+              )}
+            </div>
             <div className="mt-4 border-t border-slate-800/80 pt-3">
               <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
                 {ALREADY_SET_ASIDE_LABEL}
@@ -239,9 +276,14 @@ export function MobileHome({
               <p className="mt-1 font-[family-name:var(--font-display)] text-xl font-semibold tabular-nums text-slate-100">
                 {money(protectedMoney)}
               </p>
-              <p className="mt-1 text-xs leading-relaxed text-slate-500">
-                {alreadySetAsideExplain(protectedMoney)}
-              </p>
+              <div
+                id="home-position-set-aside-calculation"
+                hidden={!calculationOpen}
+              >
+                <p className="mt-1 text-xs leading-relaxed text-slate-500">
+                  {alreadySetAsideExplain(protectedMoney)}
+                </p>
+              </div>
               {protectedOverAvailable ? (
                 <p role="alert" className="mt-2 text-xs leading-relaxed text-amber-200">
                   Already-set-aside amounts exceed Liquid Position.
@@ -255,9 +297,11 @@ export function MobileHome({
               <p className="mt-1 font-[family-name:var(--font-display)] text-xl font-semibold tabular-nums text-slate-100">
                 {money(remainingDebt)}
               </p>
-              <p className="mt-1 text-xs leading-relaxed text-slate-500">
-                {recordedDebtExplain(remainingDebt)}
-              </p>
+              <div id="home-position-debt-calculation" hidden={!calculationOpen}>
+                <p className="mt-1 text-xs leading-relaxed text-slate-500">
+                  {recordedDebtExplain(remainingDebt)}
+                </p>
+              </div>
             </div>
             <Button
               type="button"
@@ -278,10 +322,12 @@ export function MobileHome({
             <p className="mt-1 font-[family-name:var(--font-display)] text-4xl font-semibold tracking-tight text-slate-50 tabular-nums">
               {money(availableAfterPlannedNeeds.availableAfterPlannedNeeds)}
             </p>
-            <p className="mt-2 text-xs leading-relaxed text-slate-500">
-              After set-aside purposes and known unpaid Needs. Debt is not
-              subtracted.
-            </p>
+            <div id="home-aapn-calculation" hidden={!calculationOpen}>
+              <p className="mt-2 text-xs leading-relaxed text-slate-500">
+                After set-aside purposes and known unpaid Needs. Debt is not
+                subtracted.
+              </p>
+            </div>
             {shortfall > 0 ? (
               <p className="mt-3 text-xs leading-relaxed text-amber-200">
                 Planned Needs Shortfall{" "}

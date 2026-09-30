@@ -1,5 +1,29 @@
 # Development Journal
 
+## 2026-09-30 — WE-UX-HIERARCHY-001 Financial Position disclosure
+
+### What changed
+- Desktop Financial Position and phone Home keep the financial readings visible and start with supporting explanation closed behind “How this is calculated.”
+- Planned Needs Shortfall, set-aside over Liquid Position, account restriction conflicts, balance-evidence unavailable, and non-fresh evidence captions stay outside that disclosure.
+- A fresh institution-reading caption is the only evidence sentence that starts inside the disclosure.
+- Phone More account management is unchanged: `presentation="manage"` still shows the Already Set Aside explanation without the disclosure.
+- Disclosure state is component state. It is not written to the vault, storage, or the URL.
+
+### Ownership
+- Evidence placement: `moneyAvailableEvidenceIsFreshExplanation` in `lib/babylon/balance-evidence-load.ts`. Caption strings are unchanged.
+- Desktop disclosure: `components/babylon/financial-position.tsx`
+- Phone Home disclosure: `components/babylon/mobile-home.tsx`
+
+### Validation
+- Disclosure tests: `lib/babylon/financial-position-disclosure.test.ts`, 15 passed.
+- Those tests plus financial-position composition, mobile-home, and allocation-execution-copy: 4 files, 66 passed.
+- Full suite: 61 files, 904 tests passed.
+- `tsc --noEmit` passed. ESLint on touched TypeScript files clean. Production build passed. `git diff --check` clean.
+
+### Not in this tranche
+- No account-row collapse, Upcoming Needs collapse, Living Budget, triad, banks, debt planner, monthly plan, charts, or cloud maintenance change.
+- No calculation, sync, Plaid, month-close, persistence, or schema change.
+
 ## 2026-09-30 — WE-UX-CLEANUP-001 remove Quick Add strip
 
 ### What changed

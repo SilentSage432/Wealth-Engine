@@ -41,6 +41,7 @@ import {
   BALANCE_EVIDENCE_UNAVAILABLE_LABEL,
   describeAccountEvidenceLine,
   describeMoneyAvailableEvidence,
+  moneyAvailableEvidenceIsFreshExplanation,
   operationalAccountPosition,
   presentAccountObservation,
   type BalanceObservationLoad,
@@ -160,6 +161,16 @@ interface FinancialPositionProps {
   /** Present when the signed-in steward can see cached bank balances. */
   balanceObservation?: FinancialPositionBalanceObservation;
 }
+
+const HOW_THIS_IS_CALCULATED_LABEL = "How this is calculated";
+
+const FINANCIAL_POSITION_CALCULATION_IDS = [
+  "financial-position-hero-calculation",
+  "financial-position-set-aside-calculation",
+  "financial-position-aapn-derivation",
+  "financial-position-aapn-calculation",
+  "financial-position-debt-calculation",
+].join(" ");
 
 const EMPTY_DRAFT = {
   name: "",
@@ -364,6 +375,7 @@ export function FinancialPosition({
   const [emergencyDraft, setEmergencyDraft] = useState("");
   const [protectedError, setProtectedError] = useState<string | null>(null);
   const [purposeError, setPurposeError] = useState<string | null>(null);
+  const [calculationOpen, setCalculationOpen] = useState(false);
   const [reconcile, setReconcile] = useState<{
     accountId: string;
     purpose: FinancialAccountPurpose;
@@ -707,6 +719,20 @@ export function FinancialPosition({
       }).source === "observed"
     : false;
 
+  const evidenceInput = {
+    load: balanceObservation?.load,
+    positions: accounts.map((account) =>
+      operationalAccountPosition({
+        account,
+        load: balanceObservation?.load,
+      })
+    ),
+    nowMs: Date.now(),
+  };
+  const evidenceDescription = describeMoneyAvailableEvidence(evidenceInput);
+  const freshEvidenceExplanation =
+    moneyAvailableEvidenceIsFreshExplanation(evidenceInput);
+
   return (
     <section aria-label="Financial Position" className="animate-fade-up">
       <Card className="border-slate-800/80">
@@ -749,23 +775,6 @@ export function FinancialPosition({
                       </dd>
                     </div>
                   </dl>
-                  <p className="mt-2 max-w-xl text-xs leading-relaxed text-slate-500">
-                    {availableToUseExplain()}
-                  </p>
-                  <p className="mt-1 max-w-xl text-xs leading-relaxed text-slate-500">
-                    {unavailableExplain(restrictedEffectiveTotal)}{" "}
-                    {describeMoneyAvailableEvidence({
-                      load: balanceObservation?.load,
-                      positions: accounts.map((account) =>
-                        operationalAccountPosition({
-                          account,
-                          load: balanceObservation?.load,
-                        })
-                      ),
-                      nowMs: Date.now(),
-                    })}{" "}
-                    Separate from your Living Budget.
-                  </p>
                 </>
               ) : (
                 <>
@@ -778,27 +787,49 @@ export function FinancialPosition({
                   <p className="mt-1 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight text-slate-50 tabular-nums sm:text-4xl">
                     {money(moneyAvailable)}
                   </p>
-                  <p className="mt-2 max-w-xl text-xs leading-relaxed text-slate-500">
-                    {LIQUID_POSITION_SCOPE}{" "}
-                    {describeMoneyAvailableEvidence({
-                      load: balanceObservation?.load,
-                      positions: accounts.map((account) =>
-                        operationalAccountPosition({
-                          account,
-                          load: balanceObservation?.load,
-                        })
-                      ),
-                      nowMs: Date.now(),
-                    })}{" "}
-                    Separate from your Living Budget.
-                  </p>
                 </>
+              )}
+              {freshEvidenceExplanation ? null : (
+                <p className="mt-2 max-w-xl text-xs leading-relaxed text-slate-500">
+                  {evidenceDescription}
+                </p>
               )}
               {balanceObservation?.load.status === "unavailable" ? (
                 <p className="mt-2 text-xs leading-relaxed text-slate-500">
                   {BALANCE_EVIDENCE_UNAVAILABLE_LABEL}
                 </p>
               ) : null}
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="mt-3"
+                aria-expanded={calculationOpen}
+                aria-controls={FINANCIAL_POSITION_CALCULATION_IDS}
+                onClick={() => setCalculationOpen((open) => !open)}
+              >
+                {HOW_THIS_IS_CALCULATED_LABEL}
+              </Button>
+              <div id="financial-position-hero-calculation" hidden={!calculationOpen}>
+                {availableToUsePresentation.heroKind === "available-to-use" ? (
+                  <>
+                    <p className="mt-2 max-w-xl text-xs leading-relaxed text-slate-500">
+                      {availableToUseExplain()}
+                    </p>
+                    <p className="mt-1 max-w-xl text-xs leading-relaxed text-slate-500">
+                      {unavailableExplain(restrictedEffectiveTotal)}
+                      {freshEvidenceExplanation ? <> {evidenceDescription}</> : null}{" "}
+                      Separate from your Living Budget.
+                    </p>
+                  </>
+                ) : (
+                  <p className="mt-2 max-w-xl text-xs leading-relaxed text-slate-500">
+                    {LIQUID_POSITION_SCOPE}{" "}
+                    {freshEvidenceExplanation ? <>{evidenceDescription} </> : null}
+                    Separate from your Living Budget.
+                  </p>
+                )}
+              </div>
             </div>
             <Button type="button" size="sm" onClick={openAdd}>
               <Plus className="h-3.5 w-3.5" aria-hidden="true" />
@@ -847,9 +878,20 @@ export function FinancialPosition({
                 {CURRENTLY_POSITIONED_HINT}
               </p>
             ) : null}
-            <p className="mt-1 text-xs leading-relaxed text-slate-500">
-              {alreadySetAsideExplain(protectedMoney)}
-            </p>
+            {presentation === "full" ? (
+              <div
+                id="financial-position-set-aside-calculation"
+                hidden={!calculationOpen}
+              >
+                <p className="mt-1 text-xs leading-relaxed text-slate-500">
+                  {alreadySetAsideExplain(protectedMoney)}
+                </p>
+              </div>
+            ) : (
+              <p className="mt-1 text-xs leading-relaxed text-slate-500">
+                {alreadySetAsideExplain(protectedMoney)}
+              </p>
+            )}
             {purposeError ? (
               <p role="alert" className="mt-2 text-xs leading-relaxed text-amber-200">
                 {purposeError}
@@ -871,35 +913,48 @@ export function FinancialPosition({
             <p className="mt-1 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight text-slate-50 tabular-nums sm:text-4xl">
               {money(availableAfterPlannedNeeds.availableAfterPlannedNeeds)}
             </p>
-            <dl className="mt-3 space-y-1 text-xs text-slate-400">
-              {availableToUsePresentation.showAvailableToUse ? (
-                <div className="flex items-baseline justify-between gap-3">
-                  <dt>{AVAILABLE_TO_USE_LABEL}</dt>
-                  <dd className="tabular-nums text-slate-200">
-                    {money(availableToUsePresentation.availableToUse)}
-                  </dd>
-                </div>
-              ) : (
-                <div className="flex items-baseline justify-between gap-3">
-                  <dt>{LIQUID_POSITION_LABEL}</dt>
-                  <dd className="tabular-nums text-slate-200">
-                    {money(moneyAvailable)}
-                  </dd>
-                </div>
-              )}
-              <div className="flex items-baseline justify-between gap-3">
-                <dt>{ALREADY_SET_ASIDE_LABEL}</dt>
-                <dd className="tabular-nums text-slate-200">
-                  {money(protectedMoney)}
-                </dd>
-              </div>
-              <div className="flex items-baseline justify-between gap-3">
-                <dt>{UPCOMING_NEEDS_LABEL}</dt>
-                <dd className="tabular-nums text-slate-200">
+            {calculationOpen ? null : (
+              <div className="mt-3 flex items-baseline justify-between gap-3 text-xs text-slate-400">
+                <span>{UPCOMING_NEEDS_LABEL}</span>
+                <span className="tabular-nums text-slate-200">
                   {money(upcomingNeeds)}
-                </dd>
+                </span>
               </div>
-            </dl>
+            )}
+            <div
+              id="financial-position-aapn-derivation"
+              hidden={!calculationOpen}
+            >
+              <dl className="mt-3 space-y-1 text-xs text-slate-400">
+                {availableToUsePresentation.showAvailableToUse ? (
+                  <div className="flex items-baseline justify-between gap-3">
+                    <dt>{AVAILABLE_TO_USE_LABEL}</dt>
+                    <dd className="tabular-nums text-slate-200">
+                      {money(availableToUsePresentation.availableToUse)}
+                    </dd>
+                  </div>
+                ) : (
+                  <div className="flex items-baseline justify-between gap-3">
+                    <dt>{LIQUID_POSITION_LABEL}</dt>
+                    <dd className="tabular-nums text-slate-200">
+                      {money(moneyAvailable)}
+                    </dd>
+                  </div>
+                )}
+                <div className="flex items-baseline justify-between gap-3">
+                  <dt>{ALREADY_SET_ASIDE_LABEL}</dt>
+                  <dd className="tabular-nums text-slate-200">
+                    {money(protectedMoney)}
+                  </dd>
+                </div>
+                <div className="flex items-baseline justify-between gap-3">
+                  <dt>{UPCOMING_NEEDS_LABEL}</dt>
+                  <dd className="tabular-nums text-slate-200">
+                    {money(upcomingNeeds)}
+                  </dd>
+                </div>
+              </dl>
+            </div>
             {availableAfterPlannedNeeds.plannedNeedsShortfall > 0 ? (
               <p className="mt-3 text-xs leading-relaxed text-amber-200">
                 Planned Needs Shortfall{" "}
@@ -909,14 +964,19 @@ export function FinancialPosition({
                 {plannedNeedsShortfallExplain()}
               </p>
             ) : null}
-            <p className="mt-3 text-xs leading-relaxed text-slate-500">
-              {availableAfterPlannedNeedsExplain()}
-            </p>
-            <p className="mt-1 text-xs leading-relaxed text-slate-500">
-              Liquid Position uses an observed eligible balance when Wealth
-              Engine has one, and the balance you entered otherwise. It does
-              not explain why a balance changed.
-            </p>
+            <div
+              id="financial-position-aapn-calculation"
+              hidden={!calculationOpen}
+            >
+              <p className="mt-3 text-xs leading-relaxed text-slate-500">
+                {availableAfterPlannedNeedsExplain()}
+              </p>
+              <p className="mt-1 text-xs leading-relaxed text-slate-500">
+                Liquid Position uses an observed eligible balance when Wealth
+                Engine has one, and the balance you entered otherwise. It does
+                not explain why a balance changed.
+              </p>
+            </div>
           </div>
           ) : null}
 
@@ -930,9 +990,11 @@ export function FinancialPosition({
               <p className="mt-1 font-[family-name:var(--font-display)] text-xl font-semibold tabular-nums text-slate-100">
                 {money(remainingDebt)}
               </p>
-              <p className="mt-2 text-xs leading-relaxed text-slate-500">
-                {recordedDebtExplain(remainingDebt)}
-              </p>
+              <div id="financial-position-debt-calculation" hidden={!calculationOpen}>
+                <p className="mt-2 text-xs leading-relaxed text-slate-500">
+                  {recordedDebtExplain(remainingDebt)}
+                </p>
+              </div>
             </div>
           ) : null}
         </CardContent>

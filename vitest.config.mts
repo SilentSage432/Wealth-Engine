@@ -5,6 +5,9 @@ import { defineConfig } from "vitest/config";
 const root = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
+  oxc: {
+    jsx: "react-jsx",
+  },
   test: {
     environment: "node",
     include: ["lib/**/*.test.ts"],

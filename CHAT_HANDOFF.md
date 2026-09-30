@@ -6,6 +6,8 @@
 **Architecture map:** [`ARCHITECTURE.md`](./ARCHITECTURE.md) — layers, dependency rules, canonical ownership matrix.
 
 ## Current state
+WE-UX-HIERARCHY-001 closes supporting Financial Position explanation by default on desktop Overview and phone Home. The readings stay visible. “How this is calculated” is local presentation state and starts closed. Planned Needs Shortfall, set-aside over position, restriction conflicts, unavailable balance evidence, and aged, cached, loading, or declared evidence stay visible. A fresh institution caption starts inside the disclosure. Phone More still uses `presentation="manage"` with the set-aside explanation visible. No calculation, sync, Plaid, month-close, or schema change.
+
 WE-UX-CLEANUP-001 removes the desktop Overview Quick Add strip. After the header, Overview content starts with the primary financial composition. The orange header Add action is unchanged and still opens the existing record flow. Phone Home never mounted that strip. No financial, sync, Plaid, month-close, or schema change.
 
 WE-SYNC-RECONCILIATION-006A requires the steward to confirm they exported a current backup of this device before Reconcile copies enables. That checkbox is dialog state only. The app does not verify an exported file. The session conflict fingerprint remains a current-session mutation guard. Backup format stays v10. Cloud schema 6. IC v3.

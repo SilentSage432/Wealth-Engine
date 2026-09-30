@@ -202,6 +202,49 @@ export function describeAccountEvidenceLine(input: {
   return `Institution balance from ${when}`;
 }
 
+type MoneyAvailableEvidenceKind =
+  | "resolving"
+  | "disabled"
+  | "unavailable"
+  | "declared"
+  | "cached"
+  | "fresh"
+  | "aged"
+  | "includes-aged"
+  | "mixed-cached-and-fresh";
+
+/**
+ * Same branches as the Money Available caption.
+ * Only an all-fresh institution reading is educational provenance.
+ * Loading, declared, cached, aged, mixed, and unavailable captions stay with the headline.
+ */
+function moneyAvailableEvidenceKind(input: {
+  load: BalanceObservationLoad | undefined;
+  positions: readonly EffectiveAccountPosition[];
+  nowMs: number;
+}): MoneyAvailableEvidenceKind {
+  if (!input.load || input.load.status === "loading") return "resolving";
+  if (input.load.status === "disabled") return "disabled";
+  if (input.load.status === "unavailable" && input.load.evidence === null) {
+    return "unavailable";
+  }
+  const observed = input.positions.filter((position) => position.source === "observed");
+  if (observed.length === 0) return "declared";
+  const kinds = new Set(
+    observed.map((position) => {
+      if (position.observationSource === "accounts_get") return "cached" as const;
+      return realtimeBalanceAge(position.observedAt, input.nowMs) === "fresh"
+        ? ("fresh" as const)
+        : ("aged" as const);
+    })
+  );
+  if (kinds.size === 1 && kinds.has("cached")) return "cached";
+  if (kinds.size === 1 && kinds.has("fresh")) return "fresh";
+  if (kinds.size === 1 && kinds.has("aged")) return "aged";
+  if (kinds.has("aged")) return "includes-aged";
+  return "mixed-cached-and-fresh";
+}
+
 /**
  * Money Available caption.
  * Loading may show the declaration, and it says so.
@@ -211,38 +254,38 @@ export function describeMoneyAvailableEvidence(input: {
   positions: readonly EffectiveAccountPosition[];
   nowMs: number;
 }): string {
-  if (!input.load || input.load.status === "loading") {
-    return "Declared balance, while evidence resolves.";
+  switch (moneyAvailableEvidenceKind(input)) {
+    case "resolving":
+      return "Declared balance, while evidence resolves.";
+    case "disabled":
+      return "Declared balances.";
+    case "unavailable":
+      return "Declared balance. Stored balance evidence is unavailable.";
+    case "declared":
+      return "Declared balances.";
+    case "cached":
+      return "Cached Plaid balance where an eligible reading exists. Declared balances otherwise.";
+    case "fresh":
+      return "Institution-refreshed balance where an eligible reading exists. Declared balances otherwise.";
+    case "aged":
+      return "Earlier institution balance where an eligible reading exists. Declared balances otherwise.";
+    case "includes-aged":
+      return "This figure includes an earlier institution balance.";
+    case "mixed-cached-and-fresh":
+      return "Cached Plaid balance and an institution-refreshed balance are both in this figure.";
   }
-  if (input.load.status === "disabled") {
-    return "Declared balances.";
-  }
-  if (input.load.status === "unavailable" && input.load.evidence === null) {
-    return "Declared balance. Stored balance evidence is unavailable.";
-  }
-  const observed = input.positions.filter((position) => position.source === "observed");
-  if (observed.length === 0) {
-    return "Declared balances.";
-  }
-  const kinds = new Set(
-    observed.map((position) => {
-      if (position.observationSource === "accounts_get") return "cached" as const;
-      return realtimeBalanceAge(position.observedAt, input.nowMs) === "fresh"
-        ? ("fresh" as const)
-        : ("aged" as const);
-    })
-  );
-  if (kinds.size === 1 && kinds.has("cached")) {
-    return "Cached Plaid balance where an eligible reading exists. Declared balances otherwise.";
-  }
-  if (kinds.size === 1 && kinds.has("fresh")) {
-    return "Institution-refreshed balance where an eligible reading exists. Declared balances otherwise.";
-  }
-  if (kinds.size === 1 && kinds.has("aged")) {
-    return "Earlier institution balance where an eligible reading exists. Declared balances otherwise.";
-  }
-  if (kinds.has("aged")) return "This figure includes an earlier institution balance.";
-  return "Cached Plaid balance and an institution-refreshed balance are both in this figure.";
+}
+
+/**
+ * True only for the all-fresh institution caption.
+ * Presentation uses this to leave that sentence inside "How this is calculated".
+ */
+export function moneyAvailableEvidenceIsFreshExplanation(input: {
+  load: BalanceObservationLoad | undefined;
+  positions: readonly EffectiveAccountPosition[];
+  nowMs: number;
+}): boolean {
+  return moneyAvailableEvidenceKind(input) === "fresh";
 }
 
 /** Operational Money Available. Declarations until usable evidence exists. */
