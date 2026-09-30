@@ -25,6 +25,7 @@ interface AppSidebarProps {
   isCloudSynced: boolean;
   vaultSync: VaultSyncView;
   cloudBusy?: boolean;
+  conflictRefreshNote?: string | null;
   cloudUsername: string;
   onConnectCloud: () => void;
   onSignOutCloud: () => void | Promise<boolean>;
@@ -47,6 +48,7 @@ export function AppSidebar({
   isCloudSynced,
   vaultSync,
   cloudBusy = false,
+  conflictRefreshNote = null,
   cloudUsername,
   onConnectCloud,
   onSignOutCloud,
@@ -117,6 +119,7 @@ export function AppSidebar({
           isCloudSynced={isCloudSynced}
           vaultSync={vaultSync}
           cloudBusy={cloudBusy}
+          conflictRefreshNote={conflictRefreshNote}
           cloudUsername={cloudUsername}
           onConnectCloud={onConnectCloud}
           onSignOutCloud={onSignOutCloud}

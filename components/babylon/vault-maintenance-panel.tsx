@@ -30,6 +30,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { wealthEngineBuildLabel } from "@/lib/babylon/build-identity";
 import {
   BOOTSTRAP_CONFIRM,
   HYDRATE_CONFIRM,
@@ -57,6 +58,7 @@ interface VaultMaintenancePanelProps {
   isCloudSynced: boolean;
   vaultSync: VaultSyncView;
   cloudBusy?: boolean;
+  conflictRefreshNote?: string | null;
   cloudUsername: string;
   onConnectCloud: () => void;
   onSignOutCloud: () => void | Promise<boolean>;
@@ -70,6 +72,7 @@ interface VaultCloudSessionProps {
   isCloudSynced: boolean;
   vaultSync: VaultSyncView;
   cloudBusy?: boolean;
+  conflictRefreshNote?: string | null;
   cloudUsername: string;
   onConnectCloud: () => void;
   onSignOutCloud: () => void | Promise<boolean>;
@@ -100,6 +103,7 @@ export function VaultMaintenancePanel({
   isCloudSynced,
   vaultSync,
   cloudBusy = false,
+  conflictRefreshNote = null,
   cloudUsername,
   onConnectCloud,
   onSignOutCloud,
@@ -114,6 +118,7 @@ export function VaultMaintenancePanel({
         isCloudSynced={isCloudSynced}
         vaultSync={vaultSync}
         cloudBusy={cloudBusy}
+        conflictRefreshNote={conflictRefreshNote}
         cloudUsername={cloudUsername}
         onConnectCloud={onConnectCloud}
         onSignOutCloud={onSignOutCloud}
@@ -403,6 +408,7 @@ export function VaultCloudSession({
   isCloudSynced,
   vaultSync,
   cloudBusy = false,
+  conflictRefreshNote = null,
   cloudUsername,
   onConnectCloud,
   onSignOutCloud,
@@ -440,6 +446,16 @@ export function VaultCloudSession({
             {vaultSyncCopy(vaultSync).detail && (
               <p className="mt-1 text-[11px] leading-snug text-slate-400">
                 {vaultSyncCopy(vaultSync).detail}
+              </p>
+            )}
+            {vaultSync.kind === "conflict" && cloudBusy && (
+              <p className="mt-1 text-[11px] leading-snug text-slate-400">
+                Checking whether this conflict is still current…
+              </p>
+            )}
+            {vaultSync.kind === "conflict" && conflictRefreshNote && (
+              <p className="mt-1 text-[11px] leading-snug text-amber-300/90">
+                {conflictRefreshNote}
               </p>
             )}
           </div>
@@ -498,6 +514,7 @@ export function VaultCloudSession({
             </AlertDialog>
           )}
           {vaultSync.kind === "conflict" && onCompareConflictCopies && (
+            // Recheck stays a separate read. Compare copies remains available.
             <ConflictCopyCompare
               vaultSync={vaultSync}
               onCompare={onCompareConflictCopies}
@@ -538,6 +555,7 @@ export function VaultCloudSession({
             )}
             Sign Out
           </Button>
+          <p className="text-[10px] text-slate-500">{wealthEngineBuildLabel()}</p>
         </div>
       ) : (
         <Button

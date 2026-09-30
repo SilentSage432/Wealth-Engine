@@ -332,6 +332,7 @@ export function WealthEngineDashboard() {
             isCloudSynced={engine.isCloudSynced}
             vaultSync={engine.vaultSync}
             cloudBusy={engine.cloudBusy}
+            conflictRefreshNote={engine.conflictRefreshNote}
             cloudUsername={engine.greetingName}
             onConnectCloud={() => engine.setAuthOpen(true)}
             onSignOutCloud={engine.signOutCloud}
@@ -481,6 +482,7 @@ export function WealthEngineDashboard() {
                 onClearAllData={engine.clearAllData}
                 vaultSync={engine.vaultSync}
                 cloudBusy={engine.cloudBusy}
+                conflictRefreshNote={engine.conflictRefreshNote}
                 cloudUsername={engine.greetingName}
                 onConnectCloud={() => engine.setAuthOpen(true)}
                 onSignOutCloud={engine.signOutCloud}

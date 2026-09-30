@@ -847,6 +847,23 @@
 - No webhook, polling, cron, attention UI, or automatic income, bill, or balance changes.
 - WE-SYNC-004 and `vault_data` are unchanged.
 
+## 2026-09-30 — WE-SYNC-RELIABILITY-004 preserve conflict during recheck
+
+### What changed
+- A cloud recheck that starts from `vaultSync.kind === "conflict"` leaves that conflict on screen. Compare copies stays available. `cloudBusy` marks the recheck.
+- The 25-second deadline is armed before any new Syncing title is painted. Timeout and a rejected read do not replace a known conflict with `cloud_unavailable`.
+- Data & Cloud shows a build label from `VERCEL_GIT_COMMIT_SHA` when present, otherwise `Build: unavailable`. It is not stored or fingerprinted.
+- Reconciliation is not part of this change.
+
+### Ownership
+- Check orchestration: `lib/babylon/cloud-sync-check.ts`
+- Hook: `hooks/useBabylonEngine.ts` (`requestCloudCheck`)
+- Label: `lib/babylon/build-identity.ts`
+
+### Not in this tranche
+- No merge, CAS reconciliation, or choose-local / choose-cloud.
+- No service-worker or timer-suspension workaround.
+
 ## 2026-09-29 — WE-SYNC-CONFLICT-004 monthly-plan semantic evidence
 
 ### What changed

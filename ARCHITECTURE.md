@@ -428,6 +428,8 @@ Canonical ownership reference for Wealth Engine:
 | Explicit cloud setup | `lib/babylon/cloud-setup.ts` | Application |
 | Revision sync | `lib/babylon/vault-sync.ts` | Application |
 | Bounded cloud check (UI timeout / single-flight occupancy) | `lib/babylon/cloud-sync-check.ts` | Application |
+| Conflict refresh keeps the known conflict on screen | `lib/babylon/cloud-sync-check.ts` | Application |
+| Data & Cloud build label | `lib/babylon/build-identity.ts` | Presentation |
 | Read-only conflict structural comparison | `lib/babylon/vault-structural-diff.ts` | Domain |
 | Monthly-plan conflict intent evidence | `lib/babylon/monthly-plan-semantic.ts` | Domain |
 | Cloud owner binding | `lib/babylon/cloud-owner.ts` | Persistence |

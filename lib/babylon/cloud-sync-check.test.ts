@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { EMPTY_STATE } from "@/lib/babylon/constants";
 import {
@@ -852,5 +853,264 @@ describe("cloud sync check orchestration", () => {
     );
     await vi.advanceTimersByTimeAsync(15);
     await rejection;
+  });
+});
+
+describe("conflict recheck preservation", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  const conflictView = {
+    kind: "conflict" as const,
+    baselineRevision: 29,
+    cloudRevision: 39,
+  };
+
+  function input(
+    runCycle: () => Promise<CycleResult>,
+    timeoutMs = 50
+  ) {
+    return {
+      attemptId: 1,
+      isSuperseded: () => false,
+      supersedeInFlightAttempts: () => {},
+      readActiveAttemptId: () => 1,
+      readBaseline: () => ({
+        revision: 29,
+        fingerprint: financialVaultFingerprint(local(20)),
+      }),
+      readFingerprint: () => financialVaultFingerprint(local(30)),
+      runCycle,
+      timeoutMs,
+      preserveEstablishedConflict: true,
+    };
+  }
+
+  it("A–B: recheck start does not paint syncing or drop conflict", async () => {
+    const views: string[] = [];
+    let resolveCycle!: (value: CycleResult) => void;
+    const check = performCloudSyncCheck(
+      input(
+        () =>
+          new Promise<CycleResult>((resolve) => {
+            resolveCycle = resolve;
+          })
+      ),
+      {
+        userId: OWNER,
+        setVaultSync: (view) => views.push(view.kind),
+        setSyncBaseline: () => {},
+        setOwnerUserId: () => {},
+        applyVault: () => {},
+        onPauseAutoPush: () => {},
+      }
+    );
+    await Promise.resolve();
+    expect(views).not.toContain("syncing");
+    expect(views).not.toContain("cloud_unavailable");
+    resolveCycle({
+      ...cleanOutcome(39),
+      view: conflictView,
+    });
+    await check;
+  });
+
+  it("C: same conflict result stays a conflict terminal view", async () => {
+    const views: VaultSyncView[] = [];
+    const result = await performCloudSyncCheck(
+      input(async () => ({
+        ...cleanOutcome(39),
+        view: conflictView,
+      })),
+      {
+        userId: OWNER,
+        setVaultSync: (view) => views.push(view),
+        setSyncBaseline: () => {},
+        setOwnerUserId: () => {},
+        applyVault: () => {},
+        onPauseAutoPush: () => {},
+      }
+    );
+    expect(result).toEqual({ status: "completed", terminalKind: "conflict" });
+    expect(views).toEqual([conflictView]);
+  });
+
+  it("D: a different terminal view is applied only from the settled result", async () => {
+    const views: string[] = [];
+    const result = await performCloudSyncCheck(
+      input(async () => cleanOutcome(40)),
+      {
+        userId: OWNER,
+        setVaultSync: (view) => views.push(view.kind),
+        setSyncBaseline: () => {},
+        setOwnerUserId: () => {},
+        applyVault: () => {},
+        onPauseAutoPush: () => {},
+      }
+    );
+    expect(views).toEqual(["clean"]);
+    expect(result.status).toBe("completed");
+  });
+
+  it("E: UI timeout keeps the known conflict and does not return early", async () => {
+    vi.useFakeTimers();
+    const views: string[] = [];
+    let failed = 0;
+    let resolveCycle!: (value: CycleResult) => void;
+    let returned = false;
+    const check = performCloudSyncCheck(
+      input(
+        () =>
+          new Promise<CycleResult>((resolve) => {
+            resolveCycle = resolve;
+          })
+      ),
+      {
+        userId: OWNER,
+        setVaultSync: (view) => views.push(view.kind),
+        setSyncBaseline: () => {},
+        setOwnerUserId: () => {},
+        applyVault: () => {},
+        onPauseAutoPush: () => {},
+        onConflictRefreshFailed: () => {
+          failed += 1;
+        },
+      }
+    ).then((result) => {
+      returned = true;
+      return result;
+    });
+
+    await vi.advanceTimersByTimeAsync(50);
+    await Promise.resolve();
+    expect(failed).toBe(1);
+    expect(views).not.toContain("syncing");
+    expect(views).not.toContain("cloud_unavailable");
+    expect(returned).toBe(false);
+
+    resolveCycle(cleanOutcome(40));
+    const result = await check;
+    expect(result.status).toBe("timeout");
+    expect(views).not.toContain("clean");
+  });
+
+  it("F: a rejected read keeps the known conflict", async () => {
+    const views: string[] = [];
+    let failed = 0;
+    const result = await performCloudSyncCheck(
+      input(async () => {
+        throw new Error("read failed");
+      }),
+      {
+        userId: OWNER,
+        setVaultSync: (view) => views.push(view.kind),
+        setSyncBaseline: () => {},
+        setOwnerUserId: () => {},
+        applyVault: () => {},
+        onPauseAutoPush: () => {},
+        onConflictRefreshFailed: () => {
+          failed += 1;
+        },
+      }
+    );
+    expect(result.status).toBe("exception");
+    expect(failed).toBe(1);
+    expect(views).toEqual([]);
+  });
+
+  it("G: a delayed deadline does not clear conflict before a terminal result", async () => {
+    const views: string[] = [];
+    let resolveCycle!: (value: CycleResult) => void;
+    const check = performCloudSyncCheck(
+      input(
+        () =>
+          new Promise<CycleResult>((resolve) => {
+            resolveCycle = resolve;
+          }),
+        60_000
+      ),
+      {
+        userId: OWNER,
+        setVaultSync: (view) => views.push(view.kind),
+        setSyncBaseline: () => {},
+        setOwnerUserId: () => {},
+        applyVault: () => {},
+        onPauseAutoPush: () => {},
+      }
+    );
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(views).toEqual([]);
+    resolveCycle({ ...cleanOutcome(39), view: conflictView });
+    await check;
+    expect(views).toEqual(["conflict"]);
+  });
+
+  it("arms the deadline before a new syncing view is painted", async () => {
+    let armed = false;
+    const original = globalThis.setTimeout;
+    const spy = vi.spyOn(globalThis, "setTimeout").mockImplementation(((
+      handler: TimerHandler,
+      ms?: number,
+      ...args: unknown[]
+    ) => {
+      if (ms === 40) armed = true;
+      return original(handler, ms, ...(args as []));
+    }) as typeof setTimeout);
+
+    let paintedAfterArm = false;
+    await performCloudSyncCheck(
+      {
+        attemptId: 1,
+        isSuperseded: () => false,
+        supersedeInFlightAttempts: () => {},
+        readActiveAttemptId: () => 1,
+        readBaseline: () => ({
+          revision: 2,
+          fingerprint: financialVaultFingerprint(local(20)),
+        }),
+        readFingerprint: () => financialVaultFingerprint(local(30)),
+        runCycle: async () => cleanOutcome(3),
+        timeoutMs: 40,
+      },
+      {
+        userId: OWNER,
+        setVaultSync: (view) => {
+          if (view.kind === "syncing") paintedAfterArm = armed;
+        },
+        setSyncBaseline: () => {},
+        setOwnerUserId: () => {},
+        applyVault: () => {},
+        onPauseAutoPush: () => {},
+      }
+    );
+    spy.mockRestore();
+    expect(paintedAfterArm).toBe(true);
+  });
+});
+
+describe("conflict recheck wiring", () => {
+  it("keeps auto-push paused and Compare copies on the conflict view", () => {
+    const hook = readFileSync("hooks/useBabylonEngine.ts", "utf8");
+    const panel = readFileSync(
+      "components/babylon/vault-maintenance-panel.tsx",
+      "utf8"
+    );
+    const block = hook.slice(
+      hook.indexOf("const requestCloudCheck"),
+      hook.indexOf("const confirmCloudBootstrap")
+    );
+    expect(block).toContain("preserveEstablishedConflict: establishedConflict");
+    expect(block).toContain("pauseAutoPushRef.current = true");
+    expect(hook).toContain('vaultSyncRef.current.kind !== "conflict"');
+    expect(panel).toContain('vaultSync.kind === "conflict" && onCompareConflictCopies');
+    expect(panel).not.toContain(
+      'vaultSync.kind === "conflict" && !cloudBusy && onCompareConflictCopies'
+    );
+    expect(panel).toContain("Checking whether this conflict is still current…");
+    expect(panel).toContain("{conflictRefreshNote}");
+    expect(panel).not.toContain("Reconcile preserved copies");
   });
 });

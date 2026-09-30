@@ -73,6 +73,7 @@ A personal ledger that splits income 10% to Wealth Building, 20% to Debt Payoff,
 - [ ] WE-SYNC-005 choose cloud or this device after a conflict, with a backup first
 - [x] WE-SYNC-CONFLICT-002 read-only structural conflict comparison (Layer-1 counts; fresh cloud SELECT; no resolve/merge)
 - [x] WE-SYNC-CONFLICT-004 monthly-plan Layer-2 evidence (civil month + planning intent; read-only; does not resolve)
+- [x] WE-SYNC-RELIABILITY-004 keep a known conflict visible during cloud recheck (no reconcile)
 - [x] WE-IDENTITY-UX-001 — steward name configuration on management surfaces (sidebar / phone More); primary headers present greeting only
 - [x] WE-VISUAL-ICONS-001 — Quick Add uses lucide-react vector icons (no emoji application icons); behavior unchanged
 - [ ] Speed-Tribute 1-tap commit (presets + bar mount; full amount autofill / zero-modal path still open)

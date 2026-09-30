@@ -27,6 +27,7 @@ import {
 } from "@/lib/babylon/cloud-setup";
 import { readCloudOwnerId } from "@/lib/babylon/cloud-owner";
 import {
+  CONFLICT_REFRESH_INCOMPLETE_COPY,
   logCloudSyncDiagnostic,
   performCloudSyncCheck,
 } from "@/lib/babylon/cloud-sync-check";
@@ -203,6 +204,12 @@ export function useBabylonEngine() {
   const cloudUserIdRef = useRef<string | null>(null);
   const [authOpen, setAuthOpen] = useState(false);
   const [vaultSync, setVaultSync] = useState<VaultSyncView>({ kind: "checking" });
+  const vaultSyncRef = useRef<VaultSyncView>({ kind: "checking" });
+  vaultSyncRef.current = vaultSync;
+  /** UI-only. Not written to the vault, baseline, or backup. */
+  const [conflictRefreshNote, setConflictRefreshNote] = useState<string | null>(
+    null
+  );
   const [syncBaseline, setSyncBaseline] = useState<CloudSyncBaseline | null>(null);
   const [cloudBusy, setCloudBusy] = useState(false);
   const cloudBusyRef = useRef(false);
@@ -490,10 +497,17 @@ export function useBabylonEngine() {
       }
       return;
     }
-    pauseAutoPushRef.current = false;
+    const establishedConflict = vaultSyncRef.current.kind === "conflict";
+    // A known conflict stays fail-closed. Recheck must not clear auto-push pause.
+    if (establishedConflict) {
+      pauseAutoPushRef.current = true;
+    } else {
+      pauseAutoPushRef.current = false;
+    }
     syncingRef.current = true;
     cloudBusyRef.current = true;
     setCloudBusy(true);
+    setConflictRefreshNote(null);
     const attemptId = ++cloudSyncAttemptIdRef.current;
     try {
       await performCloudSyncCheck(
@@ -507,10 +521,14 @@ export function useBabylonEngine() {
           readBaseline: readCloudSyncBaseline,
           readFingerprint: () => financialVaultFingerprint(vaultRef.current),
           runCycle: () => runCurrentVaultCycle(userId, () => vaultRef.current),
+          preserveEstablishedConflict: establishedConflict,
         },
         {
           userId,
-          setVaultSync,
+          setVaultSync: (view) => {
+            setConflictRefreshNote(null);
+            setVaultSync(view);
+          },
           setSyncBaseline,
           setOwnerUserId,
           applyVault,
@@ -521,6 +539,9 @@ export function useBabylonEngine() {
             // UI is no longer blocked; cycle occupancy remains until settle.
             cloudBusyRef.current = false;
             setCloudBusy(false);
+          },
+          onConflictRefreshFailed: () => {
+            setConflictRefreshNote(CONFLICT_REFRESH_INCOMPLETE_COPY);
           },
         }
       );
@@ -557,11 +578,15 @@ export function useBabylonEngine() {
   useEffect(() => {
     const onWake = () => {
       if (document.visibilityState !== "visible") return;
-      pauseAutoPushRef.current = false;
+      if (vaultSyncRef.current.kind !== "conflict") {
+        pauseAutoPushRef.current = false;
+      }
       setCheckEpoch((value) => value + 1);
     };
     const onOnline = () => {
-      pauseAutoPushRef.current = false;
+      if (vaultSyncRef.current.kind !== "conflict") {
+        pauseAutoPushRef.current = false;
+      }
       setCheckEpoch((value) => value + 1);
     };
     document.addEventListener("visibilitychange", onWake);
@@ -2298,6 +2323,7 @@ export function useBabylonEngine() {
     isCloudSynced: cloudUserId !== null,
     cloudUserId,
     vaultSync,
+    conflictRefreshNote,
     cloudBusy,
     confirmCloudBootstrap,
     confirmCloudHydrate,

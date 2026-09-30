@@ -70,6 +70,7 @@ interface MobileMoreProps {
   onClearAllData: () => void;
   vaultSync: VaultSyncView;
   cloudBusy?: boolean;
+  conflictRefreshNote?: string | null;
   cloudUsername: string;
   onConnectCloud: () => void;
   onSignOutCloud: () => void | Promise<boolean>;
@@ -141,6 +142,7 @@ export function MobileMore({
   onClearAllData,
   vaultSync,
   cloudBusy,
+  conflictRefreshNote = null,
   cloudUsername,
   onConnectCloud,
   onSignOutCloud,
@@ -288,6 +290,7 @@ export function MobileMore({
           isCloudSynced={isCloudSynced}
           vaultSync={vaultSync}
           cloudBusy={cloudBusy}
+          conflictRefreshNote={conflictRefreshNote}
           cloudUsername={cloudUsername}
           onConnectCloud={onConnectCloud}
           onSignOutCloud={onSignOutCloud}

@@ -105,6 +105,45 @@ type UiOrCycleRace =
   | { kind: "rejected"; error: unknown }
   | { kind: "ui_timeout" };
 
+/** Shown beside a preserved conflict when refresh does not finish. Not persisted. */
+export const CONFLICT_REFRESH_INCOMPLETE_COPY =
+  "Refresh could not complete. The last known conflict is unchanged.";
+
+/**
+ * Register the human-facing deadline before any new Syncing view is painted.
+ * clear() does not cancel the underlying cycle.
+ */
+export function beginCloudSyncUiDeadline(
+  timeoutMs: number = CLOUD_SYNC_ATTEMPT_TIMEOUT_MS
+): { expired: Promise<{ kind: "ui_timeout" }>; clear: () => void } {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const expired = new Promise<{ kind: "ui_timeout" }>((resolve) => {
+    timer = setTimeout(() => resolve({ kind: "ui_timeout" }), timeoutMs);
+  });
+  return {
+    expired,
+    clear: () => {
+      if (timer !== undefined) {
+        clearTimeout(timer);
+        timer = undefined;
+      }
+    },
+  };
+}
+
+function raceCycleAgainstDeadline(
+  cyclePromise: Promise<CycleResult>,
+  expired: Promise<{ kind: "ui_timeout" }>
+): Promise<UiOrCycleRace> {
+  return Promise.race([
+    cyclePromise.then(
+      (result): UiOrCycleRace => ({ kind: "settled", result }),
+      (error): UiOrCycleRace => ({ kind: "rejected", error })
+    ),
+    expired,
+  ]);
+}
+
 /**
  * Race human-facing UI wait against an already-started cycle Promise.
  * Does not cancel the cycle. Callers must keep awaiting cyclePromise after
@@ -114,19 +153,11 @@ export async function waitForUiOrCycle(
   cyclePromise: Promise<CycleResult>,
   timeoutMs: number = CLOUD_SYNC_ATTEMPT_TIMEOUT_MS
 ): Promise<UiOrCycleRace> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = beginCloudSyncUiDeadline(timeoutMs);
   try {
-    return await Promise.race([
-      cyclePromise.then(
-        (result): UiOrCycleRace => ({ kind: "settled", result }),
-        (error): UiOrCycleRace => ({ kind: "rejected", error })
-      ),
-      new Promise<UiOrCycleRace>((resolve) => {
-        timer = setTimeout(() => resolve({ kind: "ui_timeout" }), timeoutMs);
-      }),
-    ]);
+    return await raceCycleAgainstDeadline(cyclePromise, deadline.expired);
   } finally {
-    if (timer !== undefined) clearTimeout(timer);
+    deadline.clear();
   }
 }
 
@@ -198,6 +229,12 @@ export type PerformCloudSyncCheckInput = {
   readFingerprint: () => string;
   runCycle: () => Promise<CycleResult>;
   timeoutMs?: number;
+  /**
+   * When the steward already has a conflict on screen, do not replace it
+   * with interim Syncing or with cloud_unavailable. A later terminal view
+   * may still replace it.
+   */
+  preserveEstablishedConflict?: boolean;
   log?: (event: CloudSyncDiagnosticEvent) => void;
 };
 
@@ -213,6 +250,8 @@ export type PerformCloudSyncCheckCallbacks = {
    * held by the caller until this function returns.
    */
   onUiTimeout?: () => void;
+  /** UI-only. Known conflict stays; refresh did not establish a new terminal view. */
+  onConflictRefreshFailed?: () => void;
 };
 
 export type CloudSyncCheckAttemptResult =
@@ -236,30 +275,46 @@ export async function performCloudSyncCheck(
   const interim = interimVaultSyncView(baseline, fingerprint);
   const runtime = readCloudSyncRuntimeContext();
   const timeoutMs = input.timeoutMs ?? CLOUD_SYNC_ATTEMPT_TIMEOUT_MS;
+  const preserveConflict = input.preserveEstablishedConflict === true;
 
-  callbacks.setVaultSync(interim);
-  log({
-    type: "start",
-    opId: input.attemptId,
-    interim: interim.kind,
-    baselineRevision: baseline?.revision ?? null,
-    pendingRevision: Boolean(baseline?.pendingRevision),
-    fingerprintMatch: baseline ? fingerprint === baseline.fingerprint : false,
-    online: runtime.online,
-    visibilityState: runtime.visibilityState,
-  });
-
-  const cyclePromise = input.runCycle();
-  const raced = await waitForUiOrCycle(cyclePromise, timeoutMs);
-
-  if (raced.kind === "ui_timeout") {
-    log({ type: "ui_timeout", opId: input.attemptId });
-    log({ type: "timeout", opId: input.attemptId });
-    input.supersedeInFlightAttempts();
+  const notePreservedConflict = () => {
     callbacks.onPauseAutoPush(true);
-    callbacks.setVaultSync(recoverableSyncFailureView());
-    callbacks.onUiTimeout?.();
-    log({ type: "occupied_after_ui_timeout", opId: input.attemptId });
+    callbacks.onConflictRefreshFailed?.();
+  };
+
+  // Deadline exists before any new Syncing paint. The cycle is not aborted.
+  const deadline = beginCloudSyncUiDeadline(timeoutMs);
+  let raced: UiOrCycleRace;
+  try {
+    if (!preserveConflict) {
+      callbacks.setVaultSync(interim);
+    }
+    log({
+      type: "start",
+      opId: input.attemptId,
+      interim: interim.kind,
+      baselineRevision: baseline?.revision ?? null,
+      pendingRevision: Boolean(baseline?.pendingRevision),
+      fingerprintMatch: baseline ? fingerprint === baseline.fingerprint : false,
+      online: runtime.online,
+      visibilityState: runtime.visibilityState,
+    });
+
+    const cyclePromise = input.runCycle();
+    raced = await raceCycleAgainstDeadline(cyclePromise, deadline.expired);
+
+    if (raced.kind === "ui_timeout") {
+      log({ type: "ui_timeout", opId: input.attemptId });
+      log({ type: "timeout", opId: input.attemptId });
+      input.supersedeInFlightAttempts();
+      callbacks.onPauseAutoPush(true);
+      if (preserveConflict) {
+        notePreservedConflict();
+      } else {
+        callbacks.setVaultSync(recoverableSyncFailureView());
+      }
+      callbacks.onUiTimeout?.();
+      log({ type: "occupied_after_ui_timeout", opId: input.attemptId });
 
     try {
       await cyclePromise;
@@ -275,19 +330,23 @@ export async function performCloudSyncCheck(
       log({ type: "exception", opId: input.attemptId, name, message });
     }
     // Late CycleResult must not apply React vault / baseline / success UI.
-    return { status: "timeout" };
-  }
+      return { status: "timeout" };
+    }
 
-  if (raced.kind === "rejected") {
-    const error = raced.error;
-    const name = error instanceof Error ? error.name : "Error";
-    const message = error instanceof Error ? error.message : "unknown";
-    log({ type: "exception", opId: input.attemptId, name, message });
-    input.supersedeInFlightAttempts();
-    callbacks.onPauseAutoPush(true);
-    callbacks.setVaultSync(recoverableSyncFailureView());
-    return { status: "exception" };
-  }
+    if (raced.kind === "rejected") {
+      const error = raced.error;
+      const name = error instanceof Error ? error.name : "Error";
+      const message = error instanceof Error ? error.message : "unknown";
+      log({ type: "exception", opId: input.attemptId, name, message });
+      input.supersedeInFlightAttempts();
+      callbacks.onPauseAutoPush(true);
+      if (preserveConflict) {
+        notePreservedConflict();
+      } else {
+        callbacks.setVaultSync(recoverableSyncFailureView());
+      }
+      return { status: "exception" };
+    }
 
   const outcome = raced.result;
 
@@ -316,12 +375,19 @@ export async function performCloudSyncCheck(
     log({ type: "exception", opId: input.attemptId, name, message });
     input.supersedeInFlightAttempts();
     callbacks.onPauseAutoPush(true);
-    callbacks.setVaultSync(recoverableSyncFailureView());
+    if (preserveConflict) {
+      notePreservedConflict();
+    } else {
+      callbacks.setVaultSync(recoverableSyncFailureView());
+    }
     return { status: "exception" };
   }
 
   log({ type: "terminal", opId: input.attemptId, kind: outcome.view.kind });
   return { status: "completed", terminalKind: outcome.view.kind };
+  } finally {
+    deadline.clear();
+  }
 }
 
 /**
