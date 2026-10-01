@@ -264,9 +264,13 @@ describe("phone projection mutation audit", () => {
   ];
 
   it("reaches Paid from Home and Ledger and no other financial authorship from the phone branches", () => {
-    expect(blocks.home).toContain("onMarkPaid={engine.toggleExpenseSettled}");
-    expect(blocks.ledger).toContain("onMarkPaid={engine.toggleExpenseSettled}");
+    expect(blocks.home).toContain("onMarkPaid={engine.markOccurrencePaid}");
+    expect(blocks.ledger).toContain("onMarkPaid={engine.markOccurrencePaid}");
+    expect(blocks.home).not.toContain("toggleExpenseSettled");
+    expect(blocks.ledger).not.toContain("toggleExpenseSettled");
     expect(blocks.budget).not.toContain("toggleExpenseSettled");
+    expect(blocks.dashboard).toContain("onMarkPaid={engine.toggleExpenseSettled}");
+    expect(blocks.desktop).toContain("{upcomingNeedsCard}");
     for (const name of forbidden) {
       expect(phone).not.toContain(name);
     }

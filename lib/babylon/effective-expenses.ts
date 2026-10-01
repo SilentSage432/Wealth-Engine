@@ -19,6 +19,7 @@
 import { nextMonthKey } from "@/lib/babylon/engine";
 import {
   isRealLocalIsoDate,
+  parseRecurringOccurrenceId,
   projectRecurringOccurrences,
   type CivilMonthRange,
   type RecurrenceProjectionInvalidReason,
@@ -112,7 +113,7 @@ export function occurrenceForStewardAction(
   const existing = expenses.find((expense) => expense.id === expenseId);
   if (existing) return { expenses: [...expenses], expense: existing };
 
-  const month = canonicalOccurrenceMonth(expenseId);
+  const month = parseRecurringOccurrenceId(expenseId)?.recurrenceMonth ?? null;
   if (!month) return null;
   const projection = projectRecurringOccurrences(rules, expenses, {
     fromMonth: month,
@@ -125,19 +126,4 @@ export function occurrenceForStewardAction(
   if (!match) return null;
   const expense = { ...match.expense };
   return { expenses: [expense, ...expenses], expense };
-}
-
-/** Month encoded in occ.{length}.{ruleId}.{YYYY-MM}, or null. */
-function canonicalOccurrenceMonth(expenseId: string): string | null {
-  if (!expenseId.startsWith("occ.")) return null;
-  const rest = expenseId.slice(4);
-  const lengthDot = rest.indexOf(".");
-  if (lengthDot <= 0) return null;
-  const length = Number(rest.slice(0, lengthDot));
-  if (!Number.isInteger(length) || length < 1) return null;
-  const afterLength = rest.slice(lengthDot + 1);
-  if (afterLength.length < length + 1 + 7) return null;
-  const month = afterLength.slice(length + 1);
-  if (!/^\d{4}-\d{2}$/.test(month)) return null;
-  return month;
 }

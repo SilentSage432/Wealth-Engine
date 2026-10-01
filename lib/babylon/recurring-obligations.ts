@@ -235,6 +235,30 @@ export function recurringOccurrenceId(
 }
 
 /**
+ * Inverse of recurringOccurrenceId.
+ * Null when the id was not produced by that function.
+ */
+export function parseRecurringOccurrenceId(
+  expenseId: string
+): { ruleId: string; recurrenceMonth: string } | null {
+  if (typeof expenseId !== "string" || !expenseId.startsWith("occ.")) return null;
+  const rest = expenseId.slice(4);
+  const lengthDot = rest.indexOf(".");
+  if (lengthDot <= 0) return null;
+  const lengthText = rest.slice(0, lengthDot);
+  if (!/^[1-9]\d*$/.test(lengthText)) return null;
+  const length = Number(lengthText);
+  const afterLength = rest.slice(lengthDot + 1);
+  if (afterLength.length < length + 1 + 7 || afterLength.charAt(length) !== ".") {
+    return null;
+  }
+  const ruleId = afterLength.slice(0, length);
+  const recurrenceMonth = afterLength.slice(length + 1);
+  if (recurringOccurrenceId(ruleId, recurrenceMonth) !== expenseId) return null;
+  return { ruleId, recurrenceMonth };
+}
+
+/**
  * Ensure each active rule has an Upcoming occurrence for a due month inside
  * the current month and the next month. A longer interval does not widen
  * that horizon. A month the interval does not include is left alone and is

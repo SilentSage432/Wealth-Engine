@@ -10,7 +10,8 @@ import { canonicalIanaTimeZone } from "@/lib/babylon/civil-time";
 import { isUuid } from "@/lib/babylon/cloud-mappers";
 import { EXPENSE_SEMANTICS_VERSION, normalizePersistedState } from "@/lib/babylon/persistence";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
-import type { Json } from "@/lib/supabase/database.types";
+import type { Json, Database } from "@/lib/supabase/database.types";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import type { PersistedState } from "@/types/babylon";
 
 /**
@@ -453,15 +454,17 @@ export function parseSchema5VaultData(raw: unknown): PersistedState | null {
   return normalized;
 }
 
-function browserGateway(): CloudVaultGateway | null {
-  const client = getSupabaseBrowserClient();
-  if (!client) return null;
-
+/**
+ * Owner-scoped vault gateway. The caller supplies how the session user is
+ * read. Browser code uses the Supabase session. The Paid route uses the
+ * already authenticated user id and does not take a user id from the body.
+ */
+export function createCloudVaultGateway(
+  client: SupabaseClient<Database>,
+  readSessionUserId: () => Promise<string | null>
+): CloudVaultGateway {
   return {
-    async sessionUserId() {
-      const { data } = await client.auth.getSession();
-      return data.session?.user.id ?? null;
-    },
+    sessionUserId: readSessionUserId,
     async readVault(userId) {
       const { data, error } = await client
         .from("wealth_engine_vaults")
@@ -505,6 +508,15 @@ function browserGateway(): CloudVaultGateway | null {
       return { ok: true, body: data };
     },
   };
+}
+
+function browserGateway(): CloudVaultGateway | null {
+  const client = getSupabaseBrowserClient();
+  if (!client) return null;
+  return createCloudVaultGateway(client, async () => {
+    const { data } = await client.auth.getSession();
+    return data.session?.user.id ?? null;
+  });
 }
 
 async function requireOwner(

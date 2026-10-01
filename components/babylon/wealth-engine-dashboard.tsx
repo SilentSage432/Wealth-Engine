@@ -399,7 +399,7 @@ export function WealthEngineDashboard() {
                 expenses={engine.expenses}
                 dueAttention={engine.dueAttention}
                 obligationsReadable={engine.obligationsReadable}
-                onMarkPaid={engine.toggleExpenseSettled}
+                onMarkPaid={engine.markOccurrencePaid}
                 recentActivity={engine.recentActivity}
                 discreet={discreet}
                 onNavigate={setMobileDestination}
@@ -449,7 +449,7 @@ export function WealthEngineDashboard() {
                 desireSpend={engine.desireSpend}
                 totalSpent={engine.lifetimeSpent}
                 budgetTargets={engine.budgetTargets}
-                onMarkPaid={engine.toggleExpenseSettled}
+                onMarkPaid={engine.markOccurrencePaid}
                 recurringObligations={engine.recurringObligations}
                 financialToday={engine.financialToday}
                 discreet={discreet}

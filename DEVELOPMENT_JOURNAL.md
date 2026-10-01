@@ -1,5 +1,14 @@
 # Development Journal
 
+## 2026-10-01 — WE-MOBILE-PAID-COMMAND-002 Bounded canonical Paid
+
+- Mobile Home Due and the mobile ledger call an authenticated online command instead of `toggleExpenseSettled`.
+- The command settles one acknowledged occurrence. A derived recurring month is inserted only when the current projection still yields that one id and the preimage matches.
+- The payment date is the commit instant resolved with the vault's `financialTimeZone`. An already-paid occurrence keeps its stored date and does not write again. Activity is not appended. That is an accepted limit of this tranche.
+- Offline and signed-out Paid do not mutate, queue, or fall back to the desktop toggle. Desktop Paid and Reopen are unchanged. No SQL and no service-role write.
+- Full suite: 77 files, 1115 tests passed. `tsc --noEmit` passed. ESLint on the edited files passed. Production build passed.
+- Not committed.
+
 ## 2026-10-01 — WE-MOBILE-PROJECTION-001 Portable projection surface
 
 - Phone Home, Budget, Ledger, and More no longer expose record, close, debt rebase, budget-cap edits, plan or pay-schedule edits, ledger delete or rule edits, account edits, or financial-timezone changes.

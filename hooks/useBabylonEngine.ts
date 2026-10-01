@@ -131,6 +131,7 @@ import {
   deriveMonthCloseAttention,
 } from "@/lib/babylon/attention";
 import { canonicalIanaTimeZone } from "@/lib/babylon/civil-time";
+import { submitMobilePaid } from "@/lib/babylon/paid-client";
 import {
   composeEffectiveExpenses,
   occurrenceForStewardAction,
@@ -1654,6 +1655,34 @@ export function useBabylonEngine() {
     [financialToday, pushActivity, recurringObligations]
   );
 
+  const markOccurrencePaid = useCallback(
+    (id: string) => {
+      const row =
+        obligationExpenses.find((expense) => expense.id === id) ??
+        expenses.find((expense) => expense.id === id);
+      if (!row || row.isSettled) return;
+      void (async () => {
+        const online = typeof navigator !== "undefined" && navigator.onLine;
+        const supabase = getSupabaseBrowserClient();
+        const session = supabase ? await supabase.auth.getSession() : null;
+        const accessToken = session?.data.session?.access_token ?? null;
+        const result = await submitMobilePaid(row, {
+          online,
+          accessToken: cloudUserIdRef.current && accessToken ? accessToken : null,
+        });
+        if (result.refresh) void requestCloudCheck("manual");
+        if (result.status === "blocked" || result.status === "failed") {
+          emitVaultToast({
+            tone: "error",
+            message: result.message,
+            durationMs: 0,
+          });
+        }
+      })();
+    },
+    [expenses, obligationExpenses, requestCloudCheck]
+  );
+
   const autoScaleBudgetCaps = useCallback((): boolean => {
     if (!currentMonthKey) return false;
     if (budgetTargets.length === 0) return false;
@@ -2769,6 +2798,7 @@ export function useBabylonEngine() {
     deleteBudgetTarget,
     addBudgetTarget,
     toggleExpenseSettled,
+    markOccurrencePaid,
     updateExpenseOccurrence,
     updateRecurringObligation,
     autoScaleBudgetCaps,
