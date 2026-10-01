@@ -1,5 +1,15 @@
 # Development Journal
 
+## 2026-10-01 — WE-FINANCIAL-TIME-001 Pure civil-time resolution
+
+- `resolveCivilDate(instant, ianaTimeZone)` resolves one absolute instant in an explicitly supplied IANA timezone to `YYYY-MM-DD`, or null.
+- Null means the instant or the zone cannot support a civil date. It is not a device zone and not a server zone.
+- `civilDateInTimeZone` is the same function. Notification delivery and the Intelligence Contract keep calling that name. There is no second algorithm.
+- The resolver does not read the current clock, notification preferences, or stored historical dates, and it does not choose which timezone is authoritative.
+- `todayIso`, hydration, Paid, month close, display clocks, and notification preference refresh are unchanged.
+- Focused civil-time tests passed. Full suite: 69 files, 1037 tests passed. `tsc --noEmit` passed. ESLint on the edited TypeScript files passed. Production build passed.
+- Not committed.
+
 ## 2026-10-01 — WE-RECURRENCE-PROJECTION-001 Pure recurrence projection
 
 - `projectRecurringOccurrences` answers which recurring occurrences exist in a caller-supplied inclusive month range.

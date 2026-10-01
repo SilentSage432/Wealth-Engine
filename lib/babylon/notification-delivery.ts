@@ -1,8 +1,10 @@
 import { deriveDueAttention, deriveMonthCloseAttention } from "@/lib/babylon/attention";
-import { isIanaTimeZone } from "@/lib/babylon/notification-config";
+import { civilDateInTimeZone } from "@/lib/babylon/civil-time";
 import { vapidPublicKeyToBytes } from "@/lib/babylon/notification-device";
 import { materializeRecurringObligations } from "@/lib/babylon/recurring-obligations";
 import type { PersistedState } from "@/types/babylon";
+
+export { civilDateInTimeZone };
 
 /** Empty body. The service worker owns the fixed generic copy. */
 export const GENERIC_PUSH_PAYLOAD = null;
@@ -72,22 +74,6 @@ export function isCanonicalSupabaseUrl(value: string | undefined): boolean {
   } catch {
     return false;
   }
-}
-
-export function civilDateInTimeZone(now: Date, timeZone: string): string | null {
-  if (!isIanaTimeZone(timeZone)) return null;
-  let formatted: string;
-  try {
-    formatted = new Intl.DateTimeFormat("en-CA", {
-      timeZone: timeZone.trim(),
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).format(now);
-  } catch {
-    return null;
-  }
-  return /^\d{4}-\d{2}-\d{2}$/.test(formatted) ? formatted : null;
 }
 
 export function addCivilDays(isoDate: string, days: number): string | null {

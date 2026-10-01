@@ -1,33 +1,21 @@
 /**
  * Validation for notification preference and push-subscription input.
  * Operational only. Does not read the vault, the clock's zone, or Attention.
+ * IANA name checks live in civil-time.ts. This module does not choose the
+ * financial calendar.
  */
 
-export const IANA_TIMEZONE_MAX_LENGTH = 100;
+import {
+  IANA_TIMEZONE_MAX_LENGTH,
+  isIanaTimeZone,
+} from "@/lib/babylon/civil-time";
+
+export { IANA_TIMEZONE_MAX_LENGTH, isIanaTimeZone };
+
 export const PUSH_ENDPOINT_MAX_LENGTH = 2048;
 export const PUSH_KEY_MAX_LENGTH = 256;
 
-const OFFSET_ONLY =
-  /^(?:(?:UTC|GMT)[+-]\d{1,2}(?::?\d{2})?|[+-]\d{2}:?\d{2})$/i;
 const PUSH_KEY = /^[A-Za-z0-9+/_=-]+$/;
-
-/**
- * True when the runtime accepts this string as an IANA timezone.
- * Empty strings and numeric offsets are rejected. A missing zone is not
- * replaced with the server's zone.
- */
-export function isIanaTimeZone(value: string): boolean {
-  if (typeof value !== "string") return false;
-  const zone = value.trim();
-  if (!zone || zone.length > IANA_TIMEZONE_MAX_LENGTH) return false;
-  if (OFFSET_ONLY.test(zone)) return false;
-  try {
-    Intl.DateTimeFormat("en-US", { timeZone: zone }).format();
-    return true;
-  } catch {
-    return false;
-  }
-}
 
 export function parseIanaTimeZone(value: unknown): string | null {
   if (typeof value !== "string") return null;
