@@ -659,7 +659,7 @@ describe("revision sync", () => {
     expect(worker).not.toContain("wealth_engine_vaults");
     const signOut = hook.slice(
       hook.indexOf("const signOutCloud"),
-      hook.indexOf("const alignToLocalDay")
+      hook.indexOf("const align = () => {")
     );
     expect(signOut).not.toContain("clearPersistedState");
     expect(signOut).not.toContain("clearCloudSyncBaseline");

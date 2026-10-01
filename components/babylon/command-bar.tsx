@@ -5,6 +5,7 @@ import { CalendarCheck, CalendarDays, Eye, EyeOff, Menu, Plus } from "lucide-rea
 import { Button } from "@/components/ui/button";
 import { PlaidLinkButton } from "@/components/babylon/plaid-link-button";
 import { VaultErrorBoundary } from "@/components/babylon/vault-error-boundary";
+import { FINANCIAL_CALENDAR_UNKNOWN } from "@/lib/babylon/civil-time";
 import { GREETING_NAME_FALLBACK } from "@/lib/babylon/constants";
 
 function greetingForHour(hour: number): string {
@@ -24,6 +25,7 @@ interface CommandBarProps {
   onOpenSidebar: () => void;
   onRecordTribute: () => void;
   onOpenMonthlyClose?: () => void;
+  financialCalendarKnown?: boolean;
   onToggleDiscreetMode?: () => void;
   onLinkBank?: () => void;
 }
@@ -38,6 +40,7 @@ export function CommandBar({
   onOpenSidebar,
   onRecordTribute,
   onOpenMonthlyClose,
+  financialCalendarKnown = true,
   onToggleDiscreetMode,
   onLinkBank,
 }: CommandBarProps) {
@@ -134,15 +137,21 @@ export function CommandBar({
               size="lg"
               className="min-h-11 w-full flex-1 sm:w-auto sm:flex-none"
               onClick={onOpenMonthlyClose}
-              disabled={monthAlreadyClosed}
+              disabled={monthAlreadyClosed || !financialCalendarKnown}
               aria-label={
-                monthAlreadyClosed
-              ? "Month already closed"
-              : "Close this month"
+                !financialCalendarKnown
+                  ? FINANCIAL_CALENDAR_UNKNOWN
+                  : monthAlreadyClosed
+                    ? "Month already closed"
+                    : "Close this month"
               }
             >
               <CalendarCheck className="h-4 w-4" aria-hidden="true" />
-              {monthAlreadyClosed ? "Month closed" : "Close Month"}
+              {!financialCalendarKnown
+                ? "Set financial time zone"
+                : monthAlreadyClosed
+                  ? "Month closed"
+                  : "Close Month"}
             </Button>
           )}
           <Button
@@ -158,7 +167,7 @@ export function CommandBar({
             Add
           </Button>
         </div>
-        {openMonthMessage && onOpenMonthlyClose ? (
+        {openMonthMessage && onOpenMonthlyClose && financialCalendarKnown ? (
           <p className="text-sm leading-relaxed text-slate-300">
             {openMonthMessage}{" "}
             <button

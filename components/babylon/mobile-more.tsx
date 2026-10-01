@@ -22,6 +22,7 @@ import {
 import { PhoneMaintenanceDisclosure } from "@/components/babylon/phone-maintenance-disclosure";
 import { ProfileNameField } from "@/components/babylon/profile-name-field";
 import { WisdomBox } from "@/components/babylon/wisdom-box";
+import { FINANCIAL_CALENDAR_UNKNOWN } from "@/lib/babylon/civil-time";
 import { Button } from "@/components/ui/button";
 import type { AvailableAfterPlannedNeeds } from "@/lib/babylon/available-after-planned-needs";
 import type { FirstDesignationReconcileChoice } from "@/lib/babylon/account-purpose";
@@ -58,6 +59,8 @@ interface MobileMoreProps {
   onUsernameChange: (value: string) => void;
   monthAlreadyClosed: boolean;
   onOpenMonthlyClose: () => void;
+  financialCalendarKnown?: boolean;
+  financialToday?: string | null;
   wisdomIndex: number;
   onSelectWisdomIndex: (index: number) => void;
   connectedCount: number;
@@ -137,6 +140,8 @@ export function MobileMore({
   onUsernameChange,
   monthAlreadyClosed,
   onOpenMonthlyClose,
+  financialCalendarKnown = true,
+  financialToday = null,
   wisdomIndex,
   onSelectWisdomIndex,
   connectedCount,
@@ -226,6 +231,7 @@ export function MobileMore({
           availableAfterPlannedNeeds={availableAfterPlannedNeeds}
           obligationsReadable={obligationsReadable}
           remainingDebt={remainingDebt}
+          financialToday={financialToday}
           discreet={discreet}
           onAddAccount={onAddAccount}
           onUpdateAccount={onUpdateAccount}
@@ -241,13 +247,21 @@ export function MobileMore({
           variant="outline"
           className="w-full"
           onClick={onOpenMonthlyClose}
-          disabled={monthAlreadyClosed}
+          disabled={monthAlreadyClosed || !financialCalendarKnown}
           aria-label={
-            monthAlreadyClosed ? "Month already closed" : "Close this month"
+            !financialCalendarKnown
+              ? FINANCIAL_CALENDAR_UNKNOWN
+              : monthAlreadyClosed
+                ? "Month already closed"
+                : "Close this month"
           }
         >
           <CalendarCheck className="h-4 w-4" aria-hidden="true" />
-          {monthAlreadyClosed ? "Month closed" : "Close Month"}
+          {!financialCalendarKnown
+            ? "Set financial time zone"
+            : monthAlreadyClosed
+              ? "Month closed"
+              : "Close Month"}
         </Button>
       </section>
 

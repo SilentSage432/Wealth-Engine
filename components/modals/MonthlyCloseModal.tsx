@@ -281,7 +281,7 @@ export function MonthlyCloseModal({
             <Button
               type="button"
               onClick={handleConfirm}
-              disabled={summary.alreadyClosed}
+              disabled={summary.alreadyClosed || summary.calendarKnown === false}
             >
               Close month
             </Button>

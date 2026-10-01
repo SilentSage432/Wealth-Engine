@@ -246,7 +246,7 @@ describe("WE-FINANCIAL-POSITION-LANGUAGE-001 presentation", () => {
   });
 
   it("G: Intelligence Contract remains v3", () => {
-    expect(INTELLIGENCE_CONTRACT_VERSION).toBe("3");
+    expect(INTELLIGENCE_CONTRACT_VERSION).toBe("4");
   });
 
   it("H: backup remains v9", () => {
@@ -313,7 +313,7 @@ describe("WE-FINANCIAL-POSITION-HIERARCHY-001 presentation", () => {
   });
 
   it("G: domain arithmetic and IC remain unchanged", () => {
-    expect(INTELLIGENCE_CONTRACT_VERSION).toBe("3");
+    expect(INTELLIGENCE_CONTRACT_VERSION).toBe("4");
     expect(LEDGER_BACKUP_VERSION).toBe(11);
   });
 

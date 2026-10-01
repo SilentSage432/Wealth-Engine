@@ -362,7 +362,7 @@ describe("purpose backup and cloud versions", () => {
   });
 
   it("keeps Intelligence Contract at v3", () => {
-    expect(INTELLIGENCE_CONTRACT_VERSION).toBe("3");
+    expect(INTELLIGENCE_CONTRACT_VERSION).toBe("4");
   });
 
   it("does not wire observational movement into Financial Position surfaces", () => {

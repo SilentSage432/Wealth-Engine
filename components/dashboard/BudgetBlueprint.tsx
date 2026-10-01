@@ -39,6 +39,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { FINANCIAL_CALENDAR_UNKNOWN } from "@/lib/babylon/civil-time";
 import { formatDiscreetCurrency } from "@/lib/babylon/discreet";
 import { cn, formatCurrency } from "@/lib/utils";
 import type { BudgetCategoryVariance, BudgetTarget } from "@/types/babylon";
@@ -57,6 +58,7 @@ interface BudgetBlueprintProps {
   ) => boolean;
   onDeleteTarget: (id: string, reassignToId?: string | null) => void;
   onAutoScaleCaps?: () => boolean;
+  calendarKnown?: boolean;
 }
 
 export function BudgetBlueprint({
@@ -70,6 +72,7 @@ export function BudgetBlueprint({
   onUpdateTargetFull,
   onDeleteTarget,
   onAutoScaleCaps,
+  calendarKnown = true,
 }: BudgetBlueprintProps) {
   const [editing, setEditing] = useState<BudgetCategoryVariance | null>(null);
   const [draftName, setDraftName] = useState("");
@@ -132,6 +135,8 @@ export function BudgetBlueprint({
     closeEditor();
   };
 
+  const spentFigure = (value: number) =>
+    calendarKnown ? formatCurrency(value) : "Unknown";
   const money = (value: number) =>
     formatDiscreetCurrency(value, discreet, formatCurrency);
 
@@ -168,7 +173,7 @@ export function BudgetBlueprint({
               {" · "}
               Spent{" "}
               <span className="tabular-nums text-slate-300">
-                {money(actualTotal)}
+                {calendarKnown ? money(actualTotal) : "Unknown"}
               </span>
             </p>
             {onAutoScaleCaps ? (
@@ -215,7 +220,8 @@ export function BudgetBlueprint({
             ) : (
               <ul className="space-y-2">
                 {variances.map((row) => {
-                  const overCap = row.actualAmount > row.plannedAmount;
+                  const overCap =
+                    calendarKnown && row.actualAmount > row.plannedAmount;
                   return (
                     <li
                       key={row.id}
@@ -236,7 +242,10 @@ export function BudgetBlueprint({
                             </span>
                           ) : (
                             <span>
-                              {money(row.actualAmount)} of {money(row.plannedAmount)}
+                              {calendarKnown
+                                ? money(row.actualAmount)
+                                : "Unknown"}{" "}
+                              of {money(row.plannedAmount)}
                               {" · "}
                               {row.usedPct}% used
                             </span>
@@ -268,8 +277,9 @@ export function BudgetBlueprint({
               Budget Blueprint
             </CardTitle>
             <CardDescription>
-              Categories inside the Living Budget — planned and spent for this
-              month
+              {calendarKnown
+                ? "Categories inside the Living Budget — planned and spent for this month"
+                : FINANCIAL_CALENDAR_UNKNOWN}
             </CardDescription>
           </div>
           <div className="flex shrink-0 flex-col items-stretch gap-2 sm:items-end">
@@ -282,7 +292,7 @@ export function BudgetBlueprint({
                 {" · "}
                 Spent{" "}
                 <span className="tabular-nums text-slate-300">
-                  {formatCurrency(actualTotal)}
+                  {calendarKnown ? formatCurrency(actualTotal) : "Unknown"}
                 </span>
               </p>
               <p>
@@ -360,7 +370,8 @@ export function BudgetBlueprint({
           ) : (
             variances.map((row) => {
               const barPct = Math.min(100, row.usedPct);
-              const overCap = row.actualAmount > row.plannedAmount;
+              const overCap =
+                calendarKnown && row.actualAmount > row.plannedAmount;
               const indicatorClass =
                 row.tone === "amber" ? "bg-amber-500" : "bg-emerald-600";
 
@@ -413,7 +424,7 @@ export function BudgetBlueprint({
                           Actual
                         </p>
                         <p className="tabular-nums text-sm text-slate-300">
-                          {formatCurrency(row.actualAmount)}
+                          {spentFigure(row.actualAmount)}
                         </p>
                       </div>
                       <div>
@@ -446,7 +457,7 @@ export function BudgetBlueprint({
                     />
                     <div className="mt-1.5 flex items-center justify-between text-[10px] tabular-nums text-slate-600">
                       <span>
-                        {formatCurrency(row.actualAmount)}
+                        {spentFigure(row.actualAmount)}
                         <span className="mx-1 text-slate-700">/</span>
                         {formatCurrency(row.plannedAmount)}
                       </span>

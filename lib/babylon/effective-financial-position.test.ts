@@ -350,7 +350,7 @@ describe("downstream financial position", () => {
         ],
       },
     });
-    expect(shared.meta.contract_version).toBe("3");
+    expect(shared.meta.contract_version).toBe("4");
     expect(shared.position.money_available_cents).toBe(9_000);
     expect(shared.position.accounts[0]).toMatchObject({
       declared_balance_cents: 8_000,

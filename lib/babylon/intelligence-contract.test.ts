@@ -154,7 +154,10 @@ function assemble(
   now = NOW
 ) {
   return assembleIntelligenceContract({
-    state: state(partial),
+    state: state({
+      ...(zone ? { financialTimeZone: zone } : {}),
+      ...partial,
+    }),
     ianaTimeZone: zone,
     now,
     generatedAt: GENERATED,
@@ -163,12 +166,12 @@ function assemble(
 }
 
 describe("intelligence contract", () => {
-  it("is version 2 and reports integer cents", () => {
+  it("is version 4 and reports integer cents", () => {
     const contract = assemble({
       incomes: [income(10.1, "2026-01-02"), income(0.2, "2026-01-03")],
     });
     expect(contract.meta.contract_version).toBe(INTELLIGENCE_CONTRACT_VERSION);
-    expect(contract.meta.contract_version).toBe("3");
+    expect(contract.meta.contract_version).toBe("4");
     expect(contract.purpose.current_month_recorded_income_cents).toBe(1030);
     expect(Number.isInteger(contract.purpose.current_month_recorded_income_cents)).toBe(
       true
@@ -223,6 +226,7 @@ describe("intelligence contract", () => {
 
   it("matches Available After Planned Needs and protected totals", () => {
     const fixture = state({
+      financialTimeZone: "America/Boise",
       accounts: [account()],
       openingWealthBuilding: 15,
       openingEmergencyFund: 5,
@@ -294,7 +298,11 @@ describe("intelligence contract", () => {
   });
 
   it("marks an in-memory rule occurrence without changing the input", () => {
-    const fixture = state({ recurringObligations: [rule()], expenses: [] });
+    const fixture = state({
+      financialTimeZone: "America/Boise",
+      recurringObligations: [rule()],
+      expenses: [],
+    });
     const before = structuredClone(fixture);
     const contract = assembleIntelligenceContract({
       state: fixture,
@@ -328,7 +336,10 @@ describe("intelligence contract", () => {
   });
 
   it("matches established Attention and adds no other kind", () => {
-    const dueState = state({ expenses: [expense()] });
+    const dueState = state({
+      financialTimeZone: "America/Boise",
+      expenses: [expense()],
+    });
     const dueContract = assembleIntelligenceContract({
       state: dueState,
       ianaTimeZone: "America/Boise",
@@ -420,6 +431,7 @@ describe("intelligence contract", () => {
     purpose.purpose = "wealth_building";
     purpose.balance = 800;
     const fixture = state({
+      financialTimeZone: "America/Boise",
       accounts: [purpose],
       openingWealthBuilding: 300,
       openingEmergencyFund: 0,
@@ -465,7 +477,7 @@ describe("intelligence contract", () => {
       })
     );
     expect(contract.recorded_administration.status).toBe("action_outstanding");
-    expect(contract.meta.contract_version).toBe("3");
+    expect(contract.meta.contract_version).toBe("4");
 
     const screen = readFileSync("hooks/useBabylonEngine.ts", "utf8");
     const assembler = readFileSync("lib/babylon/intelligence-contract.ts", "utf8");
@@ -476,15 +488,25 @@ describe("intelligence contract", () => {
     expect(assembler).toContain("composeRecordedAdministrationQuiet");
   });
 
-  it("does not invent a civil date when the timezone is unusable", () => {
+  it("does not invent a financial civil date when the financial timezone is unusable", () => {
     const utcEvening = new Date("2026-01-15T06:30:00.000Z");
     const boise = assemble({}, "America/Boise", utcEvening);
+    expect(boise.meta.contract_version).toBe("4");
     expect(boise.meta.civil_date).toBe("2026-01-14");
     expect(boise.meta.civil_date).not.toBe(utcEvening.toISOString().slice(0, 10));
 
-    for (const zone of [null, "Not/A/Zone", "UTC+6"]) {
-      const contract = assemble({ budgetTargets: [target()] }, zone, utcEvening);
-      expect(contract.meta.iana_timezone).toBe(zone);
+    for (const zone of [undefined, "Not/A/Zone", "UTC+6"]) {
+      const contract = assembleIntelligenceContract({
+        state: state({
+          financialTimeZone: zone,
+          budgetTargets: [target()],
+        }),
+        ianaTimeZone: "America/New_York",
+        now: utcEvening,
+        generatedAt: GENERATED,
+        balanceEvidence: READY_EMPTY,
+      });
+      expect(contract.meta.iana_timezone).toBe("America/New_York");
       expect(contract.meta.civil_date).toBeNull();
       expect(contract.meta.current_month_key).toBeNull();
       expect(contract.meta.month_closed).toBeNull();
@@ -492,8 +514,82 @@ describe("intelligence contract", () => {
       expect(contract.budget.living_budget_remaining_cents).toBeNull();
       expect(contract.budget.categories[0].settled_cents).toBeNull();
       expect(contract.attention.items).toEqual([]);
+      expect(contract.recorded_administration.status).toBe("unknown");
       expect(contract.boundaries.unknowns).toContain("civil_date_unknown");
     }
+  });
+
+  it("resolves financial civil time independently of the notification timezone", () => {
+    const utcEvening = new Date("2026-01-15T06:30:00.000Z");
+    const split = assembleIntelligenceContract({
+      state: state({
+        financialTimeZone: "America/Boise",
+        expenses: [expense({ dueDate: "2026-01-14", date: "2026-01-14" })],
+      }),
+      ianaTimeZone: "America/New_York",
+      now: utcEvening,
+      generatedAt: GENERATED,
+      balanceEvidence: READY_EMPTY,
+    });
+    expect(split.meta.contract_version).toBe("4");
+    expect(split.meta.iana_timezone).toBe("America/New_York");
+    expect(split.meta.civil_date).toBe("2026-01-14");
+    expect(split.meta.current_month_key).toBe("2026-01");
+    expect(split.attention.items.length).toBeGreaterThan(0);
+    expect(
+      split.attention.items.every((item) => item.civil_date === split.meta.civil_date)
+    ).toBe(true);
+
+    for (const zone of [null, "Not/A/Zone", "UTC+6"]) {
+      const contract = assembleIntelligenceContract({
+        state: state({ financialTimeZone: "America/Boise" }),
+        ianaTimeZone: zone,
+        now: utcEvening,
+        generatedAt: GENERATED,
+        balanceEvidence: READY_EMPTY,
+      });
+      expect(contract.meta.iana_timezone).toBe(zone);
+      expect(contract.meta.civil_date).toBe("2026-01-14");
+      expect(contract.meta.current_month_key).toBe("2026-01");
+      expect(contract.boundaries.unknowns).not.toContain("civil_date_unknown");
+    }
+
+    const yearBoundary = new Date("2026-01-01T06:30:00.000Z");
+    const december = assembleIntelligenceContract({
+      state: state({
+        financialTimeZone: "America/Boise",
+        incomes: [income(50, "2025-12-15"), income(100, "2026-01-01")],
+        lastClosedMonthKey: null,
+      }),
+      ianaTimeZone: "America/New_York",
+      now: yearBoundary,
+      generatedAt: GENERATED,
+      balanceEvidence: READY_EMPTY,
+    });
+    expect(december.meta.iana_timezone).toBe("America/New_York");
+    expect(december.meta.civil_date).toBe("2025-12-31");
+    expect(december.meta.current_month_key).toBe("2025-12");
+    expect(december.meta.month_closed).toBe(false);
+    expect(december.purpose.current_month_recorded_income_cents).toBe(5000);
+    expect(december.attention.items).toEqual([
+      expect.objectContaining({
+        kind: "month_close",
+        civil_date: "2025-12-31",
+        month_key: "2025-12",
+      }),
+    ]);
+    expect(december.recorded_administration.status).toBe("action_outstanding");
+  });
+
+  it("loads the notification timezone and does not use it as the financial clock", () => {
+    const route = readFileSync("app/api/intelligence/route.ts", "utf8");
+    const assembler = readFileSync("lib/babylon/intelligence-contract.ts", "utf8");
+    expect(route).toContain("ianaTimeZone: owned[0]?.iana_timezone ?? null");
+    expect(route).not.toContain("financialCivilDate");
+    expect(assembler).toContain(
+      "financialCivilDate(input.now, state.financialTimeZone)"
+    );
+    expect(assembler).not.toContain("civilDateInTimeZone(");
   });
 
   it("withholds a soft-migrated zero APR and keeps a recorded rate", () => {
@@ -538,9 +634,11 @@ describe("intelligence contract", () => {
     expect(kinds).toEqual(["due_obligation", "month_close"]);
     for (const item of contract.attention.items) {
       if (item.kind === "due_obligation") {
+        expect(item.civil_date).toBe(contract.meta.civil_date);
         expect(Object.keys(item).sort()).toEqual(["civil_date", "kind", "subject_ref"]);
       } else {
         expect(item.kind).toBe("month_close");
+        expect(item.civil_date).toBe(contract.meta.civil_date);
         expect(Object.keys(item).sort()).toEqual([
           "civil_date",
           "kind",
@@ -597,6 +695,7 @@ describe("intelligence contract", () => {
 
   it("does not mutate the fixture", () => {
     const fixture = state({
+      financialTimeZone: "America/Boise",
       expenses: [expense()],
       recurringObligations: [rule()],
       debts: [debt()],
@@ -776,7 +875,7 @@ describe("GET /api/intelligence", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store");
     const body = await response.json();
-    expect(body.meta.contract_version).toBe("3");
+    expect(body.meta.contract_version).toBe("4");
     expect(body.position.operational_balance_fields).toEqual([
       "money_available_cents",
       "effective_balance_cents",

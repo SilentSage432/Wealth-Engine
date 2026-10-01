@@ -254,7 +254,10 @@ describe("hydration authorship", () => {
   it("does not write recurring defaults from hydration or the local day change", () => {
     const hook = readFileSync("hooks/useBabylonEngine.ts", "utf8");
     expect(hook).not.toContain("materializeRecurringObligations");
-    const align = hook.slice(hook.indexOf("const alignToLocalDay"), hook.indexOf("const scheduleMidnight"));
+    const align = hook.slice(
+      hook.indexOf("const align = () => {"),
+      hook.indexOf("const schedule = () => {")
+    );
     expect(align).not.toContain("setExpenses");
     const save = hook.slice(
       hook.indexOf("const payload: PersistedState"),

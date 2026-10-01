@@ -511,6 +511,11 @@ export interface MonthlyCloseSummary {
   /** Positive = surplus in 70% pool; negative = overspend. */
   surplusOrDeficit: number;
   alreadyClosed: boolean;
+  /**
+   * False when the current financial month cannot be named.
+   * Absent means the caller already supplied a known month.
+   */
+  calendarKnown?: boolean;
 }
 
 export interface DebtEntry {

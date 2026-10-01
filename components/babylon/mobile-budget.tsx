@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { BudgetBlueprint } from "@/components/dashboard/BudgetBlueprint";
 import { TributeEnginesPanel } from "@/components/dashboard/TributeEnginesPanel";
+import { FINANCIAL_CALENDAR_UNKNOWN } from "@/lib/babylon/civil-time";
 import { formatDiscreetCurrency } from "@/lib/babylon/discreet";
 import { laborHoursForAmount } from "@/lib/babylon/engine";
 import {
@@ -46,7 +47,8 @@ interface MobileBudgetProps {
   onAutoScaleCaps: () => boolean;
   debts: DebtEntry[];
   monthlyDebtBudget: number;
-  currentMonthKey: string;
+  currentMonthKey: string | null;
+  calendarKnown?: boolean;
   periodArchives: PeriodArchive[];
   chartData: ChartMonthPoint[];
   donutData: DonutSlice[];
@@ -86,6 +88,7 @@ export function MobileBudget({
   debts,
   monthlyDebtBudget,
   currentMonthKey,
+  calendarKnown = true,
   periodArchives,
   chartData,
   donutData,
@@ -117,13 +120,15 @@ export function MobileBudget({
           <CardContent className="p-4">
             <SectionLabel>Living Budget</SectionLabel>
             <p className="mt-1 font-[family-name:var(--font-display)] text-4xl font-semibold tracking-tight text-slate-50 tabular-nums">
-              {money(expenditureRemaining)}
+              {calendarKnown ? money(expenditureRemaining) : FINANCIAL_CALENDAR_UNKNOWN}
             </p>
+            {calendarKnown ? (
             <p className="mt-2 text-xs leading-relaxed text-slate-500">
               {expenditureRemainingPct}% left. {money(totalSpent)} spent of{" "}
               {money(expenditurePool)} this month.
             </p>
-            {laborHours !== null ? (
+            ) : null}
+            {calendarKnown && laborHours !== null ? (
               <p className="mt-1 text-xs leading-relaxed text-slate-500">
                 About {laborHours} hours of main income.
               </p>
@@ -144,14 +149,20 @@ export function MobileBudget({
                     Wealth Building
                   </p>
                   <p className="shrink-0 tabular-nums text-sm text-slate-100">
-                    {money(wealthAllocated)}
+                    {calendarKnown ? money(wealthAllocated) : "Unknown"}
                   </p>
                 </div>
                 <p className="mt-1 text-xs leading-relaxed text-slate-500">
-                  This month&apos;s Wealth Building.
-                  {hasActiveDebt
-                    ? ""
-                    : " Includes the 20% Debt Payoff share."}
+                  {calendarKnown ? (
+                    <>
+                      This month&apos;s Wealth Building.
+                      {hasActiveDebt
+                        ? ""
+                        : " Includes the 20% Debt Payoff share."}
+                    </>
+                  ) : (
+                    FINANCIAL_CALENDAR_UNKNOWN
+                  )}
                 </p>
               </li>
               <li>
@@ -161,7 +172,7 @@ export function MobileBudget({
                     Debt Payoff
                   </p>
                   <p className="shrink-0 tabular-nums text-sm text-slate-100">
-                    {money(debtAllocated)}
+                    {calendarKnown ? money(debtAllocated) : "Unknown"}
                   </p>
                 </div>
                 <p className="mt-1 text-xs leading-relaxed text-slate-500">
@@ -195,6 +206,7 @@ export function MobileBudget({
         onUpdateTargetFull={onUpdateTargetFull}
         onDeleteTarget={onDeleteTarget}
         onAutoScaleCaps={onAutoScaleCaps}
+        calendarKnown={calendarKnown}
       />
 
       <DebtFreedomEngine
@@ -231,7 +243,11 @@ export function MobileBudget({
               {deeper === "income" ? "Hide income breakdown" : "View income breakdown"}
             </Button>
             {deeper === "income" ? (
-              <TributeEnginesPanel snapshot={tributeSnapshot} discreet={discreet} />
+              <TributeEnginesPanel
+                snapshot={tributeSnapshot}
+                discreet={discreet}
+                calendarKnown={calendarKnown}
+              />
             ) : null}
             <Button
               type="button"
@@ -250,6 +266,7 @@ export function MobileBudget({
                 currentMonthNeed={currentMonthNeed}
                 currentMonthDesire={currentMonthDesire}
                 currentMonthRemaining={currentMonthRemaining}
+                calendarKnown={calendarKnown}
               />
             ) : null}
             <Button
@@ -265,6 +282,7 @@ export function MobileBudget({
             </Button>
             {deeper === "affordability" ? (
               <AffordabilityAnchor
+                calendarKnown={calendarKnown}
                 discreet={discreet}
                 desiresPoolRemaining={desiresPoolRemaining}
                 hourlyLaborRate={hourlyLaborRate}

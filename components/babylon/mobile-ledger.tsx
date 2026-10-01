@@ -37,6 +37,7 @@ interface MobileLedgerProps {
   desireSpend: number;
   totalSpent: number;
   budgetTargets: BudgetTarget[];
+  financialToday?: string | null;
   onDeleteIncome: (id: string) => void;
   onDeleteExpense: (id: string) => void;
   onDeleteDebt: (id: string) => void;
@@ -69,6 +70,7 @@ export function MobileLedger({
   desireSpend,
   totalSpent,
   budgetTargets,
+  financialToday = null,
   onDeleteIncome,
   onDeleteExpense,
   onDeleteDebt,
@@ -237,7 +239,11 @@ export function MobileLedger({
                     const rule = recurringObligations.find(
                       (item) => item.id === row.recurringObligationId
                     );
-                    const timing = phoneExpenseTiming(row, undefined, rule?.intervalMonths);
+                    const timing = phoneExpenseTiming(
+                      row,
+                      financialToday,
+                      rule?.intervalMonths
+                    );
                     const bucket = categoryLabel(row.budgetCategoryId);
                     return (
                       <li

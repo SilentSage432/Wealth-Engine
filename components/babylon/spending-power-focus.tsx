@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { Briefcase } from "lucide-react";
+import { FINANCIAL_CALENDAR_UNKNOWN } from "@/lib/babylon/civil-time";
 import { laborHoursForAmount } from "@/lib/babylon/engine";
 import { formatDiscreetCurrency } from "@/lib/babylon/discreet";
 import { formatCurrency } from "@/lib/utils";
@@ -10,6 +11,7 @@ interface SpendingPowerFocusProps {
   expenditureRemaining: number;
   hourlyLaborRate: number;
   discreet?: boolean;
+  calendarKnown?: boolean;
 }
 
 /**
@@ -20,6 +22,7 @@ export function SpendingPowerFocus({
   expenditureRemaining,
   hourlyLaborRate,
   discreet = false,
+  calendarKnown = true,
 }: SpendingPowerFocusProps) {
   const money = (n: number) =>
     formatDiscreetCurrency(n, discreet, formatCurrency);
@@ -36,7 +39,11 @@ export function SpendingPowerFocus({
           Affordability Anchor
         </p>
         <p className="mt-2 font-[family-name:var(--font-display)] text-2xl font-semibold tracking-tight text-slate-100 sm:text-3xl">
-          {laborHours === null ? (
+          {!calendarKnown ? (
+            <span className="text-base font-normal text-slate-400">
+              {FINANCIAL_CALENDAR_UNKNOWN}
+            </span>
+          ) : laborHours === null ? (
             <span className="text-slate-500">—</span>
           ) : (
             <>

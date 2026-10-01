@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Eye, EyeOff, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { FINANCIAL_CALENDAR_UNKNOWN } from "@/lib/babylon/civil-time";
 import { GREETING_NAME_FALLBACK } from "@/lib/babylon/constants";
 
 function greetingForHour(hour: number): string {
@@ -18,6 +19,7 @@ interface MobileHeaderProps {
   onToggleDiscreetMode: () => void;
   onRecordTribute: () => void;
   onOpenMonthlyClose: () => void;
+  financialCalendarKnown?: boolean;
 }
 
 /**
@@ -31,6 +33,7 @@ export function MobileHeader({
   onToggleDiscreetMode,
   onRecordTribute,
   onOpenMonthlyClose,
+  financialCalendarKnown = true,
 }: MobileHeaderProps) {
   const [greetingHour] = useState(() => new Date().getHours());
   const greetingName = username.trim() || GREETING_NAME_FALLBACK;
@@ -81,7 +84,7 @@ export function MobileHeader({
           </Button>
         </div>
       </div>
-      {openMonthMessage ? (
+      {openMonthMessage && financialCalendarKnown ? (
         <p className="px-3 pb-2.5 text-sm leading-relaxed text-slate-300">
           {openMonthMessage}{" "}
           <button
@@ -91,6 +94,10 @@ export function MobileHeader({
           >
             Review close
           </button>
+        </p>
+      ) : openMonthMessage ? (
+        <p className="px-3 pb-2.5 text-sm leading-relaxed text-slate-300">
+          {FINANCIAL_CALENDAR_UNKNOWN}
         </p>
       ) : null}
     </header>

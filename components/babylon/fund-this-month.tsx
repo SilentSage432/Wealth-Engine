@@ -25,6 +25,7 @@ interface FundThisMonthSectionProps {
     schedule: PaySchedule
   ) => { ok: true } | { ok: false; message: string };
   onRemovePaySchedule: (id: string) => void;
+  financialToday?: string | null;
   /** Desktop Overview only. Phone leaves this unset. */
   disclosure?: boolean;
   planSummary?: ReactNode;
@@ -223,6 +224,7 @@ export function FundThisMonthSection({
   money,
   onUpsertPaySchedule,
   onRemovePaySchedule,
+  financialToday = null,
   disclosure = false,
   planSummary = null,
   children = null,
@@ -318,6 +320,7 @@ export function FundThisMonthSection({
       {editingSchedule ? (
         <ExpectedPayScheduleEditor
           schedules={paySchedules}
+          financialToday={financialToday}
           onUpsert={onUpsertPaySchedule}
           onRemove={onRemovePaySchedule}
         />

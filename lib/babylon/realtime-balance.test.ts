@@ -386,7 +386,7 @@ describe("intelligence contract v3", () => {
 
   it("uses effective money and distinguishes cached, fresh, and aged readings", () => {
     const cached = contract("accounts_get", AT, "2026-09-28T18:00:00.000Z");
-    expect(cached.meta.contract_version).toBe("3");
+    expect(cached.meta.contract_version).toBe("4");
     expect(cached.position.money_available_cents).toBe(13_533);
     expect(cached.position.operational_balance_fields).toEqual([
       "money_available_cents",

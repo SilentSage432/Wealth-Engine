@@ -24,6 +24,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { FINANCIAL_CALENDAR_UNKNOWN } from "@/lib/babylon/civil-time";
 import { formatDiscreetCurrency } from "@/lib/babylon/discreet";
 import { cn, formatCompactCurrency, formatCurrency } from "@/lib/utils";
 import type { ChartMonthPoint, DonutSlice } from "@/types/babylon";
@@ -37,6 +38,7 @@ interface AnalyticsHubProps {
   discreet?: boolean;
   /** Desktop Overview starts the charts closed. Phone analysis stays open. */
   disclosure?: boolean;
+  calendarKnown?: boolean;
 }
 
 export function AnalyticsHub({
@@ -47,6 +49,7 @@ export function AnalyticsHub({
   currentMonthRemaining,
   discreet = false,
   disclosure = false,
+  calendarKnown = true,
 }: AnalyticsHubProps) {
   const money = (value: number) =>
     formatDiscreetCurrency(value, discreet, formatCurrency);
@@ -139,11 +142,17 @@ export function AnalyticsHub({
             This Month&apos;s Expenditures
           </CardTitle>
           <CardDescription>
-            Needs, wants, and what is left in the Living Budget
+            {calendarKnown
+              ? "Needs, wants, and what is left in the Living Budget"
+              : FINANCIAL_CALENDAR_UNKNOWN}
           </CardDescription>
         </CardHeader>
         <CardContent className="px-4 sm:px-6">
-          {donutData.length === 0 ? (
+          {!calendarKnown ? (
+            <div className="flex h-[240px] items-center sm:h-[280px] xl:h-[320px]">
+              <EmptyLedger message={FINANCIAL_CALENDAR_UNKNOWN} />
+            </div>
+          ) : donutData.length === 0 ? (
             <div className="h-[240px] sm:h-[280px] xl:h-[320px]">
               <EmptyLedger message="This breakdown appears after the first income is added." />
             </div>

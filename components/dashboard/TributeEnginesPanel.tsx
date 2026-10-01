@@ -15,6 +15,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { OverviewDisclosure } from "@/components/babylon/overview-disclosure";
+import { FINANCIAL_CALENDAR_UNKNOWN } from "@/lib/babylon/civil-time";
 import { STREAM_KIND_LABELS } from "@/lib/babylon/constants";
 import { formatDiscreetCurrency } from "@/lib/babylon/discreet";
 import { cn, formatCurrency } from "@/lib/utils";
@@ -25,6 +26,7 @@ interface TributeEnginesPanelProps {
   discreet?: boolean;
   /** Desktop Overview starts the type rows closed. Phone analysis stays open. */
   disclosure?: boolean;
+  calendarKnown?: boolean;
 }
 
 const KIND_ACCENT: Record<
@@ -68,9 +70,22 @@ export function TributeEnginesPanel({
   snapshot,
   discreet = false,
   disclosure = false,
+  calendarKnown = true,
 }: TributeEnginesPanelProps) {
   const money = (value: number) =>
     formatDiscreetCurrency(value, discreet, formatCurrency);
+  if (!calendarKnown) {
+    return (
+      <Card className="border-slate-800/80">
+        <CardHeader>
+          <CardTitle className="font-[family-name:var(--font-display)] text-lg">
+            Income this month
+          </CardTitle>
+          <CardDescription>{FINANCIAL_CALENDAR_UNKNOWN}</CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
   const monthTotal = (
     <div className="shrink-0 text-left sm:text-right">
       <p className="text-[10px] uppercase tracking-wider text-slate-500">

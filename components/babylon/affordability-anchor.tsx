@@ -8,6 +8,7 @@ import {
   desiresPoolSharePct,
   laborHoursForAmount,
 } from "@/lib/babylon/engine";
+import { FINANCIAL_CALENDAR_UNKNOWN } from "@/lib/babylon/civil-time";
 import { formatDiscreetCurrency } from "@/lib/babylon/discreet";
 import { formatCurrency } from "@/lib/utils";
 
@@ -17,6 +18,7 @@ interface AffordabilityAnchorProps {
   discreet?: boolean;
   /** Desktop Overview starts the purchase test closed. Phone analysis stays open. */
   disclosure?: boolean;
+  calendarKnown?: boolean;
 }
 
 export function AffordabilityAnchor({
@@ -24,6 +26,7 @@ export function AffordabilityAnchor({
   hourlyLaborRate,
   discreet = false,
   disclosure = false,
+  calendarKnown = true,
 }: AffordabilityAnchorProps) {
   const [amountRaw, setAmountRaw] = useState("");
 
@@ -48,6 +51,17 @@ export function AffordabilityAnchor({
       amount === null ? null : laborHoursForAmount(amount, hourlyLaborRate),
     [amount, hourlyLaborRate]
   );
+
+  if (!calendarKnown) {
+    return (
+      <section className="animate-fade-up rounded-xl border border-slate-800/80 bg-slate-900/40 px-4 py-4 sm:px-5">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+          Affordability Anchor
+        </p>
+        <p className="mt-2 text-sm text-slate-300">{FINANCIAL_CALENDAR_UNKNOWN}</p>
+      </section>
+    );
+  }
 
   const anchor = (
     <section className="animate-fade-up rounded-xl border border-slate-800/80 bg-slate-900/40 px-4 py-4 sm:px-5">

@@ -93,7 +93,6 @@ import {
   primaryHourlyRate,
   resolveSurplusDisposition,
   reverseDebtAllocation,
-  msUntilNextLocalMidnight,
   roundMoney,
   scaleBudgetCapsToPool,
   todayIso,
@@ -101,6 +100,11 @@ import {
   totalRemainingDebt,
   upcomingNeedsTotal,
 } from "@/lib/babylon/engine";
+import {
+  FINANCIAL_CALENDAR_UNKNOWN,
+  financialCivilDate,
+  msUntilNextFinancialMidnight,
+} from "@/lib/babylon/civil-time";
 import { DISCREET_STORAGE_KEY } from "@/lib/babylon/discreet";
 import {
   normalizeAccountDraft,
@@ -221,6 +225,8 @@ export function useBabylonEngine() {
   const [financialTimeZone, setFinancialTimeZone] = useState<string | undefined>(
     undefined
   );
+  const financialTimeZoneRef = useRef(financialTimeZone);
+  financialTimeZoneRef.current = financialTimeZone;
   /** Profile name input value — may be empty; greeting uses a visual fallback. */
   const [username, setUsernameState] = useState("");
   /** Auth user id when a verified Supabase session is present; null = local-only. */
@@ -271,7 +277,7 @@ export function useBabylonEngine() {
 
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeNav, setActiveNav] = useState<NavSection>("overview");
-  const [financialToday, setFinancialToday] = useState(() => todayIso());
+  const [financialToday, setFinancialToday] = useState<string | null>(null);
   const [wisdomIndex, setWisdomIndex] = useState(0);
 
   const [tributeOpen, setTributeOpen] = useState(false);
@@ -288,9 +294,10 @@ export function useBabylonEngine() {
   }, [cloudUserId]);
 
   const currentMonthKey = useMemo(
-    () => monthKeyFromDate(financialToday),
+    () => (financialToday ? monthKeyFromDate(financialToday) : null),
     [financialToday]
   );
+  const financialCalendarKnown = financialToday !== null && currentMonthKey !== null;
 
   const pushActivity = useCallback(
     (event: Omit<ActivityEvent, "id" | "createdAt"> & { createdAt?: string }) => {
@@ -785,30 +792,42 @@ export function useBabylonEngine() {
 
   useEffect(() => {
     let timeoutId = 0;
+    let cancelled = false;
 
-    const alignToLocalDay = () => {
-      const next = todayIso();
+    const align = () => {
+      const next = financialCivilDate(new Date(), financialTimeZoneRef.current);
       setFinancialToday((prev) => (prev === next ? prev : next));
     };
 
-    const scheduleMidnight = () => {
+    const schedule = () => {
+      window.clearTimeout(timeoutId);
+      const zone = financialTimeZoneRef.current;
+      if (!zone) return;
+      const wait = msUntilNextFinancialMidnight(new Date(), zone);
+      if (wait === null) return;
       timeoutId = window.setTimeout(() => {
-        alignToLocalDay();
-        scheduleMidnight();
-      }, msUntilNextLocalMidnight());
+        if (cancelled) return;
+        align();
+        schedule();
+      }, wait);
     };
 
+    align();
+    schedule();
     const onVisible = () => {
-      if (document.visibilityState === "visible") alignToLocalDay();
+      if (document.visibilityState !== "visible") return;
+      align();
+      schedule();
     };
-
-    scheduleMidnight();
     document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
     return () => {
+      cancelled = true;
       window.clearTimeout(timeoutId);
       document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
     };
-  }, []);
+  }, [financialTimeZone]);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -960,7 +979,10 @@ export function useBabylonEngine() {
   const lifetimeSpent = lifetimeActual.total;
 
   const currentMonthActual = useMemo(
-    () => actualSpendTotals(expenses, currentMonthKey),
+    () =>
+      currentMonthKey
+        ? actualSpendTotals(expenses, currentMonthKey)
+        : { need: 0, desire: 0, total: 0 },
     [expenses, currentMonthKey]
   );
   const currentMonthNeed = currentMonthActual.need;
@@ -968,6 +990,9 @@ export function useBabylonEngine() {
   const currentMonthSpent = currentMonthActual.total;
 
   const expenseRead = useMemo(() => {
+    if (!financialToday) {
+      return { status: "invalid" as const, reason: "invalid_range" as const };
+    }
     const range = operatingRecurrenceRange(recurringObligations, financialToday);
     if (!range) return { status: "invalid" as const, reason: "invalid_range" as const };
     return composeEffectiveExpenses(recurringObligations, expenses, range);
@@ -1000,7 +1025,7 @@ export function useBabylonEngine() {
 
   const dueAttention = useMemo(
     () =>
-      (obligationsReadable
+      (obligationsReadable && financialToday
         ? deriveDueAttention(obligationExpenses, financialToday)
         : []
       ).map((item) => {
@@ -1014,15 +1039,14 @@ export function useBabylonEngine() {
     [obligationsReadable, obligationExpenses, financialToday, recurringObligations]
   );
 
-  const monthCloseAttention = useMemo(
-    () =>
-      deriveMonthCloseAttention({
-        today: financialToday,
-        currentMonthKey,
-        lastClosedMonthKey,
-      }),
-    [financialToday, currentMonthKey, lastClosedMonthKey]
-  );
+  const monthCloseAttention = useMemo(() => {
+    if (!financialToday || !currentMonthKey) return null;
+    return deriveMonthCloseAttention({
+      today: financialToday,
+      currentMonthKey,
+      lastClosedMonthKey,
+    });
+  }, [financialToday, currentMonthKey, lastClosedMonthKey]);
 
   const currentMonthExpenditurePool = useMemo(
     () =>
@@ -1035,7 +1059,10 @@ export function useBabylonEngine() {
   );
 
   const currentMonthExpenses = useMemo(
-    () => expenses.filter((e) => monthKeyFromDate(e.date) === currentMonthKey),
+    () =>
+      currentMonthKey
+        ? expenses.filter((e) => monthKeyFromDate(e.date) === currentMonthKey)
+        : [],
     [expenses, currentMonthKey]
   );
 
@@ -1122,10 +1149,20 @@ export function useBabylonEngine() {
   /** Primary labor hourly rate for Affordability Anchor. */
   const hourlyLaborRate = useMemo(() => primaryHourlyRate(incomes), [incomes]);
 
-  const tributeEngines = useMemo(
-    () => buildTributeEngineSnapshot(incomes, currentMonthKey),
-    [incomes, currentMonthKey]
-  );
+  const tributeEngines = useMemo(() => {
+    if (!currentMonthKey) {
+      return {
+        monthKey: "",
+        monthTotal: 0,
+        primaryAmount: 0,
+        secondaryAmount: 0,
+        primaryPct: 0,
+        secondaryPct: 0,
+        byKind: [],
+      };
+    }
+    return buildTributeEngineSnapshot(incomes, currentMonthKey);
+  }, [incomes, currentMonthKey]);
 
   const recentActivity = useMemo(
     () => activityLog.slice(0, 5),
@@ -1150,8 +1187,10 @@ export function useBabylonEngine() {
     );
 
     return {
-      monthKey: currentMonthKey,
-      monthLabel: formatMonthLabel(currentMonthKey),
+      monthKey: currentMonthKey ?? "",
+      monthLabel: currentMonthKey
+        ? formatMonthLabel(currentMonthKey)
+        : FINANCIAL_CALENDAR_UNKNOWN,
       totalIncome: totalIncomeMonth,
       totalSpent: currentMonthSpent,
       wealthAllocated,
@@ -1159,7 +1198,9 @@ export function useBabylonEngine() {
       expenditurePool: currentMonthExpenditurePool,
       expenditureRemaining: currentMonthRemaining,
       surplusOrDeficit,
-      alreadyClosed: lastClosedMonthKey === currentMonthKey,
+      alreadyClosed:
+        currentMonthKey !== null && lastClosedMonthKey === currentMonthKey,
+      calendarKnown: currentMonthKey !== null,
     };
   }, [
     allocations,
@@ -1217,7 +1258,8 @@ export function useBabylonEngine() {
 
       const split = allocateIncome(input.amount, hasActiveDebt);
       const id = generateId();
-      const date = input.date || todayIso();
+      const date = input.date || financialToday;
+      if (!date) return false;
 
       const entry: IncomeEntry = {
         id,
@@ -1275,17 +1317,19 @@ export function useBabylonEngine() {
       setTributeOpen(false);
       return true;
     },
-    [hasActiveDebt, debtPositionEpoch, debts, pushActivity]
+    [hasActiveDebt, debtPositionEpoch, debts, financialToday, pushActivity]
   );
 
   /** Stage income for Paycheck Auto-Splitter review before vault commit. */
   const proposeIncomeSplit = useCallback(
     (input: IncomeInput): boolean => {
+      const date = input.date || financialToday;
       if (
         !input.source.trim() ||
         !Number.isFinite(input.amount) ||
         input.amount <= 0 ||
-        !input.kind
+        !input.kind ||
+        !date
       ) {
         return false;
       }
@@ -1293,13 +1337,13 @@ export function useBabylonEngine() {
         ...input,
         source: input.source.trim(),
         amount: roundMoney(input.amount),
-        date: input.date || todayIso(),
+        date,
       });
       setTributeOpen(false);
       setPaycheckOpen(true);
       return true;
     },
-    []
+    [financialToday]
   );
 
   const cancelPaycheckSplit = useCallback(() => {
@@ -1349,6 +1393,7 @@ export function useBabylonEngine() {
           return false;
         }
         if (input.isSettled) return false;
+        if (!financialToday) return false;
         const rule = buildRecurringObligation(
           {
             name: input.name,
@@ -1359,7 +1404,7 @@ export function useBabylonEngine() {
             intervalMonths: requestedInterval,
           },
           generateId(),
-          todayIso()
+          financialToday
         );
         if (!rule) return false;
         setRecurringObligations((prev) => [rule, ...prev]);
@@ -1376,12 +1421,14 @@ export function useBabylonEngine() {
         return true;
       }
 
+      const date = input.date || financialToday;
+      if (!date) return false;
       const entry: ExpenseEntry = {
         id: generateId(),
         name: input.name.trim(),
         category: input.category,
         amount: roundMoney(input.amount),
-        date: input.date || todayIso(),
+        date,
         dueDate: input.dueDate,
         budgetCategoryId: input.budgetCategoryId,
         isSettled: input.isSettled,
@@ -1398,7 +1445,7 @@ export function useBabylonEngine() {
       setTributeOpen(false);
       return true;
     },
-    [budgetTargets, pushActivity]
+    [budgetTargets, financialToday, pushActivity]
   );
 
   const addDebt = useCallback((input: DebtInput): boolean => {
@@ -1407,7 +1454,8 @@ export function useBabylonEngine() {
       !Number.isFinite(input.totalDebt) ||
       input.totalDebt <= 0 ||
       !Number.isFinite(input.monthlyAllocation) ||
-      input.monthlyAllocation <= 0
+      input.monthlyAllocation <= 0 ||
+      !financialToday
     ) {
       return false;
     }
@@ -1421,14 +1469,14 @@ export function useBabylonEngine() {
       // Pre-epoch: same field is still modeled until steward rebase.
       remainingDebt: owed,
       monthlyAllocation: roundMoney(input.monthlyAllocation),
-      createdAt: todayIso(),
+      createdAt: financialToday,
       interestRate: roundMoney(Math.max(0, input.interestRate ?? 0)),
     };
 
     setDebts((prev) => [entry, ...prev]);
     setTributeOpen(false);
     return true;
-  }, []);
+  }, [financialToday]);
 
   const updateBudgetTarget = useCallback((id: string, newAmount: number) => {
     if (!Number.isFinite(newAmount) || newAmount < 0) return;
@@ -1563,20 +1611,36 @@ export function useBabylonEngine() {
       let nextSettled: boolean | null = null;
       let name = "";
       let amount = 0;
-      const paymentDate = todayIso();
+      let refused = false;
 
       setExpenses((prev) => {
         const prepared = occurrenceForStewardAction(recurringObligations, prev, id);
         if (!prepared) return prev;
         const target = prepared.expense;
+        if (!target.isSettled && !financialToday) {
+          refused = true;
+          return prev;
+        }
         nextSettled = !target.isSettled;
         name = target.name;
         amount = target.amount;
+        const paymentDate = financialToday;
         return prepared.expenses.map((e) => {
           if (e.id !== id) return e;
-          return nextSettled ? markExpensePaid(e, paymentDate) : { ...e, isSettled: false };
+          return nextSettled && paymentDate
+            ? markExpensePaid(e, paymentDate)
+            : { ...e, isSettled: false };
         });
       });
+
+      if (refused) {
+        emitVaultToast({
+          tone: "error",
+          message: FINANCIAL_CALENDAR_UNKNOWN,
+          durationMs: 0,
+        });
+        return;
+      }
 
       if (nextSettled !== null) {
         pushActivity({
@@ -1587,10 +1651,11 @@ export function useBabylonEngine() {
         });
       }
     },
-    [pushActivity, recurringObligations]
+    [financialToday, pushActivity, recurringObligations]
   );
 
   const autoScaleBudgetCaps = useCallback((): boolean => {
+    if (!currentMonthKey) return false;
     if (budgetTargets.length === 0) return false;
     if (currentMonthExpenditurePool <= 0) return false;
     const scaled = scaleBudgetCapsToPool(
@@ -1616,6 +1681,7 @@ export function useBabylonEngine() {
 
   const closeMonth = useCallback(
     (disposition: SurplusDisposition): boolean => {
+      if (!financialToday || !currentMonthKey) return false;
       if (lastClosedMonthKey === currentMonthKey) return false;
 
       const surplus = Math.max(0, expenditureRemaining);
@@ -1649,7 +1715,7 @@ export function useBabylonEngine() {
           const rollEvent: AllocationEvent = {
             id: generateId(),
             incomeId: `period-rollover-${currentMonthKey}`,
-            date: todayIso(),
+            date: financialToday,
             monthKey: nextMonthKey(currentMonthKey),
             gross: resolved.rollover,
             wealth: 0,
@@ -1661,7 +1727,7 @@ export function useBabylonEngine() {
           const event: AllocationEvent = {
             id: generateId(),
             incomeId: `period-close-${currentMonthKey}`,
-            date: todayIso(),
+            date: financialToday,
             monthKey: currentMonthKey,
             gross: surplus,
             wealth: resolved.wealth,
@@ -1707,6 +1773,7 @@ export function useBabylonEngine() {
       return true;
     },
     [
+      financialToday,
       lastClosedMonthKey,
       currentMonthKey,
       expenditureRemaining,
@@ -2676,6 +2743,8 @@ export function useBabylonEngine() {
     paySchedules,
     financialTimeZone,
     establishFinancialTimeZone,
+    financialToday,
+    financialCalendarKnown,
     currentMonthKey,
     budgetVariances,
     budgetPlannedTotal,

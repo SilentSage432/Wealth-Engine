@@ -366,7 +366,7 @@ describe("WE-PAY-SCHEDULE-001 isolation", () => {
   it("persists rules only; backup v11; cloud schema 6; IC v3", () => {
     expect(LEDGER_BACKUP_VERSION).toBe(11);
     expect(CLOUD_VAULT_SCHEMA_VERSION).toBe(6);
-    expect(INTELLIGENCE_CONTRACT_VERSION).toBe("3");
+    expect(INTELLIGENCE_CONTRACT_VERSION).toBe("4");
     const schedule = biweekly({
       id: "lowes",
       anchorDate: "2026-10-02",

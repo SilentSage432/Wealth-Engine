@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { FINANCIAL_CALENDAR_UNKNOWN } from "@/lib/babylon/civil-time";
 import { formatDiscreetCurrency } from "@/lib/babylon/discreet";
 import {
   formatMonthLabel,
@@ -62,7 +63,8 @@ export type MonthlyPlanFinalizeOutcome =
   | { ok: false; message: string };
 
 interface MonthlyPlanPanelProps {
-  suggestedPeriodKey: string;
+  suggestedPeriodKey: string | null;
+  financialToday?: string | null;
   plans: readonly MonthlyPlanRevision[];
   budgetTargets: readonly BudgetTarget[];
   debts: readonly DebtEntry[];
@@ -111,6 +113,7 @@ function ratioWidth(ratio: number): string {
 
 export function MonthlyPlanPanel({
   suggestedPeriodKey,
+  financialToday = null,
   plans,
   budgetTargets,
   debts,
@@ -124,7 +127,7 @@ export function MonthlyPlanPanel({
   onUpsertPaySchedule,
   onRemovePaySchedule,
 }: MonthlyPlanPanelProps) {
-  const [periodKey, setPeriodKey] = useState(suggestedPeriodKey);
+  const [periodKey, setPeriodKey] = useState<string | null>(suggestedPeriodKey);
   const [drafting, setDrafting] = useState(false);
   const [draftOrigin, setDraftOrigin] = useState<"first" | "revise" | null>(
     null
@@ -140,24 +143,27 @@ export function MonthlyPlanPanel({
   const money = (value: number) =>
     formatDiscreetCurrency(value, discreet, formatCurrency);
   const moneyFromCents = (centValue: number) => money(centValue / 100);
-  const shortLabel = formatMonthLabel(periodKey);
-  const monthTitle = formatPlanMonthTitle(periodKey);
-  const latest = latestMonthlyPlanRevision(plans, periodKey);
+  const shortLabel = periodKey ? formatMonthLabel(periodKey) : "";
+  const monthTitle = periodKey ? formatPlanMonthTitle(periodKey) : "";
+  const latest = periodKey ? latestMonthlyPlanRevision(plans, periodKey) : null;
 
   const draftCategories = purposes.map((purpose) => ({
     ...purpose,
     plannedAmount: parseDraftAmount(amountText[purpose.id] ?? ""),
   }));
-  const preview = drafting
-    ? previewMonthlyPlan({
-        periodKey,
-        planningBasis: parseDraftAmount(basisText),
-        categories: draftCategories,
-        debts,
-        obligations,
-      })
-    : null;
-  const nextRevision = nextMonthlyPlanRevisionNumber(plans, periodKey);
+  const preview =
+    drafting && periodKey
+      ? previewMonthlyPlan({
+          periodKey,
+          planningBasis: parseDraftAmount(basisText),
+          categories: draftCategories,
+          debts,
+          obligations,
+        })
+      : null;
+  const nextRevision = periodKey
+    ? nextMonthlyPlanRevisionNumber(plans, periodKey)
+    : 1;
   const mapState = livingPurposeMapState(
     preview?.remainingCents ?? null,
     preview?.assignedCents ?? null
@@ -176,12 +182,24 @@ export function MonthlyPlanPanel({
   const remainingDebtCents = totalRemainingDebtCents(debts);
 
   useEffect(() => {
+    setPeriodKey((current) => current ?? suggestedPeriodKey);
+  }, [suggestedPeriodKey]);
+
+  useEffect(() => {
     if (!drafting || draftOrigin !== "first") return;
     setPurposes((current) => mergeFirstDraftPurposes(current, budgetTargets));
     setAmountText((current) =>
       mergeFirstDraftAmountFields(current, budgetTargets)
     );
   }, [drafting, draftOrigin, budgetTargets]);
+
+  if (!periodKey) {
+    return (
+      <section className="rounded-xl border border-slate-800/80 bg-slate-900/40 p-4 sm:p-5">
+        <p className="text-sm text-slate-300">{FINANCIAL_CALENDAR_UNKNOWN}</p>
+      </section>
+    );
+  }
 
   const openDraft = (mode: "first" | "revise", sourcePeriod: string) => {
     const current = latestMonthlyPlanRevision(plans, sourcePeriod);
@@ -302,6 +320,7 @@ export function MonthlyPlanPanel({
                 money={money}
                 onUpsertPaySchedule={onUpsertPaySchedule}
                 onRemovePaySchedule={onRemovePaySchedule}
+                financialToday={financialToday}
                 planSummary={
                   <div>
                     <p className="text-sm font-medium text-slate-100">
@@ -345,6 +364,7 @@ export function MonthlyPlanPanel({
                   money={money}
                   onUpsertPaySchedule={onUpsertPaySchedule}
                   onRemovePaySchedule={onRemovePaySchedule}
+                  financialToday={financialToday}
                 />
               </>
             )

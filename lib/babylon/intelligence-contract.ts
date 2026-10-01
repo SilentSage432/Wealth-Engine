@@ -28,7 +28,7 @@ import {
 } from "@/lib/babylon/account-restriction";
 import { realtimeBalanceAge } from "@/lib/babylon/foreground-balance-refresh";
 import { sumAccountBalances } from "@/lib/babylon/financial-position";
-import { civilDateInTimeZone } from "@/lib/babylon/notification-delivery";
+import { financialCivilDate } from "@/lib/babylon/civil-time";
 import { composeRecordedAdministrationQuiet } from "@/lib/babylon/financial-quiet";
 import {
   protectedOverflowExceeds,
@@ -48,13 +48,18 @@ import type { PersistedState } from "@/types/babylon";
  * debt-position epoch, steward-authoritative owed after. debts.cleared_cents
  * stays original − remaining and is not creditor-confirmed payoff.
  * Allocation ≠ Execution. Debt Purpose ≠ Debt Position ≠ Debt Execution.
- * Contract version stays 3. attention.epistemic is present, quiet, or unknown.
+ * Contract version is 4. meta.iana_timezone is the stored notification
+ * preference and does not resolve meta.civil_date. meta.civil_date is the
+ * financial civil date of generated_at in state.financialTimeZone, or null.
+ * current_month_key, month_closed, current-month money, recurrence, Quiet,
+ * and each attention item's civil_date follow that financial date.
+ * attention.epistemic is present, quiet, or unknown.
  * Empty attention.items does not mean quiet. Kinds stay due_obligation and month_close.
  * recorded_administration is the canonical Quiet reading for one vault document.
  * It is not Attention quiet and it is not a health claim. This route does not
  * see a cloud conflict or an Item repair.
  */
-export const INTELLIGENCE_CONTRACT_VERSION = "3";
+export const INTELLIGENCE_CONTRACT_VERSION = "4";
 
 const STANDING_UNKNOWNS = [
   "no_expected_payday",
@@ -96,7 +101,10 @@ export type IntelligenceBalanceEvidence =
 
 export interface IntelligenceContractInput {
   state: PersistedState;
-  /** Stored notification timezone. Null when the steward has no usable preference. */
+  /**
+   * Notification delivery timezone. Reported as meta.iana_timezone.
+   * Financial civil date comes from state.financialTimeZone.
+   */
   ianaTimeZone: string | null;
   now: Date;
   generatedAt: string;
@@ -150,9 +158,7 @@ function interestRatePpm(interestRate: number): number | null {
 
 export function assembleIntelligenceContract(input: IntelligenceContractInput) {
   const state = input.state;
-  const civilDate = input.ianaTimeZone
-    ? civilDateInTimeZone(input.now, input.ianaTimeZone)
-    : null;
+  const civilDate = financialCivilDate(input.now, state.financialTimeZone);
   const currentMonthKey = civilDate ? civilDate.slice(0, 7) : null;
   const hasActiveDebt = state.debts.some((debt) => debt.remainingDebt > 0);
   const redirect = allocateIncome(1, hasActiveDebt).debtRedirected;

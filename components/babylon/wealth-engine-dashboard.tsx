@@ -157,6 +157,7 @@ export function WealthEngineDashboard() {
       onClearAccountPurpose={engine.clearAccountPurpose}
       onUpdateProtected={engine.updateProtectedDesignations}
       onEditorOpenChange={setAccountEditorOpen}
+      financialToday={engine.financialToday}
       balanceObservation={balanceObservationView}
     />
   );
@@ -192,6 +193,7 @@ export function WealthEngineDashboard() {
       totalSpent={engine.totalSpent}
       expenditurePool={engine.expenditurePool}
       discreet={discreet}
+      calendarKnown={engine.financialCalendarKnown}
     />
   );
 
@@ -221,6 +223,7 @@ export function WealthEngineDashboard() {
       expenditureRemaining={engine.expenditureRemaining}
       hourlyLaborRate={engine.hourlyLaborRate}
       discreet={discreet}
+      calendarKnown={engine.financialCalendarKnown}
     />
   );
 
@@ -244,6 +247,7 @@ export function WealthEngineDashboard() {
       openingWealthBuilding={engine.openingWealthBuilding}
       openingEmergencyFund={engine.openingEmergencyFund}
       paySchedules={engine.paySchedules}
+      financialToday={engine.financialToday}
       discreet={discreet}
       disclosure={desktopLayout}
       onFinalize={engine.finalizeMonthlyPlan}
@@ -262,6 +266,7 @@ export function WealthEngineDashboard() {
       onUpdateTargetFull={engine.updateBudgetTargetFull}
       onDeleteTarget={engine.deleteBudgetTarget}
       onAutoScaleCaps={engine.autoScaleBudgetCaps}
+      calendarKnown={engine.financialCalendarKnown}
     />
   );
 
@@ -282,6 +287,7 @@ export function WealthEngineDashboard() {
       recurringObligations={engine.recurringObligations}
       onUpdateExpense={engine.updateExpenseOccurrence}
       onUpdateRecurringObligation={engine.updateRecurringObligation}
+      financialToday={engine.financialToday}
     />
   );
 
@@ -353,6 +359,7 @@ export function WealthEngineDashboard() {
                 onOpenSidebar={() => engine.setSidebarOpen(true)}
                 onRecordTribute={() => engine.openTribute("income")}
                 onOpenMonthlyClose={() => engine.setMonthlyCloseOpen(true)}
+                financialCalendarKnown={engine.financialCalendarKnown}
                 openMonthMessage={engine.monthCloseAttention?.message ?? null}
                 onToggleDiscreetMode={engine.toggleDiscreetMode}
                 onLinkBank={handleLinkBank}
@@ -365,6 +372,7 @@ export function WealthEngineDashboard() {
                 onToggleDiscreetMode={engine.toggleDiscreetMode}
                 onRecordTribute={() => engine.openTribute("income")}
                 onOpenMonthlyClose={() => engine.setMonthlyCloseOpen(true)}
+                financialCalendarKnown={engine.financialCalendarKnown}
               />
             )}
           </div>
@@ -428,6 +436,7 @@ export function WealthEngineDashboard() {
                 currentMonthNeed={engine.currentMonthNeed}
                 currentMonthDesire={engine.currentMonthDesire}
                 currentMonthRemaining={engine.currentMonthRemaining}
+                calendarKnown={engine.financialCalendarKnown}
                 monthlyPlan={monthlyPlan}
                 tributeSnapshot={engine.tributeEngines}
                 desiresPoolRemaining={engine.desiresPoolRemaining}
@@ -451,6 +460,7 @@ export function WealthEngineDashboard() {
                 recurringObligations={engine.recurringObligations}
                 onUpdateExpense={engine.updateExpenseOccurrence}
                 onUpdateRecurringObligation={engine.updateRecurringObligation}
+                financialToday={engine.financialToday}
                 discreet={discreet}
               />
             )}
@@ -460,6 +470,8 @@ export function WealthEngineDashboard() {
                 username={engine.username}
                 onUsernameChange={engine.setUsername}
                 monthAlreadyClosed={engine.monthlyCloseSummary.alreadyClosed}
+                financialCalendarKnown={engine.financialCalendarKnown}
+                financialToday={engine.financialToday}
                 onOpenMonthlyClose={() => engine.setMonthlyCloseOpen(true)}
                 wisdomIndex={engine.wisdomIndex}
                 onSelectWisdomIndex={engine.setWisdomIndex}
@@ -533,11 +545,13 @@ export function WealthEngineDashboard() {
                       {debtFreedom}
                       <AffordabilityAnchor
                         disclosure
+                        calendarKnown={engine.financialCalendarKnown}
                         desiresPoolRemaining={engine.desiresPoolRemaining}
                         hourlyLaborRate={engine.hourlyLaborRate}
                       />
                       <TributeEnginesPanel
                         disclosure
+                        calendarKnown={engine.financialCalendarKnown}
                         snapshot={engine.tributeEngines}
                       />
                       {monthlyPlan}
@@ -549,6 +563,7 @@ export function WealthEngineDashboard() {
                         currentMonthNeed={engine.currentMonthNeed}
                         currentMonthDesire={engine.currentMonthDesire}
                         currentMonthRemaining={engine.currentMonthRemaining}
+                        calendarKnown={engine.financialCalendarKnown}
                       />
                       <RecentActivityStrip
                         disclosure
@@ -608,6 +623,7 @@ export function WealthEngineDashboard() {
           onRecordIncome={engine.proposeIncomeSplit}
           onRecordExpense={engine.addExpense}
           onRecordDebt={engine.addDebt}
+          financialToday={engine.financialToday}
           onAddBudgetTarget={engine.addBudgetTarget}
         />
 

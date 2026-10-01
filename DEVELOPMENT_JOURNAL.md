@@ -1,5 +1,15 @@
 # Development Journal
 
+## 2026-10-01 — WE-FINANCIAL-TIME-ACTIVATION-003 Canonical financial civil date
+
+- `financialToday` is derived from the current instant and `PersistedState.financialTimeZone` through `financialCivilDate`. Absence is null. There is no device, notification, server, or UTC fallback.
+- Current-month readings, month close, the suggested plan month, and silent steward date stamps use that date or stay unavailable. Visible date fields default to it and start blank while it is unknown.
+- Notification delivery still uses `notification_preferences.iana_timezone`. Attention and the Intelligence Contract use the financial zone. The zones are not copied onto each other.
+- Intelligence Contract version is 4. `meta.iana_timezone` remains the notification preference. `meta.civil_date` is the financial civil date and is not resolved from that preference. No financial timezone field was added to the contract.
+- Financial midnight is a short timer from `msUntilNextFinancialMidnight`, with visibility and focus as the backstop. A day change does not write the vault. Clocks stay device-local.
+- Full suite: 72 files, 1074 tests passed. `tsc --noEmit` passed. ESLint on the edited files passed. Production build passed.
+- Not committed.
+
 ## 2026-10-01 — WE-FINANCIAL-TIME-AUTHORITY-002 Steward financial timezone
 
 - Optional `PersistedState.financialTimeZone` is the steward-authored IANA zone for the financial calendar. Absence is UNKNOWN.

@@ -22,7 +22,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { INTERVAL_LABELS, STREAM_KIND_LABELS, STREAM_KIND_ORDER } from "@/lib/babylon/constants";
-import { todayIso } from "@/lib/babylon/engine";
+import { FINANCIAL_CALENDAR_UNKNOWN } from "@/lib/babylon/civil-time";
 import {
   OBLIGATION_INTERVAL_CHOICES,
   obligationIntervalLabel,
@@ -56,6 +56,8 @@ interface RecordTransactionModalProps {
   onRecordIncome: (input: IncomeInput) => boolean;
   onRecordExpense: (input: ExpenseInput) => boolean;
   onRecordDebt: (input: DebtInput) => boolean;
+  /** Default civil date for a new record. Empty when financial today is unknown. */
+  financialToday?: string | null;
   onAddBudgetTarget: (
     target: Omit<BudgetTarget, "id">,
     options?: { closeModal?: boolean }
@@ -103,19 +105,20 @@ export function RecordTransactionModal({
   onRecordIncome,
   onRecordExpense,
   onRecordDebt,
+  financialToday = null,
   onAddBudgetTarget,
 }: RecordTransactionModalProps) {
   const [incomeSource, setIncomeSource] = useState("");
   const [incomeAmount, setIncomeAmount] = useState("");
-  const [incomeDate, setIncomeDate] = useState(todayIso());
+  const [incomeDate, setIncomeDate] = useState(financialToday ?? "");
   const [incomeInterval, setIncomeInterval] =
     useState<IncomeInterval>("monthly");
   const [incomeKind, setIncomeKind] = useState<IncomeStreamKind>("primary");
 
   const [expenseName, setExpenseName] = useState("");
   const [expenseAmount, setExpenseAmount] = useState("");
-  const [expenseDate, setExpenseDate] = useState(todayIso());
-  const [expenseDueDate, setExpenseDueDate] = useState(todayIso());
+  const [expenseDate, setExpenseDate] = useState(financialToday ?? "");
+  const [expenseDueDate, setExpenseDueDate] = useState(financialToday ?? "");
   const [expenseIsDesire, setExpenseIsDesire] = useState(false);
   const [expenseAlreadyPaid, setExpenseAlreadyPaid] = useState(true);
   const [expenseInterval, setExpenseInterval] = useState("0");
@@ -139,13 +142,13 @@ export function RecordTransactionModal({
     if (!open) return;
     setIncomeSource("");
     setIncomeAmount("");
-    setIncomeDate(todayIso());
+    setIncomeDate(financialToday ?? "");
     setIncomeInterval("monthly");
     setIncomeKind("primary");
     setExpenseName("");
     setExpenseAmount("");
-    setExpenseDate(todayIso());
-    setExpenseDueDate(todayIso());
+    setExpenseDate(financialToday ?? "");
+    setExpenseDueDate(financialToday ?? "");
     setExpenseIsDesire(false);
     setExpenseAlreadyPaid(true);
     setExpenseInterval("0");
@@ -170,6 +173,13 @@ export function RecordTransactionModal({
     // live `budgetTargets` updates are handled by the sync effect below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, mode]);
+
+  useEffect(() => {
+    if (!financialToday) return;
+    setIncomeDate((current) => current || financialToday);
+    setExpenseDate((current) => current || financialToday);
+    setExpenseDueDate((current) => current || financialToday);
+  }, [financialToday]);
 
   // Keep expense category selection valid as the live blueprint changes.
   useEffect(() => {
@@ -364,6 +374,13 @@ export function RecordTransactionModal({
       }
 
       if (mode === "debt") {
+        if (!financialToday) {
+          setFormFeedback({
+            tone: "error",
+            message: FINANCIAL_CALENDAR_UNKNOWN,
+          });
+          return;
+        }
         const total = Number.parseFloat(debtTotal);
         const monthly = Number.parseFloat(debtMonthly);
         if (!debtCreditor.trim() || !Number.isFinite(total) || total <= 0) {

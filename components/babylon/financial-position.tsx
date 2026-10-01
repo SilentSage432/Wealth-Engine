@@ -49,7 +49,6 @@ import {
 } from "@/lib/babylon/balance-evidence-load";
 import { ACCOUNT_KIND_LABELS } from "@/lib/babylon/constants";
 import { formatDiscreetCurrency } from "@/lib/babylon/discreet";
-import { todayIso } from "@/lib/babylon/engine";
 import type { PlaidItemPublic } from "@/lib/babylon/plaid-schema";
 import {
   FINANCIAL_ACCOUNT_KINDS,
@@ -161,6 +160,8 @@ interface FinancialPositionProps {
   ) => PurposeClearResult;
   onUpdateProtected: (wealth: number, emergency: number) => string | null;
   onEditorOpenChange?: (open: boolean) => void;
+  /** Default for a new account as-of date. Blank when financial today is unknown. */
+  financialToday?: string | null;
   /** Present when the signed-in steward can see cached bank balances. */
   balanceObservation?: FinancialPositionBalanceObservation;
 }
@@ -378,6 +379,7 @@ export function FinancialPosition({
   onClearAccountPurpose,
   onUpdateProtected,
   onEditorOpenChange,
+  financialToday = null,
   balanceObservation,
 }: FinancialPositionProps) {
   const money = (value: number) =>
@@ -444,7 +446,7 @@ export function FinancialPosition({
 
   const openAdd = () => {
     setEditingId(null);
-    setDraft({ ...EMPTY_DRAFT, asOf: todayIso() });
+    setDraft({ ...EMPTY_DRAFT, asOf: financialToday ?? "" });
     setFormError(null);
     setEditorOpen(true);
   };

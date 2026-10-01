@@ -91,3 +91,46 @@ export function resolveCivilDate(instant: Date, ianaTimeZone: string): string | 
 export function civilDateInTimeZone(now: Date, timeZone: string): string | null {
   return resolveCivilDate(now, timeZone);
 }
+
+/** Shown when a current-month reading has no steward financial timezone. */
+export const FINANCIAL_CALENDAR_UNKNOWN =
+  "Financial time zone is not established.";
+
+/**
+ * Current financial civil date. Null when the steward zone is absent or
+ * unusable. Does not read the device zone, a notification preference, or
+ * the server zone.
+ */
+export function financialCivilDate(
+  instant: Date,
+  financialTimeZone: string | null | undefined
+): string | null {
+  if (!financialTimeZone) return null;
+  return resolveCivilDate(instant, financialTimeZone);
+}
+
+/**
+ * Milliseconds until the civil date changes in the financial timezone.
+ * Null when that zone cannot resolve a date. The search uses absolute
+ * instants and resolveCivilDate, so a 23-hour or 25-hour civil day is
+ * included. A 1s floor avoids a tight loop on the boundary. No device
+ * midnight and no vault write.
+ */
+export function msUntilNextFinancialMidnight(
+  now: Date,
+  financialTimeZone: string | null | undefined
+): number | null {
+  if (!(now instanceof Date) || !Number.isFinite(now.getTime())) return null;
+  const today = financialCivilDate(now, financialTimeZone);
+  if (!today || !financialTimeZone) return null;
+  const start = now.getTime();
+  let hi = start + 36 * 60 * 60 * 1000;
+  if (resolveCivilDate(new Date(hi), financialTimeZone) === today) return null;
+  let lo = start;
+  while (hi - lo > 1000) {
+    const mid = lo + Math.floor((hi - lo) / 2);
+    if (resolveCivilDate(new Date(mid), financialTimeZone) === today) lo = mid;
+    else hi = mid;
+  }
+  return Math.max(1000, hi - start);
+}

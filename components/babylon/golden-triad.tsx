@@ -27,6 +27,7 @@ import {
   debtPurposeAllocatedLabel,
   modeledDebtProgressLabel,
 } from "@/lib/babylon/allocation-execution-copy";
+import { FINANCIAL_CALENDAR_UNKNOWN } from "@/lib/babylon/civil-time";
 import { formatDiscreetCurrency } from "@/lib/babylon/discreet";
 import { cn, formatCurrency } from "@/lib/utils";
 import type { ExpenditureBarTone, SparkPoint } from "@/types/babylon";
@@ -52,6 +53,8 @@ interface GoldenTriadProps {
   totalSpent: number;
   expenditurePool: number;
   discreet?: boolean;
+  /** False hides the current-month living-budget figure. */
+  calendarKnown?: boolean;
 }
 
 export function GoldenTriad({
@@ -73,6 +76,7 @@ export function GoldenTriad({
   totalSpent,
   expenditurePool,
   discreet = false,
+  calendarKnown = true,
 }: GoldenTriadProps) {
   const money = (n: number) =>
     formatDiscreetCurrency(n, discreet, formatCurrency);
@@ -200,7 +204,7 @@ export function GoldenTriad({
                 expenditureBarTone === "crimson" && "text-rose-300"
               )}
             >
-              {money(expenditureRemaining)}
+              {calendarKnown ? money(expenditureRemaining) : FINANCIAL_CALENDAR_UNKNOWN}
             </CardTitle>
           </div>
           <div
@@ -218,19 +222,23 @@ export function GoldenTriad({
           </div>
         </CardHeader>
         <CardContent className="space-y-2 p-3 pt-0 sm:space-y-3 sm:p-6 sm:pt-0">
-          <Progress
-            value={expenditureRemainingPct}
-            className="h-2 sm:h-2.5"
-            indicatorClassName={progressIndicatorClass}
-          />
-          <div className="flex items-center justify-between text-[10px] sm:text-xs">
-            <span className="text-slate-500">
-              {expenditureRemainingPct}% left
-            </span>
-            <span className="tabular-nums text-slate-400">
-              {money(totalSpent)} / {money(expenditurePool)}
-            </span>
-          </div>
+          {calendarKnown ? (
+            <>
+              <Progress
+                value={expenditureRemainingPct}
+                className="h-2 sm:h-2.5"
+                indicatorClassName={progressIndicatorClass}
+              />
+              <div className="flex items-center justify-between text-[10px] sm:text-xs">
+                <span className="text-slate-500">
+                  {expenditureRemainingPct}% left
+                </span>
+                <span className="tabular-nums text-slate-400">
+                  {money(totalSpent)} / {money(expenditurePool)}
+                </span>
+              </div>
+            </>
+          ) : null}
         </CardContent>
       </Card>
     </section>

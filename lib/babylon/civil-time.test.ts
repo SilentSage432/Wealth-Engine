@@ -96,7 +96,10 @@ describe("resolveCivilDate", () => {
     expect(hostDay === "2026-01-14" || hostDay === "2026-01-15").toBe(true);
 
     const source = readFileSync("lib/babylon/civil-time.ts", "utf8");
-    const body = source.slice(source.indexOf("export function resolveCivilDate"));
+    const body = source.slice(
+      source.indexOf("export function resolveCivilDate"),
+      source.indexOf("export function civilDateInTimeZone")
+    );
     expect(body).not.toContain("Date.now");
     expect(body).not.toContain("todayIso");
     expect(body).not.toContain("new Date(");
@@ -106,21 +109,24 @@ describe("resolveCivilDate", () => {
     expect(source).not.toContain("dueDate");
   });
 
-  it("does not become the production financial clock", () => {
+  it("is the production financial clock through financialCivilDate", () => {
     const hook = readFileSync("hooks/useBabylonEngine.ts", "utf8");
     const engine = readFileSync("lib/babylon/engine.ts", "utf8");
     const intelligence = readFileSync("lib/babylon/intelligence-contract.ts", "utf8");
     const evaluator = readFileSync("lib/babylon/notification-evaluator.ts", "utf8");
     const device = readFileSync("lib/babylon/notification-device.ts", "utf8");
+    expect(hook).toContain("financialCivilDate(");
     expect(hook).toContain("todayIso(");
     expect(hook).not.toContain("resolveCivilDate");
     expect(engine).toContain("export function todayIso");
     expect(engine).not.toContain("resolveCivilDate");
-    expect(intelligence).toContain("civilDateInTimeZone(");
+    expect(intelligence).toContain("financialCivilDate(");
+    expect(intelligence).not.toContain("civilDateInTimeZone(");
     expect(intelligence).not.toContain("resolveCivilDate");
     expect(evaluator).toContain("civilDateInTimeZone(");
     expect(evaluator).not.toContain("resolveCivilDate");
     expect(device).toContain("preferenceTimezoneRefresh");
+    expect(device).not.toContain("financialTimeZone");
     expect(device).not.toContain("resolveCivilDate");
   });
 });

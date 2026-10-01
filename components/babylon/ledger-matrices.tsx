@@ -55,6 +55,7 @@ interface LedgerMatricesProps {
     id: string,
     patch: { amount: number; dueDate: string }
   ) => boolean;
+  financialToday?: string | null;
   onUpdateRecurringObligation: (
     id: string,
     patch: {
@@ -83,6 +84,7 @@ export function LedgerMatrices({
   onDeleteDebt,
   onToggleExpenseSettled,
   recurringObligations,
+  financialToday = null,
   onUpdateExpense,
   onUpdateRecurringObligation,
 }: LedgerMatricesProps) {
@@ -316,16 +318,23 @@ export function LedgerMatrices({
                     <TableBody>
                       {expenses.map((row) => {
                         const dueSoon =
-                          !row.isSettled && isDueWithinWeek(row.dueDate);
-                        const overdue = !row.isSettled && isOverdue(row.dueDate);
+                          financialToday != null &&
+                          !row.isSettled &&
+                          isDueWithinWeek(row.dueDate, financialToday);
+                        const overdue =
+                          financialToday != null &&
+                          !row.isSettled &&
+                          isOverdue(row.dueDate, financialToday);
                         const bucket = categoryLabel(row.budgetCategoryId);
                         const timing = row.isSettled
                           ? "Paid"
-                          : overdue
-                            ? "Overdue"
-                            : dueSoon
-                              ? "Due soon"
-                              : "Upcoming";
+                          : financialToday == null
+                            ? "Date unknown"
+                            : overdue
+                              ? "Overdue"
+                              : dueSoon
+                                ? "Due soon"
+                                : "Upcoming";
                         const rule = recurringObligations.find(
                           (item) => item.id === row.recurringObligationId
                         );

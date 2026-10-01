@@ -17,6 +17,7 @@ import {
   formatMonthLabel,
   projectDebtFreedom,
 } from "@/lib/babylon/engine";
+import { FINANCIAL_CALENDAR_UNKNOWN } from "@/lib/babylon/civil-time";
 import { formatDiscreetCurrency } from "@/lib/babylon/discreet";
 import { cn, formatCurrency } from "@/lib/utils";
 import type {
@@ -28,7 +29,7 @@ import type {
 interface DebtFreedomEngineProps {
   debts: DebtEntry[];
   monthlyDebtBudget: number;
-  currentMonthKey: string;
+  currentMonthKey: string | null;
   periodArchives: PeriodArchive[];
   discreet?: boolean;
   /** Full keeps the desktop planner. Compact is the phone plan summary. */
@@ -54,22 +55,25 @@ export function DebtFreedomEngine({
 
   const projection = useMemo(
     () =>
-      projectDebtFreedom(
-        debts,
-        monthlyDebtBudget,
-        extraTribute,
-        strategy,
-        currentMonthKey
-      ),
+      currentMonthKey
+        ? projectDebtFreedom(
+            debts,
+            monthlyDebtBudget,
+            extraTribute,
+            strategy,
+            currentMonthKey
+          )
+        : null,
     [debts, monthlyDebtBudget, extraTribute, strategy, currentMonthKey]
   );
 
   const ordered = useMemo(() => {
+    if (!projection) return debts.filter((debt) => debt.remainingDebt > 0);
     const map = new Map(debts.map((d) => [d.id, d]));
     return projection.orderedDebtIds
       .map((id) => map.get(id))
       .filter((d): d is DebtEntry => Boolean(d));
-  }, [debts, projection.orderedDebtIds]);
+  }, [debts, projection]);
 
   const velocity = useMemo(() => {
     const chronological = [...periodArchives].sort((a, b) =>
@@ -146,6 +150,15 @@ export function DebtFreedomEngine({
           >
             100% Debt-Free today
           </p>
+        ) : !projection ? (
+          <p
+            className={cn(
+              "font-[family-name:var(--font-display)] text-slate-300",
+              density === "compact" ? "text-lg" : "text-xl sm:text-2xl"
+            )}
+          >
+            {FINANCIAL_CALENDAR_UNKNOWN}
+          </p>
         ) : projection.debtFreeLabel ? (
           <p
             className={cn(
@@ -167,10 +180,10 @@ export function DebtFreedomEngine({
         )}
         <p className="mt-2 text-xs text-slate-500">
           Monthly debt allocation {money(monthlyDebtBudget)}
-          {projection.monthsRemaining != null
+          {projection?.monthsRemaining != null
             ? ` · ${projection.monthsRemaining} months remaining`
             : ""}
-          {projection.totalInterestPaid > 0
+          {projection && projection.totalInterestPaid > 0
             ? ` · est. interest ${money(projection.totalInterestPaid)}`
             : ""}
         </p>

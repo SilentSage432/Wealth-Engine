@@ -317,7 +317,7 @@ describe("balance evidence load", () => {
     expect(engine).toContain("operationalMoneyAvailable");
     expect(engine).not.toContain("sumAccountBalances(accounts)");
     expect(engine).not.toContain("acceptObservedBalance");
-    expect(contract).toContain('INTELLIGENCE_CONTRACT_VERSION = "3"');
+    expect(contract).toContain('INTELLIGENCE_CONTRACT_VERSION = "4"');
     expect(contract).not.toContain("balances_are_manual");
     expect(contract).not.toContain("no_reconciliation");
     expect(contract).toContain("plaid_is_not_vault_truth");

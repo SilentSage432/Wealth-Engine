@@ -1,5 +1,8 @@
 import { deriveDueAttention, deriveMonthCloseAttention } from "@/lib/babylon/attention";
-import { civilDateInTimeZone } from "@/lib/babylon/civil-time";
+import {
+  civilDateInTimeZone,
+  financialCivilDate,
+} from "@/lib/babylon/civil-time";
 import {
   composeEffectiveExpenses,
   operatingRecurrenceRange,
@@ -196,9 +199,15 @@ export async function decideAttentionDelivery(input: {
       removeEndpointIds: [],
     };
   }
-  const eligibleKeys = attentionKeysForState(input.state, civilDate).filter(
-    (key) => !input.succeededToday.has(key)
+  const financialDate = financialCivilDate(
+    input.now,
+    input.state.financialTimeZone
   );
+  const eligibleKeys = financialDate
+    ? attentionKeysForState(input.state, financialDate).filter(
+        (key) => !input.succeededToday.has(key)
+      )
+    : [];
   if (eligibleKeys.length === 0) {
     return {
       civilDate,

@@ -38,9 +38,15 @@ export function selectPhoneLedgerSection(
 /** Same words the desktop expense row already shows. */
 export function phoneExpenseTiming(
   row: Pick<ExpenseEntry, "isSettled" | "dueDate" | "recurringObligationId">,
-  today?: string,
+  today?: string | null,
   intervalMonths?: number
 ): string {
+  if (!today) {
+    const timing = row.isSettled ? "Paid" : "Date unknown";
+    return row.recurringObligationId
+      ? `${obligationIntervalLabel(intervalMonths)} · ${timing}`
+      : timing;
+  }
   const dueSoon = !row.isSettled && isDueWithinWeek(row.dueDate, today);
   const overdue = !row.isSettled && isOverdue(row.dueDate, today);
   const timing = row.isSettled

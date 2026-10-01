@@ -45,8 +45,9 @@ export function previousMonthKey(monthKey: string): string {
 }
 
 /**
- * Local calendar date as YYYY-MM-DD.
- * Financial "today" follows the user's calendar day, not the UTC day.
+ * Device-local calendar date as YYYY-MM-DD.
+ * Display labels and backup filenames may use this. It is not the
+ * financial calendar. Financial today is financialCivilDate.
  */
 export function todayIso(now: Date = new Date()): string {
   const year = now.getFullYear();
@@ -56,9 +57,9 @@ export function todayIso(now: Date = new Date()): string {
 }
 
 /**
- * Milliseconds until the next local midnight.
+ * Milliseconds until the next device-local midnight.
  * A 1s floor avoids a tight loop if the clock is already on the boundary.
- * Local hours match `todayIso`; this is not a UTC-day timer.
+ * This matches todayIso. Financial midnight uses msUntilNextFinancialMidnight.
  */
 export function msUntilNextLocalMidnight(now: Date = new Date()): number {
   const next = new Date(now.getTime());
@@ -71,7 +72,7 @@ export function roundMoney(value: number): number {
 }
 
 /** Calendar-day difference: dueDate − today (negative = overdue). */
-export function daysUntilDue(dueDate: string, today: string = todayIso()): number {
+export function daysUntilDue(dueDate: string, today: string): number {
   const due = Date.parse(`${dueDate}T00:00:00`);
   const now = Date.parse(`${today}T00:00:00`);
   if (!Number.isFinite(due) || !Number.isFinite(now)) return Number.NaN;
@@ -79,16 +80,13 @@ export function daysUntilDue(dueDate: string, today: string = todayIso()): numbe
 }
 
 /** Unpaid expense due today through the next 7 days (inclusive). */
-export function isDueWithinWeek(
-  dueDate: string,
-  today: string = todayIso()
-): boolean {
+export function isDueWithinWeek(dueDate: string, today: string): boolean {
   const days = daysUntilDue(dueDate, today);
   return Number.isFinite(days) && days >= 0 && days <= 7;
 }
 
 /** Unpaid expense whose due date is before today. */
-export function isOverdue(dueDate: string, today: string = todayIso()): boolean {
+export function isOverdue(dueDate: string, today: string): boolean {
   const days = daysUntilDue(dueDate, today);
   return Number.isFinite(days) && days < 0;
 }

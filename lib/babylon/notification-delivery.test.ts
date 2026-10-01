@@ -64,6 +64,7 @@ function state(partial: Partial<PersistedState> = {}): PersistedState {
     ...EMPTY_STATE,
     expenses: [],
     recurringObligations: [],
+    financialTimeZone: "America/Boise",
     ...partial,
   };
 }
@@ -117,6 +118,45 @@ describe("attention keys", () => {
     expect(keys).not.toContain("Phone");
     expect(keys).not.toContain("1200");
     expect(keys).not.toContain("85");
+  });
+});
+
+describe("financial civil date is separate from delivery", () => {
+  const now = new Date("2026-01-15T06:30:00.000Z");
+
+  it("uses the steward financial zone for attention and the delivery zone for the record", async () => {
+    const decision = await decideAttentionDelivery({
+      now,
+      timeZone: "America/New_York",
+      state: state({
+        financialTimeZone: "America/Boise",
+        expenses: [expense({ dueDate: "2026-01-14", date: "2026-01-14" })],
+      }),
+      succeededToday: new Set(),
+      endpoints: [{ id: "device-a" }],
+      send: async () => ({ ok: true, permanent: false }),
+    });
+    expect(decision.civilDate).toBe("2026-01-15");
+    expect(decision.eligibleKeys).toEqual(["due:exp-rent"]);
+  });
+
+  it("does not substitute the delivery zone when financial time is unknown", async () => {
+    const decision = await decideAttentionDelivery({
+      now,
+      timeZone: "America/New_York",
+      state: state({
+        financialTimeZone: undefined,
+        expenses: [expense({ dueDate: "2026-01-14", date: "2026-01-14" })],
+      }),
+      succeededToday: new Set(),
+      endpoints: [{ id: "device-a" }],
+      send: async () => {
+        throw new Error("should not send");
+      },
+    });
+    expect(decision.civilDate).toBe("2026-01-15");
+    expect(decision.eligibleKeys).toEqual([]);
+    expect(decision.sent).toBe(false);
   });
 });
 

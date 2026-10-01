@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { todayIso } from "@/lib/babylon/engine";
+import { FINANCIAL_CALENDAR_UNKNOWN } from "@/lib/babylon/civil-time";
 import { cadenceLabel } from "@/lib/babylon/paycheck-planner-ui";
 import { parsePaySchedule } from "@/lib/babylon/pay-schedule";
 import { generateId } from "@/lib/utils";
@@ -27,6 +27,7 @@ export type PayScheduleUpsertResult =
 
 interface ExpectedPayScheduleEditorProps {
   schedules: readonly PaySchedule[];
+  financialToday?: string | null;
   onUpsert: (schedule: PaySchedule) => PayScheduleUpsertResult;
   onRemove: (id: string) => void;
 }
@@ -51,6 +52,7 @@ function parseDayField(raw: string): SemimonthlyMonthDay | null {
 
 export function ExpectedPayScheduleEditor({
   schedules,
+  financialToday = null,
   onUpsert,
   onRemove,
 }: ExpectedPayScheduleEditorProps) {
@@ -103,7 +105,11 @@ export function ExpectedPayScheduleEditor({
 
   const submit = () => {
     const id = editing?.id ?? generateId();
-    const createdAt = editing?.createdAt ?? todayIso();
+    const createdAt = editing?.createdAt ?? financialToday;
+    if (!createdAt) {
+      setMessage(FINANCIAL_CALENDAR_UNKNOWN);
+      return;
+    }
     const amountText = expectedAmount.trim();
     const labelText = label.trim();
     const amountValue =

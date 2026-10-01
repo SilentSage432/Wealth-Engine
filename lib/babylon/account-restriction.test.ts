@@ -380,7 +380,7 @@ describe("persistence backup v10", () => {
   it("exports version 10 and keeps cloud schema 6 and IC v3", () => {
     expect(LEDGER_BACKUP_VERSION).toBe(11);
     expect(CLOUD_VAULT_SCHEMA_VERSION).toBe(6);
-    expect(INTELLIGENCE_CONTRACT_VERSION).toBe("3");
+    expect(INTELLIGENCE_CONTRACT_VERSION).toBe("4");
     const backup = buildLedgerBackup({
       ...EMPTY_STATE,
       accounts: [

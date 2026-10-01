@@ -282,13 +282,16 @@ describe("steward financial timezone authority", () => {
     const device = source("lib/babylon/notification-device.ts");
     const delivery = source("lib/babylon/notification-delivery.ts");
     expect(device).not.toContain("financialTimeZone");
-    expect(delivery).not.toContain("financialTimeZone");
+    expect(delivery).toContain("financialCivilDate(");
+    expect(delivery).toContain("civilDateInTimeZone(input.now, input.timeZone)");
     expect(device).toContain("export function preferenceTimezoneRefresh");
   });
 
-  it("leaves production financialToday on the device-local civil date", () => {
+  it("derives production financialToday from the steward zone", () => {
     const engine = source("hooks/useBabylonEngine.ts");
-    expect(engine).toContain("useState(() => todayIso())");
+    expect(engine).toContain("useState<string | null>(null)");
+    expect(engine).toContain("financialCivilDate(new Date(), financialTimeZoneRef.current)");
+    expect(engine).not.toContain("useState(() => todayIso())");
     const setter = engine.slice(
       engine.indexOf("const establishFinancialTimeZone"),
       engine.indexOf("const recurringRef")
@@ -299,6 +302,7 @@ describe("steward financial timezone authority", () => {
     expect(setter).not.toContain("resolvedOptions");
     expect(setter).not.toContain("preferenceTimezoneRefresh");
     expect(engine).not.toContain("resolveCivilDate");
+    expect(engine).not.toContain("financialToday:");
   });
 
   it("offers the device zone only as a confirmed draft", () => {

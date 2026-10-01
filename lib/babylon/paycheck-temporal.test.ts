@@ -722,6 +722,6 @@ describe("paycheck temporal isolation", () => {
     expect(revision.debts[0].remainingDebt).toBe(1500);
     expect(LEDGER_BACKUP_VERSION).toBe(11);
     expect(CLOUD_VAULT_SCHEMA_VERSION).toBe(6);
-    expect(INTELLIGENCE_CONTRACT_VERSION).toBe("3");
+    expect(INTELLIGENCE_CONTRACT_VERSION).toBe("4");
   });
 });
