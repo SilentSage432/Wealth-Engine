@@ -1,5 +1,25 @@
 # Development Journal
 
+## 2026-09-30 — WE-ATTENTION-COMPOSE-001 Epistemic Attention state
+
+### What changed
+- `composeFinancialAttention` reads `deriveDueAttention` and `deriveMonthCloseAttention` and reports whether each predicate is present, validly absent, or unknown.
+- Quiet is an explicit result. An empty item list does not prove it.
+- Unknown reasons are an invalid civil today, an unsettled due date that is not a civil date, and a current month key that is not a real month.
+- The Intelligence Contract stays version 3. `attention.epistemic` comes from `financialAttentionEpistemic`. Boundary codes project the same reasons.
+
+### Ownership
+- Attention eligibility and this epistemic composition stay in `lib/babylon/attention.ts`.
+- The Intelligence Contract serializes that result. It does not re-derive due or month-close rules.
+
+### Validation
+- Focused tests: `lib/babylon/attention.test.ts` and `lib/babylon/intelligence-contract.test.ts`.
+- Full suite: 66 files, 978 tests passed.
+- `tsc --noEmit` passed. ESLint on touched TypeScript files clean. Production build passed. `git diff --check` clean.
+
+### Not in this tranche
+- No new Attention kind. No debt, shortfall, budget, plan, payday, balance, Plaid, sync, notification, UI, persistence, or schema change.
+
 ## 2026-09-30 — WE-UX-HIERARCHY-006 Living Budget dedup
 
 ### What changed

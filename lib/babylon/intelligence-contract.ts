@@ -1,7 +1,8 @@
 import { deriveAvailableAfterPlannedNeeds } from "@/lib/babylon/available-after-planned-needs";
 import {
-  deriveDueAttention,
-  deriveMonthCloseAttention,
+  composeFinancialAttention,
+  financialAttentionEpistemic,
+  type AttentionTemporalUnknown,
 } from "@/lib/babylon/attention";
 import { DEBT_RATE, EXPENDITURE_RATE, WEALTH_RATE } from "@/lib/babylon/constants";
 import {
@@ -43,7 +44,8 @@ import type { ExpenseEntry, PersistedState } from "@/types/babylon";
  * debt-position epoch, steward-authoritative owed after. debts.cleared_cents
  * stays original − remaining and is not creditor-confirmed payoff.
  * Allocation ≠ Execution. Debt Purpose ≠ Debt Position ≠ Debt Execution.
- * Contract version stays 3; field meanings clarified, not silently rewritten.
+ * Contract version stays 3. attention.epistemic is present, quiet, or unknown.
+ * Empty attention.items does not mean quiet. Kinds stay due_obligation and month_close.
  */
 export const INTELLIGENCE_CONTRACT_VERSION = "3";
 
@@ -60,6 +62,8 @@ export type IntelligenceUnknown =
   | "cached_accounts_get_balance"
   | "apr_unverified"
   | "civil_date_unknown"
+  | "invalid_attention_due_date"
+  | "invalid_attention_month_key"
   | "balance_evidence_unavailable";
 
 /**
@@ -105,6 +109,29 @@ function sumMoney(values: readonly number[]): number {
 
 function rateBps(rate: number): number {
   return Math.round(rate * 10_000);
+}
+
+/** Boundary codes for composer temporal unknowns. One code per reason, once. */
+function attentionBoundaryUnknowns(composed: {
+  due: { unknowns: readonly AttentionTemporalUnknown[] };
+  monthClose: { unknowns: readonly AttentionTemporalUnknown[] };
+}): Array<
+  "civil_date_unknown" | "invalid_attention_due_date" | "invalid_attention_month_key"
+> {
+  const reasons = [...composed.due.unknowns, ...composed.monthClose.unknowns];
+  const codes: Array<
+    "civil_date_unknown" | "invalid_attention_due_date" | "invalid_attention_month_key"
+  > = [];
+  if (reasons.some((row) => row.reason === "invalid_civil_today")) {
+    codes.push("civil_date_unknown");
+  }
+  if (reasons.some((row) => row.reason === "invalid_due_date")) {
+    codes.push("invalid_attention_due_date");
+  }
+  if (reasons.some((row) => row.reason === "invalid_current_month_key")) {
+    codes.push("invalid_attention_month_key");
+  }
+  return codes;
 }
 
 /** Stored 0 cannot be separated from the soft-migrated missing APR. Withhold it. */
@@ -209,16 +236,12 @@ export function assembleIntelligenceContract(input: IntelligenceContractInput) {
   const originalDebt = totalOriginalDebt(state.debts);
   const remainingDebt = totalRemainingDebt(state.debts);
 
-  const due =
-    civilDate === null ? [] : deriveDueAttention(readingExpenses, civilDate);
-  const monthClose =
-    civilDate === null || currentMonthKey === null
-      ? null
-      : deriveMonthCloseAttention({
-          today: civilDate,
-          currentMonthKey,
-          lastClosedMonthKey: state.lastClosedMonthKey,
-        });
+  const composedAttention = composeFinancialAttention({
+    expenses: readingExpenses,
+    today: civilDate ?? "",
+    currentMonthKey,
+    lastClosedMonthKey: state.lastClosedMonthKey,
+  });
 
   const debts = state.debts.map((debt) => ({
     subject_ref: debt.id,
@@ -232,7 +255,9 @@ export function assembleIntelligenceContract(input: IntelligenceContractInput) {
   if (debts.some((debt) => debt.interest_rate_ppm === null) && state.debts.length > 0) {
     unknowns.push("apr_unverified");
   }
-  if (!civilDate) unknowns.push("civil_date_unknown");
+  for (const code of attentionBoundaryUnknowns(composedAttention)) {
+    unknowns.push(code);
+  }
   if (balanceEvidence.status === "unavailable") {
     unknowns.push("balance_evidence_unavailable");
   }
@@ -255,20 +280,21 @@ export function assembleIntelligenceContract(input: IntelligenceContractInput) {
       }
   > = [];
   if (civilDate) {
-    for (const item of due) {
-      attention.push({
-        kind: "due_obligation",
-        civil_date: civilDate,
-        subject_ref: item.id,
-      });
-    }
-    if (monthClose) {
-      attention.push({
-        kind: "month_close",
-        civil_date: civilDate,
-        month_key: monthClose.monthKey,
-        statement: monthClose.message,
-      });
+    for (const entry of composedAttention.items) {
+      if (entry.kind === "due_obligation") {
+        attention.push({
+          kind: "due_obligation",
+          civil_date: civilDate,
+          subject_ref: entry.item.id,
+        });
+      } else {
+        attention.push({
+          kind: "month_close",
+          civil_date: civilDate,
+          month_key: entry.item.monthKey,
+          statement: entry.item.message,
+        });
+      }
     }
   }
 
@@ -433,6 +459,7 @@ export function assembleIntelligenceContract(input: IntelligenceContractInput) {
     },
     attention: {
       items: attention,
+      epistemic: financialAttentionEpistemic(composedAttention),
     },
     boundaries: {
       unknowns,

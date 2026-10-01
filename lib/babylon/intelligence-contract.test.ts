@@ -2,8 +2,10 @@ import { readFileSync } from "node:fs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { deriveAvailableAfterPlannedNeeds } from "@/lib/babylon/available-after-planned-needs";
 import {
+  composeFinancialAttention,
   deriveDueAttention,
   deriveMonthCloseAttention,
+  financialAttentionEpistemic,
 } from "@/lib/babylon/attention";
 import { serializeCloudVaultData } from "@/lib/babylon/cloud-vault";
 import { EMPTY_STATE, DEBT_RATE, EXPENDITURE_RATE, WEALTH_RATE } from "@/lib/babylon/constants";
@@ -344,6 +346,56 @@ describe("intelligence contract", () => {
     ]);
     const kinds = new Set(closeContract.attention.items.map((item) => item.kind));
     expect(kinds).toEqual(new Set(["month_close"]));
+    expect(dueContract.attention.epistemic).toBe("present");
+    expect(closeContract.attention.epistemic).toBe("present");
+  });
+
+  it("uses the canonical attention composer for quiet and unknown", () => {
+    const quiet = assemble({}, "America/Boise", NOW);
+    const quietComposed = composeFinancialAttention({
+      expenses: [],
+      today: "2026-01-15",
+      currentMonthKey: "2026-01",
+      lastClosedMonthKey: null,
+    });
+    expect(quiet.attention.items).toEqual([]);
+    expect(quiet.attention.epistemic).toBe("quiet");
+    expect(quiet.attention.epistemic).toBe(financialAttentionEpistemic(quietComposed));
+    expect(quiet.boundaries.unknowns).not.toContain("invalid_attention_due_date");
+    expect(quiet.boundaries.unknowns).not.toContain("civil_date_unknown");
+
+    const invalidDue = assemble({
+      expenses: [expense({ id: "bad", dueDate: "2026-02-31" })],
+    });
+    const invalidComposed = composeFinancialAttention({
+      expenses: [expense({ id: "bad", dueDate: "2026-02-31" })],
+      today: "2026-01-15",
+      currentMonthKey: "2026-01",
+      lastClosedMonthKey: EMPTY_STATE.lastClosedMonthKey,
+    });
+    expect(invalidDue.attention.items).toEqual([]);
+    expect(invalidDue.attention.epistemic).toBe("unknown");
+    expect(invalidDue.attention.epistemic).toBe(
+      financialAttentionEpistemic(invalidComposed)
+    );
+    expect(invalidDue.boundaries.unknowns).toContain("invalid_attention_due_date");
+    expect(invalidDue.attention.epistemic).not.toBe("quiet");
+
+    const mixed = assemble({
+      expenses: [
+        expense({ id: "rent", dueDate: "2026-01-10" }),
+        expense({ id: "bad", dueDate: "2026-02-31" }),
+      ],
+    });
+    expect(mixed.attention.items).toEqual([
+      {
+        kind: "due_obligation",
+        civil_date: "2026-01-15",
+        subject_ref: "rent",
+      },
+    ]);
+    expect(mixed.attention.epistemic).toBe("unknown");
+    expect(mixed.boundaries.unknowns).toContain("invalid_attention_due_date");
   });
 
   it("does not invent a civil date when the timezone is unusable", () => {

@@ -266,12 +266,12 @@ Money figures already on the contract are integer cents of the existing rounded 
 
 Obligation `origin` is only `recorded` or `derived_from_rule`. `recorded` means the unpaid obligation is already in persisted Wealth Engine state, including a recurring occurrence that was stored earlier. `derived_from_rule` means this read materialized that occurrence in memory from a declared recurring rule and did not persist it. The rule is not a contract section. Materialization uses the shared recurrence owner, so an interval greater than one is not treated as monthly. The contract does not gain an interval field.
 
-`attention.items` is recomputed on each read. An empty array means this read found no established Attention. Sindarin may explain or surface those items. It does not create Attention kinds. The only kinds are:
+`attention.items` is recomputed on each read from `composeFinancialAttention`. Sindarin may explain or surface those items. It does not create Attention kinds. The only kinds are:
 
 - `due_obligation` has `kind`, `civil_date`, and `subject_ref`. All three are present, and none are null. `civil_date` is this read's civil date, not the bill's due date. The due date and amount remain on the obligation.
 - `month_close` has `kind`, `civil_date`, `month_key`, and `statement`. All four are present, and none are null. `statement` is the established sentence that this open month ends on this civil date. It does not close the month and it is not a recommendation.
 
-When the civil date cannot be derived, Attention is empty.
+`attention.epistemic` is `present`, `quiet`, or `unknown`. An empty `items` array does not prove quiet. Quiet is only `epistemic === "quiet"`: the civil date was valid, every unsettled due date under consideration was a civil date, the current month key was a real month, and neither predicate produced an item. `unknown` means that temporal evidence was insufficient. `civil_date_unknown` is an unusable civil date. `invalid_attention_due_date` is an unsettled expense whose stored due date is not a civil date; that row is not an Attention item. `invalid_attention_month_key` means the current month could not be evaluated. A non-last day, a current month that is already closed, or a later calendar day leaves `month_close` out of `items`. That absence does not assert that a previous month was closed. When the civil date cannot be derived, `items` is empty and `epistemic` is `unknown`.
 
 Living Budget uses the civil month:
 
@@ -397,7 +397,7 @@ Canonical ownership reference for Wealth Engine:
 | Monthly recurring obligations | `lib/babylon/recurring-obligations.ts`; local `recurringObligations[]` via `lib/babylon/persistence.ts` | Domain / Persistence |
 | Finalized monthly intent | `lib/babylon/monthly-plan.ts` (`finalizeMonthlyPlanRevision`, `previewMonthlyPlan`); `monthlyPlans[]` via `lib/babylon/persistence.ts`. The hook action is `finalizeMonthlyPlan`. The planning surface is `components/babylon/monthly-plan-panel.tsx`. | Domain / Persistence / Presentation |
 | Available After Planned Needs | `lib/babylon/available-after-planned-needs.ts` | Domain |
-| In-app attention eligibility | `lib/babylon/attention.ts` (`deriveDueAttention`, `deriveMonthCloseAttention`). Payment stays `toggleExpenseSettled`. Close stays the existing ritual. | Domain |
+| In-app attention eligibility | `lib/babylon/attention.ts` (`deriveDueAttention`, `deriveMonthCloseAttention`, `composeFinancialAttention`). The composer reports present, quiet, or unknown for those two kinds only. Payment stays `toggleExpenseSettled`. Close stays the existing ritual. | Domain |
 | Notification preference and push subscriptions | `supabase/migrations/20260929_notification_foundation.sql`, `lib/babylon/notification-records.ts`, `lib/babylon/notification-device.ts`, `app/api/notifications/*`. Operational records and this browser's opt-in. They do not decide Attention, send Web Push, or write the vault. | Persistence / Infrastructure |
 | Correlated Internal Movement | `lib/babylon/correlated-internal-movement.ts` (`deriveCorrelatedInternalMovements`) | Domain |
 | Observed repetition | `lib/babylon/observed-repetition.ts` (`deriveObservedRepetitions`) | Domain |

@@ -3,8 +3,10 @@ import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import {
   applyDueAttentionDecision,
+  composeFinancialAttention,
   deriveDueAttention,
   deriveMonthCloseAttention,
+  financialAttentionEpistemic,
   lastCivilDayOfMonth,
 } from "@/lib/babylon/attention";
 import { CLOUD_VAULT_SCHEMA_VERSION } from "@/lib/babylon/cloud-vault";
@@ -107,6 +109,232 @@ describe("deriveDueAttention", () => {
     expect(deriveDueAttention([expense({ id: "bad", dueDate: "2026-02-31" })], "2026-03-01")).toEqual(
       []
     );
+  });
+});
+
+describe("composeFinancialAttention", () => {
+  const today = "2026-09-25";
+  const openMonth = {
+    currentMonthKey: "2026-09",
+    lastClosedMonthKey: "2026-08" as string | null,
+  };
+
+  it("returns the existing due item when today and the due date are civil", () => {
+    const rows = [expense({ id: "rent", dueDate: today, name: "Rent", amount: 50 })];
+    const composed = composeFinancialAttention({
+      expenses: rows,
+      today,
+      ...openMonth,
+    });
+    const derived = deriveDueAttention(rows, today);
+    expect(composed.due).toEqual({
+      knowledge: "present",
+      items: derived,
+      unknowns: [],
+    });
+    expect(composed.items.map((entry) => entry.kind)).toEqual(["due_obligation"]);
+    if (composed.items[0]?.kind === "due_obligation") {
+      expect(composed.items[0].item).toEqual(derived[0]);
+    }
+    expect(composed.quiet).toBe(false);
+    expect(financialAttentionEpistemic(composed)).toBe("present");
+  });
+
+  it("keeps due-item order identical to deriveDueAttention", () => {
+    const rows = [
+      expense({ id: "b", name: "Beta", dueDate: "2026-09-20" }),
+      expense({ id: "a", name: "Alpha", dueDate: "2026-09-20" }),
+      expense({ id: "c", name: "Alpha", dueDate: "2026-09-01" }),
+    ];
+    const composed = composeFinancialAttention({
+      expenses: rows,
+      today,
+      ...openMonth,
+    });
+    expect(composed.due.items).toEqual(deriveDueAttention(rows, today));
+    expect(composed.due.items.map((item) => item.id)).toEqual(["c", "a", "b"]);
+  });
+
+  it("calls the due predicate quiet only when every candidate date was civil and none are due", () => {
+    const rows = [
+      expense({ id: "later", dueDate: "2026-09-26" }),
+      expense({ id: "paid", dueDate: today, isSettled: true }),
+    ];
+    const composed = composeFinancialAttention({
+      expenses: rows,
+      today,
+      ...openMonth,
+    });
+    expect(deriveDueAttention(rows, today)).toEqual([]);
+    expect(composed.due.knowledge).toBe("quiet");
+    expect(composed.due.items).toEqual([]);
+    expect(composed.quiet).toBe(true);
+    expect(financialAttentionEpistemic(composed)).toBe("quiet");
+    expect(composed.items).toEqual([]);
+  });
+
+  it("does not treat an empty derivation as quiet when today is not a civil date", () => {
+    const rows = [expense({ id: "rent", dueDate: "2026-09-01" })];
+    const composed = composeFinancialAttention({
+      expenses: rows,
+      today: "2026-02-31",
+      ...openMonth,
+    });
+    expect(deriveDueAttention(rows, "2026-02-31")).toEqual([]);
+    expect(composed.due.knowledge).toBe("unknown");
+    expect(composed.due.items).toEqual([]);
+    expect(composed.due.unknowns).toEqual([{ reason: "invalid_civil_today" }]);
+    expect(composed.monthClose.knowledge).toBe("unknown");
+    expect(composed.monthClose.currentMonthClosed).toBeNull();
+    expect(composed.monthClose.unknowns).toEqual([{ reason: "invalid_civil_today" }]);
+    expect(composed.quiet).toBe(false);
+    expect(financialAttentionEpistemic(composed)).toBe("unknown");
+    expect(composed.items).toEqual([]);
+  });
+
+  it("does not let an unsettled impossible due date disappear into quiet", () => {
+    const rows = [expense({ id: "bad", dueDate: "2026-02-31" })];
+    const composed = composeFinancialAttention({
+      expenses: rows,
+      today,
+      ...openMonth,
+    });
+    expect(deriveDueAttention(rows, today)).toEqual([]);
+    expect(composed.due.knowledge).toBe("unknown");
+    expect(composed.due.unknowns).toEqual([
+      { reason: "invalid_due_date", expenseId: "bad" },
+    ]);
+    expect(composed.quiet).toBe(false);
+    expect(financialAttentionEpistemic(composed)).toBe("unknown");
+  });
+
+  it("keeps a valid due item when another unsettled due date is not civil", () => {
+    const rows = [
+      expense({ id: "rent", dueDate: today }),
+      expense({ id: "bad", name: "Bad", dueDate: "2026-02-31" }),
+    ];
+    const composed = composeFinancialAttention({
+      expenses: rows,
+      today,
+      ...openMonth,
+    });
+    expect(composed.due.knowledge).toBe("unknown");
+    expect(composed.due.items).toEqual(deriveDueAttention(rows, today));
+    expect(composed.due.items.map((item) => item.id)).toEqual(["rent"]);
+    expect(composed.quiet).toBe(false);
+    expect(financialAttentionEpistemic(composed)).toBe("unknown");
+  });
+
+  it("leaves settled and future civil rows on the existing derivation", () => {
+    const rows = [
+      expense({ id: "paid", dueDate: "2026-09-01", isSettled: true }),
+      expense({ id: "later", dueDate: "2026-10-01" }),
+      expense({
+        id: "legacy",
+        dueDate: "2026-02-31",
+        isSettled: undefined as unknown as boolean,
+      }),
+    ];
+    const composed = composeFinancialAttention({
+      expenses: rows,
+      today,
+      ...openMonth,
+    });
+    expect(composed.due.items).toEqual(deriveDueAttention(rows, today));
+    expect(composed.due.knowledge).toBe("quiet");
+    expect(composed.due.unknowns).toEqual([]);
+  });
+
+  it("returns the existing month-close item on the last civil day of an open month", () => {
+    const notice = deriveMonthCloseAttention({
+      today: "2026-09-30",
+      currentMonthKey: "2026-09",
+      lastClosedMonthKey: "2026-08",
+    });
+    const composed = composeFinancialAttention({
+      expenses: [],
+      today: "2026-09-30",
+      currentMonthKey: "2026-09",
+      lastClosedMonthKey: "2026-08",
+    });
+    expect(composed.monthClose).toEqual({
+      knowledge: "present",
+      item: notice,
+      currentMonthClosed: false,
+      unknowns: [],
+    });
+    expect(composed.items.map((entry) => entry.kind)).toEqual(["month_close"]);
+    expect(composed.quiet).toBe(false);
+  });
+
+  it("records month-close absence before the last day without calling the month closed", () => {
+    const composed = composeFinancialAttention({
+      expenses: [],
+      today: "2026-09-29",
+      currentMonthKey: "2026-09",
+      lastClosedMonthKey: null,
+    });
+    expect(
+      deriveMonthCloseAttention({
+        today: "2026-09-29",
+        currentMonthKey: "2026-09",
+        lastClosedMonthKey: null,
+      })
+    ).toBeNull();
+    expect(composed.monthClose).toEqual({
+      knowledge: "absent",
+      item: null,
+      currentMonthClosed: false,
+      unknowns: [],
+    });
+    expect(composed.quiet).toBe(true);
+  });
+
+  it("records month-close absence when the current month is already closed", () => {
+    const composed = composeFinancialAttention({
+      expenses: [],
+      today: "2026-09-30",
+      currentMonthKey: "2026-09",
+      lastClosedMonthKey: "2026-09",
+    });
+    expect(composed.monthClose.knowledge).toBe("absent");
+    expect(composed.monthClose.item).toBeNull();
+    expect(composed.monthClose.currentMonthClosed).toBe(true);
+    expect(composed.quiet).toBe(true);
+  });
+
+  it("does not turn a later calendar day into month-close attention or a closed month", () => {
+    const composed = composeFinancialAttention({
+      expenses: [],
+      today: "2026-10-01",
+      currentMonthKey: "2026-09",
+      lastClosedMonthKey: null,
+    });
+    expect(composed.monthClose.knowledge).toBe("absent");
+    expect(composed.monthClose.currentMonthClosed).toBe(false);
+    expect(composed.items).toEqual([]);
+    expect(composed.quiet).toBe(true);
+  });
+
+  it("does not call month-close absence known when the month key is not a month", () => {
+    const composed = composeFinancialAttention({
+      expenses: [],
+      today,
+      currentMonthKey: "2026-13",
+      lastClosedMonthKey: null,
+    });
+    expect(composed.monthClose.knowledge).toBe("unknown");
+    expect(composed.monthClose.currentMonthClosed).toBeNull();
+    expect(composed.monthClose.unknowns).toEqual([
+      { reason: "invalid_current_month_key" },
+    ]);
+    expect(composed.quiet).toBe(false);
+  });
+
+  it("does not mutate expenses", () => {
+    const rows = [expense({ id: "rent", dueDate: today })];
+    composeFinancialAttention({ expenses: rows, today, ...openMonth });
+    expect(rows[0]?.isSettled).toBe(false);
   });
 });
 

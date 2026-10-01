@@ -128,3 +128,191 @@ export function deriveMonthCloseAttention(input: {
     message: `${monthLabel} is still open and ends today.`,
   };
 }
+
+/**
+ * Why a due or month-close reading cannot be called quiet.
+ * These are evidence limits. They are not Attention kinds.
+ */
+export type AttentionTemporalUnknown =
+  | { reason: "invalid_civil_today" }
+  | { reason: "invalid_due_date"; expenseId: string }
+  | { reason: "invalid_current_month_key" };
+
+export type EstablishedAttentionItem =
+  | { kind: "due_obligation"; item: DueAttentionItem }
+  | { kind: "month_close"; item: MonthCloseAttention };
+
+export type DueAttentionEpistemic =
+  | {
+      knowledge: "present";
+      items: readonly DueAttentionItem[];
+      unknowns: readonly [];
+    }
+  | {
+      knowledge: "quiet";
+      items: readonly [];
+      unknowns: readonly [];
+    }
+  | {
+      knowledge: "unknown";
+      /** Validly derived due rows. Empty here is not quiet. */
+      items: readonly DueAttentionItem[];
+      unknowns: readonly AttentionTemporalUnknown[];
+    };
+
+export type MonthCloseAttentionEpistemic =
+  | {
+      knowledge: "present";
+      item: MonthCloseAttention;
+      /** The notice exists only while this month is still open. */
+      currentMonthClosed: false;
+      unknowns: readonly [];
+    }
+  | {
+      knowledge: "absent";
+      item: null;
+      /**
+       * True only when lastClosedMonthKey is the evaluated current month.
+       * A false value does not mean a previous month was closed.
+       */
+      currentMonthClosed: boolean;
+      unknowns: readonly [];
+    }
+  | {
+      knowledge: "unknown";
+      item: null;
+      currentMonthClosed: null;
+      unknowns: readonly AttentionTemporalUnknown[];
+    };
+
+export interface ComposedFinancialAttention {
+  due: DueAttentionEpistemic;
+  monthClose: MonthCloseAttentionEpistemic;
+  /**
+   * Established due_obligation rows in deriveDueAttention order, then
+   * month_close when that notice exists. An empty array is not quiet.
+   */
+  items: readonly EstablishedAttentionItem[];
+  /**
+   * Both predicates were evaluated on valid temporal evidence and neither
+   * produced an established item. This is the only quiet claim.
+   */
+  quiet: boolean;
+}
+
+export type FinancialAttentionEpistemic = "present" | "quiet" | "unknown";
+
+const NO_UNKNOWNS = [] as const;
+
+function invalidCandidateDueDates(
+  expenses: readonly ExpenseEntry[]
+): AttentionTemporalUnknown[] {
+  const unknowns: AttentionTemporalUnknown[] = [];
+  for (const expense of expenses) {
+    if (expense.isSettled !== false) continue;
+    if (isCivilIsoDate(expense.dueDate)) continue;
+    unknowns.push({ reason: "invalid_due_date", expenseId: expense.id });
+  }
+  return unknowns;
+}
+
+function monthKeyIsReal(monthKey: string): boolean {
+  return lastCivilDayOfMonth(monthKey) !== null;
+}
+
+/**
+ * Read-only epistemic composition of the two established Attention predicates.
+ * Does not add kinds, does not interpret settlement, and does not treat an
+ * empty derivation as proof that nothing is due.
+ */
+export function composeFinancialAttention(input: {
+  expenses: readonly ExpenseEntry[];
+  today: string;
+  /** Null when no current month was established. A string must be a real YYYY-MM. */
+  currentMonthKey: string | null;
+  lastClosedMonthKey: string | null;
+}): ComposedFinancialAttention {
+  const todayValid = isCivilIsoDate(input.today);
+  const invalidDueDates = invalidCandidateDueDates(input.expenses);
+  const dueUnknowns: AttentionTemporalUnknown[] = [];
+  if (!todayValid) dueUnknowns.push({ reason: "invalid_civil_today" });
+  dueUnknowns.push(...invalidDueDates);
+
+  const dueItems = todayValid
+    ? deriveDueAttention(input.expenses, input.today)
+    : [];
+
+  const due: DueAttentionEpistemic =
+    dueUnknowns.length > 0
+      ? { knowledge: "unknown", items: dueItems, unknowns: dueUnknowns }
+      : dueItems.length > 0
+        ? { knowledge: "present", items: dueItems, unknowns: NO_UNKNOWNS }
+        : { knowledge: "quiet", items: [], unknowns: NO_UNKNOWNS };
+
+  const monthUnknowns: AttentionTemporalUnknown[] = [];
+  if (!todayValid) monthUnknowns.push({ reason: "invalid_civil_today" });
+  if (input.currentMonthKey === null) {
+    if (todayValid) monthUnknowns.push({ reason: "invalid_current_month_key" });
+  } else if (!monthKeyIsReal(input.currentMonthKey)) {
+    monthUnknowns.push({ reason: "invalid_current_month_key" });
+  }
+
+  let monthClose: MonthCloseAttentionEpistemic;
+  if (monthUnknowns.length > 0 || input.currentMonthKey === null) {
+    monthClose = {
+      knowledge: "unknown",
+      item: null,
+      currentMonthClosed: null,
+      unknowns: monthUnknowns,
+    };
+  } else {
+    const notice = deriveMonthCloseAttention({
+      today: input.today,
+      currentMonthKey: input.currentMonthKey,
+      lastClosedMonthKey: input.lastClosedMonthKey,
+    });
+    const currentMonthClosed = input.lastClosedMonthKey === input.currentMonthKey;
+    monthClose = notice
+      ? {
+          knowledge: "present",
+          item: notice,
+          currentMonthClosed: false,
+          unknowns: NO_UNKNOWNS,
+        }
+      : {
+          knowledge: "absent",
+          item: null,
+          currentMonthClosed,
+          unknowns: NO_UNKNOWNS,
+        };
+  }
+
+  const items: EstablishedAttentionItem[] = [];
+  for (const item of due.items) {
+    items.push({ kind: "due_obligation", item });
+  }
+  if (monthClose.knowledge === "present") {
+    items.push({ kind: "month_close", item: monthClose.item });
+  }
+
+  return {
+    due,
+    monthClose,
+    items,
+    quiet: due.knowledge === "quiet" && monthClose.knowledge === "absent",
+  };
+}
+
+/** Whole-reading status. Unknown wins. Empty items do not select quiet. */
+export function financialAttentionEpistemic(
+  composed: ComposedFinancialAttention
+): FinancialAttentionEpistemic {
+  if (
+    composed.due.knowledge === "unknown" ||
+    composed.monthClose.knowledge === "unknown"
+  ) {
+    return "unknown";
+  }
+  if (composed.quiet) return "quiet";
+  return "present";
+}
