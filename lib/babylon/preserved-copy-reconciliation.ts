@@ -3,6 +3,7 @@
  * Ownership: the supported-shape predicate, the cloud-first candidate, and
  * one compare-and-swap followed by verified readback.
  * It does not own the sync cycle, the CAS primitive, or generic merging.
+ * A second shape keeps one row for equivalent legacy generated occurrences.
  * A difference is not a conflict unless two records make incompatible claims
  * about the same authority scope.
  */
@@ -19,6 +20,7 @@ import {
   monthlyPlanRevisionHistoryError,
   parseMonthlyPlanRevision,
 } from "@/lib/babylon/monthly-plan";
+import { recurringOccurrenceId } from "@/lib/babylon/recurring-obligations";
 import { formatCivilMonthLabel } from "@/lib/babylon/monthly-plan-semantic";
 import {
   canonicalDurableJson,
@@ -27,6 +29,7 @@ import {
 import type { CloudSyncBaseline } from "@/lib/babylon/vault-sync";
 import type {
   ActivityEvent,
+  ExpenseEntry,
   MonthlyPlanRevision,
   PersistedState,
 } from "@/types/babylon";
@@ -249,6 +252,27 @@ function joinLabels(labels: readonly string[]): string {
   return `${labels.slice(0, -1).join(", ")}, and ${labels[labels.length - 1]}`;
 }
 
+/**
+ * Legacy generated occurrences only. Not the plan-incident preview.
+ * One row is kept for each recurring month. The other generated id is not.
+ */
+export function legacyOccurrencePreviewCopy(input: {
+  pairCount: number;
+  monthLabels: readonly string[];
+}): { intro: string; bullets: string[]; closing: string } {
+  return {
+    intro:
+      "Both preserved copies contain the same generated recurring occurrences with different ids.",
+    bullets: [
+      `Keep one generated row for each of the ${input.pairCount} matching recurring occurrences in ${joinLabels(input.monthLabels)}.`,
+      "Do not keep the other generated id for the same recurring rule and month.",
+      "Keep every other financial record unchanged.",
+    ],
+    closing:
+      "No distinct financial claim is discarded. Two ids for the same recurring rule and month are one occurrence.",
+  };
+}
+
 export function preservedCopyPreviewCopy(input: {
   cloudMonthLabels: readonly string[];
   localMonthLabels: readonly string[];
@@ -329,14 +353,20 @@ function unionActivity(
   return [...cloud, ...phoneOnly];
 }
 
+type PreservedCopySuccess = {
+  candidate: PersistedState;
+  classification: string;
+  cloudMonthLabels: string[];
+  localMonthLabels: string[];
+};
+
 export type PreservedCopyCandidate =
-  | {
+  | (PreservedCopySuccess & { ok: true; shape: "plan-incident" })
+  | (PreservedCopySuccess & {
       ok: true;
-      candidate: PersistedState;
-      classification: string;
-      cloudMonthLabels: string[];
-      localMonthLabels: string[];
-    }
+      shape: "legacy-occurrences";
+      collapsedPairs: number;
+    })
   | { ok: false; code: ReconciliationStopCode };
 
 /**
@@ -345,7 +375,7 @@ export type PreservedCopyCandidate =
  * that differs. Cloud-only accounts stay the cloud array. The observed
  * incident had four; one or more is the same safe relationship.
  */
-export function evaluatePreservedCopyCandidate(
+function evaluatePlanIncidentCandidate(
   local: PersistedState,
   cloud: PersistedState
 ): PreservedCopyCandidate {
@@ -485,11 +515,196 @@ export function evaluatePreservedCopyCandidate(
 
   return {
     ok: true,
+    shape: "plan-incident",
     candidate,
     classification,
     cloudMonthLabels: cloudLabels,
     localMonthLabels: localLabels,
   };
+}
+
+const MONTH_KEY = /^\d{4}-\d{2}$/;
+
+function withoutExpenses(state: PersistedState): Record<string, unknown> {
+  const clone = structuredClone(state) as unknown as Record<string, unknown>;
+  delete clone.expenses;
+  return clone;
+}
+
+function expenseSemanticKey(expense: ExpenseEntry): string | null {
+  const ruleId = expense.recurringObligationId;
+  const month = expense.recurrenceMonth;
+  if (!ruleId || !month || !MONTH_KEY.test(month)) return null;
+  return `${String(ruleId.length)}:${ruleId}:${month}`;
+}
+
+function duplicateSemanticOccurrence(expenses: readonly ExpenseEntry[]): boolean {
+  const seen = new Set<string>();
+  for (const expense of expenses) {
+    const key = expenseSemanticKey(expense);
+    if (!key) continue;
+    if (seen.has(key)) return true;
+    seen.add(key);
+  }
+  return false;
+}
+
+/** Equal persisted expense meaning. The storage id is not meaning. */
+function equivalentGeneratedOccurrence(
+  left: ExpenseEntry,
+  right: ExpenseEntry
+): boolean {
+  const leftKey = expenseSemanticKey(left);
+  const rightKey = expenseSemanticKey(right);
+  if (!leftKey || leftKey !== rightKey) return false;
+  const { id: leftId, ...leftRest } = left;
+  const { id: rightId, ...rightRest } = right;
+  void leftId;
+  void rightId;
+  return canonicalDurableJson(leftRest) === canonicalDurableJson(rightRest);
+}
+
+/**
+ * Keep the canonical occurrence id when one copy already has it.
+ * Otherwise keep the lexicographically smaller id. Not array order, and not
+ * "whichever document arrived first."
+ */
+function survivingOccurrence(left: ExpenseEntry, right: ExpenseEntry): ExpenseEntry {
+  const canonical = recurringOccurrenceId(
+    left.recurringObligationId ?? "",
+    left.recurrenceMonth ?? ""
+  );
+  if (canonical && left.id === canonical && right.id !== canonical) return left;
+  if (canonical && right.id === canonical && left.id !== canonical) return right;
+  return left.id < right.id ? left : right;
+}
+
+/**
+ * Legacy shape from independent materialization before stable occurrence ids.
+ * Every non-expense authority scope must already be the same document.
+ * Expense rows that differ only by id must be the same generated occurrence.
+ * Anything else refuses. This does not merge arbitrary expenses.
+ */
+function evaluateLegacyEquivalentOccurrences(
+  local: PersistedState,
+  cloud: PersistedState
+): PreservedCopyCandidate | null {
+  for (const key of ID_COLLECTIONS) {
+    if (duplicateOrMissingIds(local[key]) || duplicateOrMissingIds(cloud[key])) {
+      return null;
+    }
+  }
+  if (
+    duplicateSemanticOccurrence(local.expenses) ||
+    duplicateSemanticOccurrence(cloud.expenses)
+  ) {
+    return null;
+  }
+  if (
+    canonicalDurableJson(withoutExpenses(local)) !==
+    canonicalDurableJson(withoutExpenses(cloud))
+  ) {
+    return null;
+  }
+
+  const cloudIds = new Set(cloud.expenses.map((expense) => expense.id));
+  const localIds = new Set(local.expenses.map((expense) => expense.id));
+  for (const expense of local.expenses) {
+    if (!cloudIds.has(expense.id)) continue;
+    const cloudExpense = cloud.expenses.find((row) => row.id === expense.id);
+    if (!cloudExpense || canonicalDurableJson(expense) !== canonicalDurableJson(cloudExpense)) {
+      return null;
+    }
+  }
+
+  const localOnly = local.expenses.filter((expense) => !cloudIds.has(expense.id));
+  const cloudOnly = cloud.expenses.filter((expense) => !localIds.has(expense.id));
+  if (localOnly.length < 1 || localOnly.length !== cloudOnly.length) return null;
+
+  const localByKey = new Map<string, ExpenseEntry>();
+  for (const expense of localOnly) {
+    const key = expenseSemanticKey(expense);
+    if (!key || localByKey.has(key)) return null;
+    localByKey.set(key, expense);
+  }
+  const cloudByKey = new Map<string, ExpenseEntry>();
+  for (const expense of cloudOnly) {
+    const key = expenseSemanticKey(expense);
+    if (!key || cloudByKey.has(key)) return null;
+    cloudByKey.set(key, expense);
+  }
+  if (localByKey.size !== cloudByKey.size) return null;
+
+  const survivors = new Map<string, ExpenseEntry>();
+  const months: string[] = [];
+  for (const [key, cloudExpense] of cloudByKey) {
+    const localExpense = localByKey.get(key);
+    if (!localExpense || !equivalentGeneratedOccurrence(localExpense, cloudExpense)) {
+      return null;
+    }
+    survivors.set(cloudExpense.id, survivingOccurrence(localExpense, cloudExpense));
+    if (cloudExpense.recurrenceMonth) months.push(cloudExpense.recurrenceMonth);
+  }
+  if ([...localByKey.keys()].some((key) => !cloudByKey.has(key))) return null;
+
+  const expenses = cloud.expenses.map(
+    (expense) => survivors.get(expense.id) ?? expense
+  );
+  const seen = new Set<string>();
+  for (const expense of expenses) {
+    const key = expenseSemanticKey(expense);
+    if (!key) continue;
+    if (seen.has(key)) return null;
+    seen.add(key);
+  }
+
+  const labels = monthLabels(months);
+  if (!labels || labels.length < 1) return null;
+
+  const candidate: PersistedState = structuredClone({
+    ...cloud,
+    expenses,
+  });
+  if (
+    canonicalDurableJson(withoutExpenses(candidate)) !==
+    canonicalDurableJson(withoutExpenses(cloud))
+  ) {
+    return null;
+  }
+  if (!parseCloudVaultData(serializeCloudVaultData(candidate))) return null;
+
+  const pairs = [...cloudByKey.keys()].sort().map((key) => {
+    const cloudExpense = cloudByKey.get(key)!;
+    const kept = survivors.get(cloudExpense.id)!;
+    return { key, survivorId: kept.id };
+  });
+
+  return {
+    ok: true,
+    shape: "legacy-occurrences",
+    collapsedPairs: pairs.length,
+    candidate,
+    classification: canonicalDurableJson({
+      shape: "legacy-occurrences",
+      pairs,
+    }),
+    cloudMonthLabels: labels,
+    localMonthLabels: labels,
+  };
+}
+
+/**
+ * Established plan/account incident first.
+ * The legacy occurrence shape is attempted only when that incident refuses
+ * for shape, and only a positive match replaces that refusal.
+ */
+export function evaluatePreservedCopyCandidate(
+  local: PersistedState,
+  cloud: PersistedState
+): PreservedCopyCandidate {
+  const established = evaluatePlanIncidentCandidate(local, cloud);
+  if (established.ok || established.code !== "unsupported_shape") return established;
+  return evaluateLegacyEquivalentOccurrences(local, cloud) ?? established;
 }
 
 function mapCloudRead(read: CloudVaultGetResult): ReconciliationStopCode | null {
@@ -573,7 +788,13 @@ export async function previewPreservedCopyReconciliation(
     );
     if (!evaluated.ok) return fail(evaluated.code);
 
-    const copy = preservedCopyPreviewCopy(evaluated);
+    const copy =
+      evaluated.shape === "legacy-occurrences"
+        ? legacyOccurrencePreviewCopy({
+            pairCount: evaluated.collapsedPairs,
+            monthLabels: evaluated.cloudMonthLabels,
+          })
+        : preservedCopyPreviewCopy(evaluated);
     deps.log?.("reconcile_preview_ready");
     return {
       ok: true,

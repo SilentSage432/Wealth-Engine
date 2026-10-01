@@ -15,6 +15,7 @@ import {
   CURRENT_BACKUP_CONFIRMATION_LABEL,
   CURRENT_BACKUP_PROMPT,
   evaluatePreservedCopyCandidate,
+  legacyOccurrencePreviewCopy,
   logReconciliationDiagnostic,
   previewPreservedCopyReconciliation,
   RECONCILIATION_DIAGNOSTIC_TYPES,
@@ -22,11 +23,15 @@ import {
   type ReconciliationDiagnosticType,
   type ReconciliationStopCode,
 } from "@/lib/babylon/preserved-copy-reconciliation";
+import { recurringOccurrenceId } from "@/lib/babylon/recurring-obligations";
+import { canonicalDurableJson } from "@/lib/babylon/vault-structural-diff";
 import type { CloudSyncBaseline } from "@/lib/babylon/vault-sync";
 import type {
   ActivityEvent,
+  ExpenseEntry,
   MonthlyPlanRevision,
   PersistedState,
+  RecurringObligation,
 } from "@/types/babylon";
 
 function plan(
@@ -344,6 +349,7 @@ describe("preserved copy candidate", () => {
     expect(evaluated.cloudMonthLabels).toEqual(["September 2026"]);
     expect(evaluated.localMonthLabels).toEqual(["October 2026"]);
     expect(evaluated.candidate.activityLog).toHaveLength(3);
+    expect(evaluated.shape).toBe("plan-incident");
   });
 
   it("keeps an unknown cloud field and does not take the phone field", () => {
@@ -391,6 +397,401 @@ describe("preserved copy candidate", () => {
     expect(evaluated.localMonthLabels).toEqual(["November 2026"]);
     expect(evaluated.cloudMonthLabels).toEqual(["December 2026"]);
     expect(evaluated.cloudMonthLabels.join(" ")).not.toContain("September");
+  });
+});
+
+/**
+ * Preserved rev42/rev43 occurrence identities.
+ * Amounts and names here are not the production values.
+ * The pair relationship is: same document, plus four November rows that match
+ * in every persisted field except the generated expense id.
+ */
+const REV42_OCCURRENCE_PAIRS = [
+  {
+    ruleId: "1c59d04a-6e20-4367-a65c-29405549eb32",
+    dueDay: 9,
+    phoneId: "806c3b62-00fd-49c0-850f-380ed6aea769",
+    cloudId: "a25873de-7a9a-4458-929a-61eeb99f3ef3",
+    budgetCategoryId: "053598ef-5872-43eb-9562-d4ce2d67fd41",
+    amount: 11,
+  },
+  {
+    ruleId: "63c087d9-0429-402b-bf51-d3fd115b96f3",
+    dueDay: 12,
+    phoneId: "19be1ad1-a82b-4784-875d-28a9656f974a",
+    cloudId: "9e160643-3eae-450f-acf4-7f0119d7098a",
+    budgetCategoryId: "4879522c-f761-4502-8adb-c6f95c21982d",
+    amount: 12,
+  },
+  {
+    ruleId: "8d6d13e3-aa8e-4727-abf6-ab165cb4c059",
+    dueDay: 16,
+    phoneId: "affacf94-7172-4370-aa74-43e34f9b6848",
+    cloudId: "9bf67406-352f-45cc-b2e6-28ced1138612",
+    budgetCategoryId: "4879522c-f761-4502-8adb-c6f95c21982d",
+    amount: 16,
+  },
+  {
+    ruleId: "6c2a41ac-9940-43e8-bc67-8610bca32319",
+    dueDay: 26,
+    phoneId: "9f08e0ba-ecf8-411a-b3e6-978f7383615a",
+    cloudId: "50df9b9e-d2df-4865-8ff1-f996e60bb2c1",
+    budgetCategoryId: "4879522c-f761-4502-8adb-c6f95c21982d",
+    amount: 26,
+  },
+] as const;
+
+function dueOn(month: string, dueDay: number): string {
+  return `${month}-${String(dueDay).padStart(2, "0")}`;
+}
+
+function legacyRule(
+  id: string,
+  dueDay: number,
+  budgetCategoryId: string,
+  amount: number,
+  startMonth = "2026-10",
+  intervalMonths?: number
+): RecurringObligation {
+  return {
+    id,
+    name: `Rule ${dueDay}`,
+    amount,
+    category: "need",
+    budgetCategoryId,
+    dueDay,
+    startMonth,
+    ...(intervalMonths ? { intervalMonths } : {}),
+    isActive: true,
+    createdAt: "2026-09-01",
+    skippedMonths: [],
+  };
+}
+
+function generatedExpense(
+  id: string,
+  rule: RecurringObligation,
+  month: string,
+  overrides: Partial<ExpenseEntry> = {}
+): ExpenseEntry {
+  const dueDate = dueOn(month, rule.dueDay);
+  return {
+    id,
+    name: rule.name,
+    category: rule.category,
+    amount: rule.amount,
+    date: dueDate,
+    dueDate,
+    budgetCategoryId: rule.budgetCategoryId,
+    isSettled: false,
+    recurringObligationId: rule.id,
+    recurrenceMonth: month,
+    ...overrides,
+  };
+}
+
+function legacyEquivalentIncident() {
+  const rules = [
+    ...REV42_OCCURRENCE_PAIRS.map((pair) =>
+      legacyRule(pair.ruleId, pair.dueDay, pair.budgetCategoryId, pair.amount)
+    ),
+    legacyRule(
+      "rule-quarterly-2026-12",
+      26,
+      "4879522c-f761-4502-8adb-c6f95c21982d",
+      40,
+      "2026-12",
+      3
+    ),
+  ];
+  const sharedExpenses: ExpenseEntry[] = [
+    ...REV42_OCCURRENCE_PAIRS.map((pair) =>
+      generatedExpense(
+        `oct-${pair.ruleId}`,
+        rules.find((rule) => rule.id === pair.ruleId)!,
+        "2026-10"
+      )
+    ),
+    ...[1, 2, 3, 4, 5].map(
+      (index): ExpenseEntry => ({
+        id: `shared-one-off-${index}`,
+        name: `Shared ${index}`,
+        category: "need",
+        amount: index,
+        date: "2026-09-02",
+        dueDate: "2026-09-02",
+        isSettled: true,
+      })
+    ),
+  ];
+  const phoneNovember = REV42_OCCURRENCE_PAIRS.map((pair) =>
+    generatedExpense(
+      pair.phoneId,
+      rules.find((rule) => rule.id === pair.ruleId)!,
+      "2026-11"
+    )
+  );
+  const cloudNovember = REV42_OCCURRENCE_PAIRS.map((pair) =>
+    generatedExpense(
+      pair.cloudId,
+      rules.find((rule) => rule.id === pair.ruleId)!,
+      "2026-11"
+    )
+  );
+  const base: PersistedState = {
+    ...EMPTY_STATE,
+    displayName: "Ada",
+    accounts: [account("acct-shared", "Checking")],
+    recurringObligations: rules,
+    expenses: sharedExpenses,
+    monthlyPlans: [
+      plan({ id: "plan-sep", periodKey: "2026-09" }),
+      plan({ id: "plan-oct-1", periodKey: "2026-10" }),
+      plan({
+        id: "plan-oct-2",
+        periodKey: "2026-10",
+        revision: 2,
+        supersedesId: "plan-oct-1",
+      }),
+    ],
+    activityLog: [activity("act-shared", "Shared note")],
+    debtPositionEpochAt: "2026-09-29T15:19:22.654Z",
+    lastClosedMonthKey: "2026-09",
+  };
+  return {
+    local: { ...base, expenses: [...sharedExpenses, ...phoneNovember] },
+    cloud: { ...base, expenses: [...sharedExpenses, ...cloudNovember] },
+  };
+}
+
+function documentExceptExpenses(state: PersistedState): string {
+  const clone = structuredClone(state);
+  clone.expenses = [];
+  return canonicalDurableJson(clone);
+}
+
+function novemberRows(state: PersistedState): ExpenseEntry[] {
+  return state.expenses.filter((row) => row.recurrenceMonth === "2026-11");
+}
+
+function semanticSurvivorIds(state: PersistedState): string[] {
+  return novemberRows(state)
+    .map((row) => `${row.recurringObligationId}:${row.recurrenceMonth}:${row.id}`)
+    .sort();
+}
+
+describe("legacy equivalent generated occurrences", () => {
+  it("collapses the rev42/rev43 pair to four November rows", () => {
+    const { local, cloud } = legacyEquivalentIncident();
+    expect(local.expenses).toHaveLength(13);
+    expect(cloud.expenses).toHaveLength(13);
+    expect(novemberRows(local)).toHaveLength(4);
+    expect(novemberRows(cloud)).toHaveLength(4);
+
+    const evaluated = evaluatePreservedCopyCandidate(local, cloud);
+    expect(evaluated.ok).toBe(true);
+    if (!evaluated.ok) return;
+    expect(evaluated.shape).toBe("legacy-occurrences");
+    if (evaluated.shape !== "legacy-occurrences") return;
+
+    expect(evaluated.collapsedPairs).toBe(4);
+    expect(evaluated.candidate.expenses).toHaveLength(13);
+    expect(novemberRows(evaluated.candidate)).toHaveLength(4);
+    expect(evaluated.candidate.expenses).not.toHaveLength(17);
+    const survivorIds = novemberRows(evaluated.candidate).map((row) => row.id).sort();
+    expect(survivorIds).toEqual([
+      "19be1ad1-a82b-4784-875d-28a9656f974a",
+      "50df9b9e-d2df-4865-8ff1-f996e60bb2c1",
+      "806c3b62-00fd-49c0-850f-380ed6aea769",
+      "9bf67406-352f-45cc-b2e6-28ced1138612",
+    ]);
+    const kept = new Set(survivorIds);
+    for (const pair of REV42_OCCURRENCE_PAIRS) {
+      const present = [pair.phoneId, pair.cloudId].filter((id) => kept.has(id));
+      expect(present).toHaveLength(1);
+    }
+    for (const row of evaluated.candidate.expenses) {
+      const source =
+        local.expenses.find((item) => item.id === row.id) ??
+        cloud.expenses.find((item) => item.id === row.id);
+      expect(source).toEqual(row);
+    }
+    expect(documentExceptExpenses(evaluated.candidate)).toBe(documentExceptExpenses(local));
+    expect(documentExceptExpenses(evaluated.candidate)).toBe(documentExceptExpenses(cloud));
+    expect(
+      evaluated.candidate.expenses.filter((row) => row.recurrenceMonth === "2026-10")
+    ).toHaveLength(4);
+    expect(
+      evaluated.candidate.expenses.some(
+        (row) => row.recurringObligationId === "rule-quarterly-2026-12"
+      )
+    ).toBe(false);
+  });
+
+  it("keeps one row when equal generated occurrences differ only by id", () => {
+    const { local, cloud } = legacyEquivalentIncident();
+    const evaluated = evaluatePreservedCopyCandidate(local, cloud);
+    expect(evaluated.ok).toBe(true);
+    if (!evaluated.ok) return;
+    const keys = new Set(
+      novemberRows(evaluated.candidate).map(
+        (row) => `${row.recurringObligationId}:${row.recurrenceMonth}`
+      )
+    );
+    expect(keys.size).toBe(4);
+  });
+
+  it("refuses an amount, due date, category, or settled mismatch", () => {
+    const mismatches: Array<(row: ExpenseEntry) => ExpenseEntry> = [
+      (row) => ({ ...row, amount: row.amount + 1 }),
+      (row) => ({ ...row, dueDate: "2026-11-01" }),
+      (row) => ({ ...row, category: "desire" }),
+      (row) => ({ ...row, isSettled: true }),
+    ];
+    for (const mismatch of mismatches) {
+      const { local, cloud } = legacyEquivalentIncident();
+      const cloudExpenses = cloud.expenses.map((row) =>
+        row.id === REV42_OCCURRENCE_PAIRS[0].cloudId ? mismatch(row) : row
+      );
+      const evaluated = evaluatePreservedCopyCandidate(local, {
+        ...cloud,
+        expenses: cloudExpenses,
+      });
+      expect(evaluated.ok).toBe(false);
+      if (evaluated.ok) continue;
+      expect(evaluated.code).toBe("unsupported_shape");
+    }
+  });
+
+  it("refuses one-off expenses that differ only by id", () => {
+    const { local, cloud } = legacyEquivalentIncident();
+    const strip = (row: ExpenseEntry): ExpenseEntry => {
+      const { recurringObligationId: _rule, recurrenceMonth: _month, ...rest } = row;
+      void _rule;
+      void _month;
+      return rest;
+    };
+    const phoneId = REV42_OCCURRENCE_PAIRS[0].phoneId;
+    const cloudId = REV42_OCCURRENCE_PAIRS[0].cloudId;
+    const evaluated = evaluatePreservedCopyCandidate(
+      {
+        ...local,
+        expenses: local.expenses.map((row) => (row.id === phoneId ? strip(row) : row)),
+      },
+      {
+        ...cloud,
+        expenses: cloud.expenses.map((row) => (row.id === cloudId ? strip(row) : row)),
+      }
+    );
+    expect(evaluated.ok).toBe(false);
+  });
+
+  it("keeps a different rule or month as a distinct occurrence", () => {
+    const { local, cloud } = legacyEquivalentIncident();
+    const cloudId = REV42_OCCURRENCE_PAIRS[0].cloudId;
+    const otherMonth = evaluatePreservedCopyCandidate(local, {
+      ...cloud,
+      expenses: cloud.expenses.map((row) =>
+        row.id === cloudId
+          ? {
+              ...row,
+              recurrenceMonth: "2026-12",
+              date: "2026-12-09",
+              dueDate: "2026-12-09",
+            }
+          : row
+      ),
+    });
+    expect(otherMonth.ok).toBe(false);
+
+    const otherRule = evaluatePreservedCopyCandidate(local, {
+      ...cloud,
+      expenses: cloud.expenses.map((row) =>
+        row.id === cloudId
+          ? { ...row, recurringObligationId: "rule-quarterly-2026-12" }
+          : row
+      ),
+    });
+    expect(otherRule.ok).toBe(false);
+  });
+
+  it("refuses duplicate semantic claims on one side", () => {
+    const { local, cloud } = legacyEquivalentIncident();
+    const pair = REV42_OCCURRENCE_PAIRS[0];
+    const rule = local.recurringObligations.find((item) => item.id === pair.ruleId)!;
+    const duplicate = generatedExpense("second-phone-id", rule, "2026-11");
+    const evaluated = evaluatePreservedCopyCandidate(
+      { ...local, expenses: [...local.expenses, duplicate] },
+      cloud
+    );
+    expect(evaluated.ok).toBe(false);
+    if (evaluated.ok) return;
+    expect(evaluated.code).toBe("unsupported_shape");
+  });
+
+  it("selects the same survivor regardless of expense order", () => {
+    const { local, cloud } = legacyEquivalentIncident();
+    const forward = evaluatePreservedCopyCandidate(local, cloud);
+    const reversedLocal = evaluatePreservedCopyCandidate(
+      { ...local, expenses: [...local.expenses].reverse() },
+      cloud
+    );
+    const swapped = evaluatePreservedCopyCandidate(cloud, local);
+    expect(forward.ok && reversedLocal.ok && swapped.ok).toBe(true);
+    if (!forward.ok || !reversedLocal.ok || !swapped.ok) return;
+    expect(reversedLocal.candidate).toEqual(forward.candidate);
+    expect(semanticSurvivorIds(swapped.candidate)).toEqual(
+      semanticSurvivorIds(forward.candidate)
+    );
+  });
+
+  it("prefers the canonical occurrence id over the lexicographically smaller id", () => {
+    const { local, cloud } = legacyEquivalentIncident();
+    const pair = REV42_OCCURRENCE_PAIRS[0];
+    const canonical = recurringOccurrenceId(pair.ruleId, "2026-11");
+    expect(canonical).toBeTruthy();
+    const smaller = "00000000-0000-4000-8000-000000000001";
+    expect(smaller < (canonical ?? "")).toBe(true);
+    const evaluated = evaluatePreservedCopyCandidate(
+      {
+        ...local,
+        expenses: local.expenses.map((row) =>
+          row.id === pair.phoneId ? { ...row, id: canonical! } : row
+        ),
+      },
+      {
+        ...cloud,
+        expenses: cloud.expenses.map((row) =>
+          row.id === pair.cloudId ? { ...row, id: smaller } : row
+        ),
+      }
+    );
+    expect(evaluated.ok).toBe(true);
+    if (!evaluated.ok) return;
+    expect(
+      novemberRows(evaluated.candidate).some((row) => row.id === canonical)
+    ).toBe(true);
+    expect(
+      novemberRows(evaluated.candidate).some((row) => row.id === smaller)
+    ).toBe(false);
+  });
+
+  it("previews one row per matching occurrence and does not describe a plan merge", async () => {
+    const { local, cloud } = legacyEquivalentIncident();
+    const copy = legacyOccurrencePreviewCopy({
+      pairCount: 4,
+      monthLabels: ["November 2026"],
+    });
+    expect(copy.bullets[0]).toContain("4 matching recurring occurrences");
+    expect(copy.bullets.join(" ")).not.toContain("planning history");
+    const box = harness({ local, cloud });
+    const preview = await previewPreservedCopyReconciliation(box.deps);
+    expect(preview.ok).toBe(true);
+    if (!preview.ok) return;
+    expect(preview.intro).toBe(copy.intro);
+    expect(preview.bullets[0]).toContain("November 2026");
+    expect(preview.bullets.join(" ")).not.toContain("planning history");
+    expect(preview.bullets.join(" ")).not.toContain("accounts currently stored");
   });
 });
 
