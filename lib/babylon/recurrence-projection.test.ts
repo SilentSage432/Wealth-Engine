@@ -420,14 +420,15 @@ describe("projectRecurringOccurrences", () => {
     expect(body).not.toContain("todayIso");
   });
 
-  it("leaves hydration, notification, and intelligence on materializeRecurringObligations", () => {
+  it("keeps production readers on the effective expense composition", () => {
     const hook = readFileSync("hooks/useBabylonEngine.ts", "utf8");
     const delivery = readFileSync("lib/babylon/notification-delivery.ts", "utf8");
     const intelligence = readFileSync("lib/babylon/intelligence-contract.ts", "utf8");
     for (const source of [hook, delivery, intelligence]) {
-      expect(source).toContain("materializeRecurringObligations(");
-      expect(source).not.toContain("projectRecurringOccurrences");
+      expect(source).toContain("composeEffectiveExpenses(");
+      expect(source).not.toContain("materializeRecurringObligations(");
     }
     expect(hook).toContain("setExpenses");
+    expect(hook).toContain("occurrenceForStewardAction(");
   });
 });

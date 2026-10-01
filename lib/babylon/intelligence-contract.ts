@@ -36,8 +36,11 @@ import {
   totalProtectedMoney,
   totalWealthBuilding,
 } from "@/lib/babylon/protected-money";
-import { materializeRecurringObligations } from "@/lib/babylon/recurring-obligations";
-import type { ExpenseEntry, PersistedState } from "@/types/babylon";
+import {
+  composeEffectiveExpenses,
+  operatingRecurrenceRange,
+} from "@/lib/babylon/effective-expenses";
+import type { PersistedState } from "@/types/babylon";
 
 /** Machine-readable contract. Not the vault and not a Muse API.
  * purpose.current_month_allocated_* remain PURPOSE assignment (not settlement).
@@ -68,7 +71,8 @@ export type IntelligenceUnknown =
   | "civil_date_unknown"
   | "invalid_attention_due_date"
   | "invalid_attention_month_key"
-  | "balance_evidence_unavailable";
+  | "balance_evidence_unavailable"
+  | "recurrence_unreadable";
 
 /**
  * Stored balance evidence for this read.
@@ -153,19 +157,25 @@ export function assembleIntelligenceContract(input: IntelligenceContractInput) {
   const hasActiveDebt = state.debts.some((debt) => debt.remainingDebt > 0);
   const redirect = allocateIncome(1, hasActiveDebt).debtRedirected;
 
-  const materialized = civilDate
-    ? materializeRecurringObligations(
-        state.recurringObligations,
-        state.expenses,
-        civilDate,
-        (() => {
-          let n = 0;
-          return () => `memory-${n++}`;
-        })()
-      )
-    : { expenses: state.expenses, created: [] as ExpenseEntry[] };
-  const derivedIds = new Set(materialized.created.map((expense) => expense.id));
-  const readingExpenses = materialized.expenses;
+  const range = civilDate
+    ? operatingRecurrenceRange(state.recurringObligations, civilDate)
+    : null;
+  const recurrenceRead =
+    civilDate === null
+      ? null
+      : range
+        ? composeEffectiveExpenses(state.recurringObligations, state.expenses, range)
+        : { status: "invalid" as const, reason: "invalid_range" as const };
+  const recurrenceUnreadable =
+    civilDate !== null && recurrenceRead?.status !== "ready";
+  const readingExpenses =
+    recurrenceRead?.status === "ready"
+      ? recurrenceRead.expenses
+      : civilDate
+        ? []
+        : state.expenses;
+  const derivedIds =
+    recurrenceRead?.status === "ready" ? recurrenceRead.derivedIds : new Set<string>();
 
   const monthAllocations =
     currentMonthKey === null
@@ -192,7 +202,9 @@ export function assembleIntelligenceContract(input: IntelligenceContractInput) {
           (expense) => monthKeyFromDate(expense.date) === currentMonthKey
         );
 
-  const upcomingNeeds = upcomingNeedsTotal(readingExpenses);
+  const upcomingNeeds = recurrenceUnreadable
+    ? null
+    : upcomingNeedsTotal(readingExpenses);
   const balanceEvidence = input.balanceEvidence;
   const positions =
     balanceEvidence.status === "ready"
@@ -231,11 +243,14 @@ export function assembleIntelligenceContract(input: IntelligenceContractInput) {
     state.openingWealthBuilding,
     state.openingEmergencyFund
   );
-  const available = deriveAvailableAfterPlannedNeeds({
-    deployablePosition,
-    deployableProtected,
-    upcomingNeeds,
-  });
+  const available =
+    upcomingNeeds === null
+      ? null
+      : deriveAvailableAfterPlannedNeeds({
+          deployablePosition,
+          deployableProtected,
+          upcomingNeeds,
+        });
   const trackedWealth = sumMoney(state.allocations.map((allocation) => allocation.wealth));
   const originalDebt = totalOriginalDebt(state.debts);
   const remainingDebt = totalRemainingDebt(state.debts);
@@ -265,6 +280,7 @@ export function assembleIntelligenceContract(input: IntelligenceContractInput) {
   if (balanceEvidence.status === "unavailable") {
     unknowns.push("balance_evidence_unavailable");
   }
+  if (recurrenceUnreadable) unknowns.push("recurrence_unreadable");
   if (
     positions.some(
       (position) =>
@@ -302,7 +318,9 @@ export function assembleIntelligenceContract(input: IntelligenceContractInput) {
     }
   }
 
-  const recordedAdministration = composeRecordedAdministrationQuiet({
+  const recordedAdministration = recurrenceUnreadable
+    ? { status: "unknown" as const, reasons: ["attention_unknown" as const] }
+    : composeRecordedAdministrationQuiet({
     expenses: readingExpenses,
     today: civilDate ?? "",
     currentMonthKey,
@@ -446,12 +464,19 @@ export function assembleIntelligenceContract(input: IntelligenceContractInput) {
         };
       }),
     },
-    available_after_planned_needs: {
-      available_cents: intelligenceCents(available.availableAfterPlannedNeeds),
-      shortfall_cents: intelligenceCents(available.plannedNeedsShortfall),
-      raw_difference_cents: intelligenceCents(available.rawDifference),
-      upcoming_needs_cents: intelligenceCents(upcomingNeeds),
-    },
+    available_after_planned_needs: available
+      ? {
+          available_cents: intelligenceCents(available.availableAfterPlannedNeeds),
+          shortfall_cents: intelligenceCents(available.plannedNeedsShortfall),
+          raw_difference_cents: intelligenceCents(available.rawDifference),
+          upcoming_needs_cents: intelligenceCents(upcomingNeeds ?? 0),
+        }
+      : {
+          available_cents: null,
+          shortfall_cents: null,
+          raw_difference_cents: null,
+          upcoming_needs_cents: null,
+        },
     obligations: {
       unpaid: readingExpenses
         .filter((expense) => !expense.isSettled)
@@ -483,7 +508,9 @@ export function assembleIntelligenceContract(input: IntelligenceContractInput) {
     },
     attention: {
       items: attention,
-      epistemic: financialAttentionEpistemic(composedAttention),
+      epistemic: recurrenceUnreadable
+        ? "unknown"
+        : financialAttentionEpistemic(composedAttention),
     },
     recorded_administration: recordedAdministration,
     boundaries: {

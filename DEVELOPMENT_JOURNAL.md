@@ -1,5 +1,14 @@
 # Development Journal
 
+## 2026-10-01 — WE-RECURRENCE-READMODEL-002 Remove hydration authorship
+
+- `composeEffectiveExpenses` is the shared read: persisted expenses plus derived recurring occurrences for an explicit civil range.
+- The operating range is the earliest rule start through the month after the caller's civil month. In-app readers use device-local `financialToday`. Notifications and the Intelligence Contract keep their civil date.
+- Opening the app and the local-day refresh no longer insert default occurrences. A Paid, Skip, or edit of a derived row persists only that occurrence.
+- Spending, month close, export, and sync stay on persisted rows. An invalid projection does not become a partial obligation total.
+- Focused read-model tests passed. Full suite: 70 files, 1051 tests passed. `tsc --noEmit` passed. ESLint on the edited files passed. Production build passed.
+- Not committed.
+
 ## 2026-10-01 — WE-FINANCIAL-TIME-001 Pure civil-time resolution
 
 - `resolveCivilDate(instant, ianaTimeZone)` resolves one absolute instant in an explicitly supplied IANA timezone to `YYYY-MM-DD`, or null.

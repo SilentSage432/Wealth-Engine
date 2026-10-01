@@ -6,8 +6,8 @@
  * A missing interval is monthly. Months the interval does not include are
  * not skips, and the rule does not set money aside between occurrences.
  * projectRecurringOccurrences answers a caller-supplied month range. It does
- * not persist, and it does not read the device clock. Hydration still uses
- * materializeRecurringObligations.
+ * not persist, and it does not read the device clock. Effective expense
+ * reads compose that projection. Hydration does not write default rows.
  */
 
 /** UI frequencies. The rule itself accepts any positive integer interval. */
@@ -437,7 +437,7 @@ function derivedOccurrence(
  * One-off expenses are not recurring occurrences.
  *
  * Nothing is persisted. Income, allocation, plans, and month close are not
- * inputs. Hydration still uses materializeRecurringObligations.
+ * inputs. Hydration does not call this function.
  */
 export function projectRecurringOccurrences(
   rules: readonly RecurringObligation[],

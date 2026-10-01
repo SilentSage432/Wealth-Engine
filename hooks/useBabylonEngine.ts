@@ -127,10 +127,14 @@ import {
   deriveMonthCloseAttention,
 } from "@/lib/babylon/attention";
 import {
+  composeEffectiveExpenses,
+  occurrenceForStewardAction,
+  operatingRecurrenceRange,
+} from "@/lib/babylon/effective-expenses";
+import {
   buildRecurringObligation,
   comingUpObligations,
   deleteExpenseOccurrence,
-  materializeRecurringObligations,
   obligationIntervalLabel,
   replaceExpenseOccurrence,
   replaceRecurringObligation,
@@ -796,18 +800,6 @@ export function useBabylonEngine() {
   }, []);
 
   useEffect(() => {
-    if (!hydrated) return;
-    setExpenses((prev) => {
-      const result = materializeRecurringObligations(
-        recurringObligations,
-        prev,
-        financialToday
-      );
-      return result.created.length === 0 ? prev : result.expenses;
-    });
-  }, [hydrated, financialToday, recurringObligations]);
-
-  useEffect(() => {
     const timer = window.setInterval(() => {
       setWisdomIndex((prev) => (prev + 1) % BABYLON_WISDOM.length);
     }, 8000);
@@ -964,9 +956,20 @@ export function useBabylonEngine() {
   const currentMonthDesire = currentMonthActual.desire;
   const currentMonthSpent = currentMonthActual.total;
 
+  const expenseRead = useMemo(() => {
+    const range = operatingRecurrenceRange(recurringObligations, financialToday);
+    if (!range) return { status: "invalid" as const, reason: "invalid_range" as const };
+    return composeEffectiveExpenses(recurringObligations, expenses, range);
+  }, [recurringObligations, expenses, financialToday]);
+  const obligationsReadable = expenseRead.status === "ready";
+  const obligationExpenses = useMemo(
+    () => (expenseRead.status === "ready" ? expenseRead.expenses : []),
+    [expenseRead]
+  );
+
   const upcomingNeeds = useMemo(
-    () => upcomingNeedsTotal(expenses),
-    [expenses]
+    () => (obligationsReadable ? upcomingNeedsTotal(obligationExpenses) : 0),
+    [obligationsReadable, obligationExpenses]
   );
 
   const availableAfterPlannedNeeds = useMemo(
@@ -979,11 +982,17 @@ export function useBabylonEngine() {
     [deployablePosition, deployableProtected, upcomingNeeds]
   );
 
-  const comingUp = useMemo(() => comingUpObligations(expenses), [expenses]);
+  const comingUp = useMemo(
+    () => (obligationsReadable ? comingUpObligations(obligationExpenses) : []),
+    [obligationsReadable, obligationExpenses]
+  );
 
   const dueAttention = useMemo(
     () =>
-      deriveDueAttention(expenses, financialToday).map((item) => {
+      (obligationsReadable
+        ? deriveDueAttention(obligationExpenses, financialToday)
+        : []
+      ).map((item) => {
         if (!item.recurringObligationId) return item;
         const rule = recurringObligations.find(
           (entry) => entry.id === item.recurringObligationId
@@ -991,7 +1000,7 @@ export function useBabylonEngine() {
         if (!rule?.intervalMonths || rule.intervalMonths === 1) return item;
         return { ...item, intervalMonths: rule.intervalMonths };
       }),
-    [expenses, financialToday, recurringObligations]
+    [obligationsReadable, obligationExpenses, financialToday, recurringObligations]
   );
 
   const monthCloseAttention = useMemo(
@@ -1546,12 +1555,13 @@ export function useBabylonEngine() {
       const paymentDate = todayIso();
 
       setExpenses((prev) => {
-        const target = prev.find((e) => e.id === id);
-        if (!target) return prev;
+        const prepared = occurrenceForStewardAction(recurringObligations, prev, id);
+        if (!prepared) return prev;
+        const target = prepared.expense;
         nextSettled = !target.isSettled;
         name = target.name;
         amount = target.amount;
-        return prev.map((e) => {
+        return prepared.expenses.map((e) => {
           if (e.id !== id) return e;
           return nextSettled ? markExpensePaid(e, paymentDate) : { ...e, isSettled: false };
         });
@@ -1566,7 +1576,7 @@ export function useBabylonEngine() {
         });
       }
     },
-    [pushActivity]
+    [pushActivity, recurringObligations]
   );
 
   const autoScaleBudgetCaps = useCallback((): boolean => {
@@ -2208,9 +2218,15 @@ export function useBabylonEngine() {
   expensesRef.current = expenses;
 
   const deleteExpense = useCallback((id: string) => {
-    const result = deleteExpenseOccurrence(
+    const prepared = occurrenceForStewardAction(
       recurringRef.current,
       expensesRef.current,
+      id
+    );
+    if (!prepared) return;
+    const result = deleteExpenseOccurrence(
+      recurringRef.current,
+      prepared.expenses,
       id
     );
     if (!result) return;
@@ -2224,7 +2240,9 @@ export function useBabylonEngine() {
     (id: string, patch: { amount: number; dueDate: string }): boolean => {
       let ok = false;
       setExpenses((prev) => {
-        const next = replaceExpenseOccurrence(prev, id, patch);
+        const prepared = occurrenceForStewardAction(recurringRef.current, prev, id);
+        if (!prepared) return prev;
+        const next = replaceExpenseOccurrence(prepared.expenses, id, patch);
         if (!next) return prev;
         ok = true;
         return next;
@@ -2547,7 +2565,8 @@ export function useBabylonEngine() {
     handleAuthenticated,
     signOutCloud,
     incomes,
-    expenses,
+    expenses: obligationsReadable ? obligationExpenses : expenses,
+    obligationsReadable,
     debts,
     allocations,
     budgetTargets,

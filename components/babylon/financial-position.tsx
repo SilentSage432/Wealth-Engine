@@ -137,6 +137,8 @@ interface FinancialPositionProps {
   protectedOverAvailable: boolean;
   upcomingNeeds: number;
   availableAfterPlannedNeeds: AvailableAfterPlannedNeeds;
+  /** False when the recurrence read cannot be composed. Figures stay unshown. */
+  obligationsReadable?: boolean;
   /** Sum of recorded DebtEntry remaining balances. Sibling context only. */
   remainingDebt: number;
   discreet?: boolean;
@@ -365,6 +367,7 @@ export function FinancialPosition({
   protectedOverAvailable,
   upcomingNeeds,
   availableAfterPlannedNeeds,
+  obligationsReadable = true,
   remainingDebt,
   discreet = false,
   presentation = "full",
@@ -379,6 +382,8 @@ export function FinancialPosition({
 }: FinancialPositionProps) {
   const money = (value: number) =>
     formatDiscreetCurrency(value, discreet, formatCurrency);
+  const obligationFigure = (value: number) =>
+    obligationsReadable ? money(value) : "Unknown";
   const availableToUsePresentation = deriveAvailableToUsePresentation({
     moneyAvailable,
     restrictedEffectiveTotal,
@@ -1046,13 +1051,13 @@ export function FinancialPosition({
               {AVAILABLE_AFTER_PLANNED_NEEDS_LABEL}
             </p>
             <p className="mt-1 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight text-slate-50 tabular-nums sm:text-4xl">
-              {money(availableAfterPlannedNeeds.availableAfterPlannedNeeds)}
+              {obligationFigure(availableAfterPlannedNeeds.availableAfterPlannedNeeds)}
             </p>
             {calculationOpen ? null : (
               <div className="mt-3 flex items-baseline justify-between gap-3 text-xs text-slate-400">
                 <span>{UPCOMING_NEEDS_LABEL}</span>
                 <span className="tabular-nums text-slate-200">
-                  {money(upcomingNeeds)}
+                  {obligationFigure(upcomingNeeds)}
                 </span>
               </div>
             )}
@@ -1085,12 +1090,12 @@ export function FinancialPosition({
                 <div className="flex items-baseline justify-between gap-3">
                   <dt>{UPCOMING_NEEDS_LABEL}</dt>
                   <dd className="tabular-nums text-slate-200">
-                    {money(upcomingNeeds)}
+                    {obligationFigure(upcomingNeeds)}
                   </dd>
                 </div>
               </dl>
             </div>
-            {availableAfterPlannedNeeds.plannedNeedsShortfall > 0 ? (
+            {obligationsReadable && availableAfterPlannedNeeds.plannedNeedsShortfall > 0 ? (
               <p className="mt-3 text-xs leading-relaxed text-amber-200">
                 Planned Needs Shortfall{" "}
                 <span className="tabular-nums">

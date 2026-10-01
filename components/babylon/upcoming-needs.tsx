@@ -22,6 +22,8 @@ interface UpcomingNeedsProps {
   upcomingNeeds: number;
   comingUp: ComingUpItem[];
   dueAttention?: readonly DueAttentionItem[];
+  /** False when the recurrence read cannot be composed. */
+  obligationsReadable?: boolean;
   onMarkPaid?: (id: string) => void;
   discreet?: boolean;
 }
@@ -42,6 +44,7 @@ export function UpcomingNeeds({
   upcomingNeeds,
   comingUp,
   dueAttention = [],
+  obligationsReadable = true,
   onMarkPaid,
   discreet = false,
 }: UpcomingNeedsProps) {
@@ -58,13 +61,18 @@ export function UpcomingNeeds({
             Upcoming Needs
           </p>
           <p className="mt-1 font-[family-name:var(--font-display)] text-3xl font-semibold tracking-tight text-slate-50 tabular-nums sm:text-4xl">
-            {money(upcomingNeeds)}
+            {obligationsReadable ? money(upcomingNeeds) : "Unknown"}
           </p>
           <p className="mt-2 max-w-xl text-xs leading-relaxed text-slate-500">
             Known Needs that are not paid yet. This is not subtracted from
             Liquid Position. Mark them paid in the Ledger.
           </p>
-          {dueAttention.length > 0 ? (
+          {!obligationsReadable ? (
+            <p className="mt-4 text-xs leading-relaxed text-slate-400">
+              These obligations cannot be read.
+            </p>
+          ) : null}
+          {obligationsReadable && dueAttention.length > 0 ? (
             <div className="mt-4 border-t border-slate-800/80 pt-3">
               <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
                 Due
@@ -123,7 +131,7 @@ export function UpcomingNeeds({
               </ul>
             </div>
           ) : null}
-          {comingUp.length > 0 ? (
+          {obligationsReadable && comingUp.length > 0 ? (
             <div className="mt-4 border-t border-slate-800/80 pt-3">
               <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
                 Coming up

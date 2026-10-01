@@ -49,6 +49,8 @@ interface MobileHomeProps {
   protectedOverAvailable: boolean;
   availableAfterPlannedNeeds: AvailableAfterPlannedNeeds;
   upcomingNeeds: number;
+  /** False when the recurrence read cannot be composed. */
+  obligationsReadable?: boolean;
   remainingDebt: number;
   expenses: readonly ExpenseEntry[];
   dueAttention: readonly DueAttentionItem[];
@@ -94,6 +96,7 @@ export function MobileHome({
   protectedOverAvailable,
   availableAfterPlannedNeeds,
   upcomingNeeds,
+  obligationsReadable = true,
   remainingDebt,
   expenses,
   dueAttention,
@@ -107,7 +110,9 @@ export function MobileHome({
   const money = (value: number) =>
     formatDiscreetCurrency(value, discreet, formatCurrency);
   const dueIds = new Set(dueAttention.map((item) => item.id));
-  const upcomingPreview = phoneHomeUpcomingPreview(expenses, dueIds);
+  const upcomingPreview = obligationsReadable
+    ? phoneHomeUpcomingPreview(expenses, dueIds)
+    : [];
   const activity = phoneHomeActivityPreview(recentActivity);
   const shortfall = availableAfterPlannedNeeds.plannedNeedsShortfall;
   const availableToUsePresentation = deriveAvailableToUsePresentation({
@@ -132,7 +137,11 @@ export function MobileHome({
 
   return (
     <div className="space-y-3">
-      {phoneHomeShowsDueAttention(dueAttention.length) ? (
+      {!obligationsReadable ? (
+        <p className="text-xs leading-relaxed text-slate-400">
+          These obligations cannot be read.
+        </p>
+      ) : phoneHomeShowsDueAttention(dueAttention.length) ? (
         <section aria-label="Due">
           <Card className="border-slate-800/80">
             <CardContent className="p-4">
@@ -320,7 +329,9 @@ export function MobileHome({
           <CardContent className="p-4">
             <SectionLabel>{AVAILABLE_AFTER_PLANNED_NEEDS_LABEL}</SectionLabel>
             <p className="mt-1 font-[family-name:var(--font-display)] text-4xl font-semibold tracking-tight text-slate-50 tabular-nums">
-              {money(availableAfterPlannedNeeds.availableAfterPlannedNeeds)}
+              {obligationsReadable
+                ? money(availableAfterPlannedNeeds.availableAfterPlannedNeeds)
+                : "Unknown"}
             </p>
             <div id="home-aapn-calculation" hidden={!calculationOpen}>
               <p className="mt-2 text-xs leading-relaxed text-slate-500">
@@ -328,7 +339,7 @@ export function MobileHome({
                 subtracted.
               </p>
             </div>
-            {shortfall > 0 ? (
+            {obligationsReadable && shortfall > 0 ? (
               <p className="mt-3 text-xs leading-relaxed text-amber-200">
                 Planned Needs Shortfall{" "}
                 <span className="tabular-nums">{money(shortfall)}</span>{" "}
@@ -344,7 +355,7 @@ export function MobileHome({
           <CardContent className="p-4">
             <SectionLabel>{UPCOMING_NEEDS_LABEL}</SectionLabel>
             <p className="mt-1 font-[family-name:var(--font-display)] text-2xl font-semibold tabular-nums text-slate-50">
-              {money(upcomingNeeds)}
+              {obligationsReadable ? money(upcomingNeeds) : "Unknown"}
             </p>
             <p className="mt-2 text-xs leading-relaxed text-slate-500">
               Known unpaid Needs competing for liquid money. Next bills can

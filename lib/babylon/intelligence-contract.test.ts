@@ -308,11 +308,23 @@ describe("intelligence contract", () => {
       (item) => item.origin === "derived_from_rule"
     );
     expect(derived.length).toBeGreaterThan(0);
-    expect(derived.every((item) => item.subject_ref.startsWith("memory-"))).toBe(true);
+    expect(derived.every((item) => item.subject_ref.startsWith("occ."))).toBe(true);
     expect(derived.some((item) => item.name === "Phone" && item.amount_cents === 8500)).toBe(
       true
     );
     expect(fixture.expenses).toEqual([]);
+  });
+
+  it("does not publish a partial obligation list when recurrence evidence is invalid", () => {
+    const contract = assemble({
+      recurringObligations: [rule(), rule()],
+      expenses: [expense()],
+    });
+    expect(contract.boundaries.unknowns).toContain("recurrence_unreadable");
+    expect(contract.obligations.unpaid).toEqual([]);
+    expect(contract.available_after_planned_needs.upcoming_needs_cents).toBeNull();
+    expect(contract.attention.epistemic).toBe("unknown");
+    expect(contract.recorded_administration.status).toBe("unknown");
   });
 
   it("matches established Attention and adds no other kind", () => {

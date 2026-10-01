@@ -147,6 +147,7 @@ export function WealthEngineDashboard() {
       protectedOverAvailable={engine.protectedOverAvailable}
       upcomingNeeds={engine.upcomingNeeds}
       availableAfterPlannedNeeds={engine.availableAfterPlannedNeeds}
+      obligationsReadable={engine.obligationsReadable}
       remainingDebt={engine.remainingDebt}
       discreet={discreet}
       onAddAccount={engine.addAccount}
@@ -165,6 +166,7 @@ export function WealthEngineDashboard() {
       upcomingNeeds={engine.upcomingNeeds}
       comingUp={engine.comingUp}
       dueAttention={engine.dueAttention}
+      obligationsReadable={engine.obligationsReadable}
       onMarkPaid={engine.toggleExpenseSettled}
       discreet={discreet}
     />
@@ -387,6 +389,7 @@ export function WealthEngineDashboard() {
                 remainingDebt={engine.remainingDebt}
                 expenses={engine.expenses}
                 dueAttention={engine.dueAttention}
+                obligationsReadable={engine.obligationsReadable}
                 onMarkPaid={engine.toggleExpenseSettled}
                 recentActivity={engine.recentActivity}
                 discreet={discreet}
@@ -497,6 +500,7 @@ export function WealthEngineDashboard() {
                 protectedOverAvailable={engine.protectedOverAvailable}
                 upcomingNeeds={engine.upcomingNeeds}
                 availableAfterPlannedNeeds={engine.availableAfterPlannedNeeds}
+                obligationsReadable={engine.obligationsReadable}
                 remainingDebt={engine.remainingDebt}
                 discreet={discreet}
                 onAddAccount={engine.addAccount}

@@ -1,7 +1,10 @@
 import { deriveDueAttention, deriveMonthCloseAttention } from "@/lib/babylon/attention";
 import { civilDateInTimeZone } from "@/lib/babylon/civil-time";
+import {
+  composeEffectiveExpenses,
+  operatingRecurrenceRange,
+} from "@/lib/babylon/effective-expenses";
 import { vapidPublicKeyToBytes } from "@/lib/babylon/notification-device";
-import { materializeRecurringObligations } from "@/lib/babylon/recurring-obligations";
 import type { PersistedState } from "@/types/babylon";
 
 export { civilDateInTimeZone };
@@ -116,31 +119,28 @@ export function monthCloseAttentionKey(monthKey: string): string | null {
 }
 
 /**
- * In-memory recurring materialization for evaluation only.
- * The returned state is a copy. The input vault is not written.
+ * Due keys from the effective expense read. The input vault is not written.
+ * An unreadable recurrence projection contributes no due keys.
  */
 export function attentionKeysForState(
   state: PersistedState,
   civilDate: string
 ): string[] {
-  const materialized = materializeRecurringObligations(
-    state.recurringObligations,
-    state.expenses,
-    civilDate,
-    (() => {
-      let n = 0;
-      return () => `memory-${n++}`;
-    })()
-  ).expenses;
+  const range = operatingRecurrenceRange(state.recurringObligations, civilDate);
+  const read = range
+    ? composeEffectiveExpenses(state.recurringObligations, state.expenses, range)
+    : null;
   const keys: string[] = [];
-  for (const item of deriveDueAttention(materialized, civilDate)) {
-    const expense = materialized.find((entry) => entry.id === item.id);
-    const key = dueAttentionKey({
-      expenseId: item.id,
-      recurringObligationId: expense?.recurringObligationId,
-      recurrenceMonth: expense?.recurrenceMonth,
-    });
-    if (key) keys.push(key);
+  if (read?.status === "ready") {
+    for (const item of deriveDueAttention(read.expenses, civilDate)) {
+      const expense = read.expenses.find((entry) => entry.id === item.id);
+      const key = dueAttentionKey({
+        expenseId: item.id,
+        recurringObligationId: expense?.recurringObligationId,
+        recurrenceMonth: expense?.recurrenceMonth,
+      });
+      if (key) keys.push(key);
+    }
   }
   const monthClose = deriveMonthCloseAttention({
     today: civilDate,

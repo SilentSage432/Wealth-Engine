@@ -369,7 +369,8 @@ describe("repository boundary", () => {
   it("reuses Attention and does not write financial or Plaid state", () => {
     expect(delivery).toContain("deriveDueAttention");
     expect(delivery).toContain("deriveMonthCloseAttention");
-    expect(delivery).toContain("materializeRecurringObligations");
+    expect(delivery).toContain("composeEffectiveExpenses");
+    expect(delivery).not.toContain("materializeRecurringObligations");
     expect(evaluator).toContain("parseCloudVaultData");
     expect(evaluator).toContain('.select("schema_version, vault_data")');
     expect(evaluator).not.toContain(".update(");

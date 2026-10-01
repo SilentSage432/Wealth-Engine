@@ -914,13 +914,10 @@ describe("deterministic generated occurrence identity", () => {
     ).toBe(false);
   });
 
-  it("persists new occurrences through the default id, not generateId", () => {
+  it("does not persist default occurrences from the engine hook", () => {
     const source = readFileSync("hooks/useBabylonEngine.ts", "utf8");
-    const effect = source.slice(
-      source.indexOf("materializeRecurringObligations("),
-      source.indexOf("result.created.length")
-    );
-    expect(effect).toContain("materializeRecurringObligations(");
-    expect(effect).not.toContain("generateId");
+    expect(source).not.toContain("materializeRecurringObligations");
+    expect(source).toContain("composeEffectiveExpenses(");
+    expect(source).toContain("occurrenceForStewardAction(");
   });
 });
