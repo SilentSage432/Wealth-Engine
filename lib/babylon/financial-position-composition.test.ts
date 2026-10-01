@@ -250,7 +250,7 @@ describe("WE-FINANCIAL-POSITION-LANGUAGE-001 presentation", () => {
   });
 
   it("H: backup remains v9", () => {
-    expect(LEDGER_BACKUP_VERSION).toBe(10);
+    expect(LEDGER_BACKUP_VERSION).toBe(11);
   });
 });
 
@@ -314,7 +314,7 @@ describe("WE-FINANCIAL-POSITION-HIERARCHY-001 presentation", () => {
 
   it("G: domain arithmetic and IC remain unchanged", () => {
     expect(INTELLIGENCE_CONTRACT_VERSION).toBe("3");
-    expect(LEDGER_BACKUP_VERSION).toBe(10);
+    expect(LEDGER_BACKUP_VERSION).toBe(11);
   });
 
   it("restricted hero copy stays concise and not safe-to-spend", () => {

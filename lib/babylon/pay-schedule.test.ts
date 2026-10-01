@@ -363,8 +363,8 @@ describe("WE-PAY-SCHEDULE-001 isolation", () => {
     ).toEqual(planned);
   });
 
-  it("persists rules only; backup v10; cloud schema 6; IC v3", () => {
-    expect(LEDGER_BACKUP_VERSION).toBe(10);
+  it("persists rules only; backup v11; cloud schema 6; IC v3", () => {
+    expect(LEDGER_BACKUP_VERSION).toBe(11);
     expect(CLOUD_VAULT_SCHEMA_VERSION).toBe(6);
     expect(INTELLIGENCE_CONTRACT_VERSION).toBe("3");
     const schedule = biweekly({
@@ -375,7 +375,7 @@ describe("WE-PAY-SCHEDULE-001 isolation", () => {
     });
     const state = { ...EMPTY_STATE, paySchedules: [schedule] };
     const backup = buildLedgerBackup(state);
-    expect(backup.version).toBe(10);
+    expect(backup.version).toBe(11);
     expect(backup.paySchedules).toEqual([schedule]);
     expect(backup.incomes).toEqual([]);
     expect(backup.allocations).toEqual([]);

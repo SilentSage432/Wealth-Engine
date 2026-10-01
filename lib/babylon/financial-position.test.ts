@@ -265,7 +265,7 @@ describe("ledger backup accounts", () => {
     ]);
     const backup = buildLedgerBackup(state);
     expect(backup.version).toBe(LEDGER_BACKUP_VERSION);
-    expect(backup.version).toBe(10);
+    expect(backup.version).toBe(11);
     const restored = validateLedgerBackup(backup);
     expect(restored?.accounts).toEqual(state.accounts);
     expect(restored?.incomes).toEqual(state.incomes);

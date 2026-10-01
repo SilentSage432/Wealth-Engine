@@ -1,6 +1,7 @@
 "use client";
 
 import { Landmark, X } from "lucide-react";
+import { FinancialTimeZoneField } from "@/components/babylon/financial-time-zone-field";
 import { ProfileNameField } from "@/components/babylon/profile-name-field";
 import {
   VaultMaintenancePanel,
@@ -39,6 +40,8 @@ interface AppSidebarProps {
   onPreviewReconciliation?: () => Promise<ReconciliationPreviewResult>;
   onConfirmReconciliation?: () => Promise<ReconciliationConfirmResult>;
   onCancelReconciliation?: () => void;
+  financialTimeZone?: string;
+  onEstablishFinancialTimeZone: (zone: string) => boolean;
 }
 
 export function AppSidebar({
@@ -66,6 +69,8 @@ export function AppSidebar({
   onPreviewReconciliation,
   onConfirmReconciliation,
   onCancelReconciliation,
+  financialTimeZone,
+  onEstablishFinancialTimeZone,
 }: AppSidebarProps) {
   return (
     <aside
@@ -122,6 +127,10 @@ export function AppSidebar({
 
       <div className="space-y-3 border-t border-slate-800/80 p-4">
         <ProfileNameField value={username} onChange={onUsernameChange} />
+        <FinancialTimeZoneField
+          financialTimeZone={financialTimeZone}
+          onEstablish={onEstablishFinancialTimeZone}
+        />
         <VaultMaintenancePanel
           onExportBackup={onExportBackup}
           onImportBackup={onImportBackup}

@@ -248,7 +248,7 @@ describe("available after planned needs", () => {
       expenses: [need({ id: "rent", amount: 650 })],
     };
     const backup = buildLedgerBackup(state);
-    expect(backup.version).toBe(10);
+    expect(backup.version).toBe(11);
     expect(backup.version).toBe(LEDGER_BACKUP_VERSION);
     const serialized = JSON.stringify(backup);
     expect(serialized).not.toContain("availableAfterPlannedNeeds");

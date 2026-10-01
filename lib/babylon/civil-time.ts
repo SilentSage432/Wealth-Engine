@@ -5,9 +5,9 @@
  *
  * FINANCIAL CIVIL TIME
  * A shared calendar reading of an absolute instant in an explicitly supplied
- * IANA timezone. A future steward financial timezone will belong to the
- * planning document. This module does not store that zone, look one up, or
- * decide which zone is authoritative.
+ * IANA timezone. The steward financial timezone, when established, belongs
+ * to the planning document. This module does not store that zone, look one
+ * up, or decide which zone is authoritative.
  *
  * CALENDAR RULES
  * Stored civil coordinates such as a recurrence month, due day, skip, or
@@ -50,6 +50,15 @@ export function isIanaTimeZone(value: string): boolean {
   } catch {
     return false;
   }
+}
+
+/**
+ * Trimmed IANA name, or null. Does not read the device, the server, or a
+ * notification preference.
+ */
+export function canonicalIanaTimeZone(value: string): string | null {
+  if (!isIanaTimeZone(value)) return null;
+  return value.trim();
 }
 
 /**

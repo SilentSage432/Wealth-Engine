@@ -376,7 +376,7 @@ describe("Plaid account identity", () => {
     expect(hook.match(/startForegroundObservationSync\(/g)).toHaveLength(1);
     expect(planner).toContain("input.request(itemRowId)");
     expect(vaultSync).not.toContain("plaid");
-    expect(LEDGER_BACKUP_VERSION).toBe(10);
+    expect(LEDGER_BACKUP_VERSION).toBe(11);
   });
 });
 
@@ -683,7 +683,7 @@ describe("Plaid account identity bootstrap", () => {
     expect(fetch).not.toContain("WE-ATTENTION-ACCOUNT-PROBE");
     expect(fetch).not.toContain("wealth_engine_vaults");
     expect(financialAccounts).not.toContain("plaid_accounts");
-    expect(LEDGER_BACKUP_VERSION).toBe(10);
+    expect(LEDGER_BACKUP_VERSION).toBe(11);
   });
 });
 

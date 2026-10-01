@@ -126,6 +126,7 @@ import {
   deriveDueAttention,
   deriveMonthCloseAttention,
 } from "@/lib/babylon/attention";
+import { canonicalIanaTimeZone } from "@/lib/babylon/civil-time";
 import {
   composeEffectiveExpenses,
   occurrenceForStewardAction,
@@ -216,6 +217,10 @@ export function useBabylonEngine() {
     DebtPurposeAttribution[]
   >([]);
   const [paySchedules, setPaySchedules] = useState<PaySchedule[]>([]);
+  /** Absent means the financial calendar timezone is UNKNOWN. */
+  const [financialTimeZone, setFinancialTimeZone] = useState<string | undefined>(
+    undefined
+  );
   /** Profile name input value — may be empty; greeting uses a visual fallback. */
   const [username, setUsernameState] = useState("");
   /** Auth user id when a verified Supabase session is present; null = local-only. */
@@ -324,6 +329,7 @@ export function useBabylonEngine() {
     setDebtPositionEpochAt(stored.debtPositionEpochAt);
     setDebtPurposeAttributions(stored.debtPurposeAttributions);
     setPaySchedules(stored.paySchedules);
+    setFinancialTimeZone(stored.financialTimeZone);
     setUsernameState(loadUsername(stored.displayName));
     try {
       setIsDiscreetMode(
@@ -410,6 +416,7 @@ export function useBabylonEngine() {
       debtPositionEpochAt,
       debtPurposeAttributions,
       paySchedules,
+      ...(financialTimeZone ? { financialTimeZone } : {}),
     };
     savePersistedState(payload);
   }, [
@@ -434,6 +441,7 @@ export function useBabylonEngine() {
     debtPositionEpochAt,
     debtPurposeAttributions,
     paySchedules,
+    financialTimeZone,
   ]);
 
   const vaultSnapshot = useMemo<PersistedState>(
@@ -458,6 +466,7 @@ export function useBabylonEngine() {
       debtPositionEpochAt,
       debtPurposeAttributions,
       paySchedules,
+      ...(financialTimeZone ? { financialTimeZone } : {}),
     }),
     [
       incomes,
@@ -480,6 +489,7 @@ export function useBabylonEngine() {
       debtPositionEpochAt,
       debtPurposeAttributions,
       paySchedules,
+      financialTimeZone,
     ]
   );
   const vaultRef = useRef(vaultSnapshot);
@@ -523,6 +533,7 @@ export function useBabylonEngine() {
     setDebtPositionEpochAt(next.debtPositionEpochAt);
     setDebtPurposeAttributions(next.debtPurposeAttributions);
     setPaySchedules(next.paySchedules);
+    setFinancialTimeZone(next.financialTimeZone);
     setUsernameState(next.displayName);
   }, []);
 
@@ -1734,6 +1745,7 @@ export function useBabylonEngine() {
     setDebtPositionEpochAt(null);
     setDebtPurposeAttributions([]);
     setPaySchedules([]);
+    setFinancialTimeZone(undefined);
     setUsernameState("");
     setTributeOpen(false);
     setTributeMode("income");
@@ -1764,6 +1776,7 @@ export function useBabylonEngine() {
       debtPositionEpochAt,
       debtPurposeAttributions,
       paySchedules,
+      ...(financialTimeZone ? { financialTimeZone } : {}),
     });
     const blob = new Blob([JSON.stringify(backup, null, 2)], {
       type: "application/json",
@@ -1798,6 +1811,7 @@ export function useBabylonEngine() {
     debtPositionEpochAt,
     debtPurposeAttributions,
     paySchedules,
+    financialTimeZone,
   ]);
 
   const importBackup = useCallback((raw: unknown): string | null => {
@@ -1831,6 +1845,7 @@ export function useBabylonEngine() {
       debtPositionEpochAt: backup.debtPositionEpochAt ?? null,
       debtPurposeAttributions: backup.debtPurposeAttributions ?? [],
       paySchedules: backup.paySchedules ?? [],
+      ...(backup.financialTimeZone ? { financialTimeZone: backup.financialTimeZone } : {}),
     };
 
     applyVault(next);
@@ -2211,6 +2226,13 @@ export function useBabylonEngine() {
     },
     [allocations, debtPositionEpoch]
   );
+
+  const establishFinancialTimeZone = useCallback((zone: string): boolean => {
+    const canonical = canonicalIanaTimeZone(zone);
+    if (!canonical) return false;
+    setFinancialTimeZone(canonical);
+    return true;
+  }, []);
 
   const recurringRef = useRef(recurringObligations);
   const expensesRef = useRef(expenses);
@@ -2652,6 +2674,8 @@ export function useBabylonEngine() {
     periodArchives,
     monthlyPlans,
     paySchedules,
+    financialTimeZone,
+    establishFinancialTimeZone,
     currentMonthKey,
     budgetVariances,
     budgetPlannedTotal,

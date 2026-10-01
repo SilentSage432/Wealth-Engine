@@ -1,5 +1,15 @@
 # Development Journal
 
+## 2026-10-01 — WE-FINANCIAL-TIME-AUTHORITY-002 Steward financial timezone
+
+- Optional `PersistedState.financialTimeZone` is the steward-authored IANA zone for the financial calendar. Absence is UNKNOWN.
+- It is omitted from the cloud document and from a version-11 backup until established, so an existing fingerprint stays put. Establishing or changing it changes the fingerprint.
+- Cloud schema stays 6. No SQL. Ledger export is version 11. Versions 1–10 do not adopt a stray zone key.
+- Desktop sidebar and phone More establish or change the zone. The browser zone can fill a draft and is not saved until confirmed. There is no clear control.
+- Notification timezone, `preferenceTimezoneRefresh`, and device-local `financialToday` are unchanged. Stored historical dates are not rewritten.
+- Full suite: 71 files, 1062 tests passed. `tsc --noEmit` passed. ESLint on the edited files passed. Production build passed.
+- Not committed.
+
 ## 2026-10-01 — WE-RECURRENCE-READMODEL-002 Remove hydration authorship
 
 - `composeEffectiveExpenses` is the shared read: persisted expenses plus derived recurring occurrences for an explicit civil range.

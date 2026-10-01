@@ -6,9 +6,11 @@
 **Architecture map:** [`ARCHITECTURE.md`](./ARCHITECTURE.md) — layers, dependency rules, canonical ownership matrix.
 
 ## Current state
-WE-RECURRENCE-READMODEL-002 is local and not committed. `composeEffectiveExpenses` reads persisted expenses plus derived recurring occurrences for an explicit civil range. Opening the app and local midnight do not write default occurrences. In-app readers use device-local `financialToday`. Notifications and the Intelligence Contract use their existing civil date. Spending, month close, export, and sync stay on persisted rows. Paid, Skip, and per-occurrence edit of a derived row persist only that occurrence. No financial timezone is stored.
+WE-FINANCIAL-TIME-AUTHORITY-002 is local and not committed. Optional `financialTimeZone` on the vault is the steward-authored financial calendar zone. Absence is UNKNOWN. It is not the device zone and not the notification timezone. Cloud schema stays 6, with the key omitted until the steward establishes it. Ledger export is version 11. Desktop sidebar and phone More can establish or change it; the browser zone is only a draft until confirmed. Production `financialToday` still uses device-local `todayIso`. Stored dates are not rewritten.
 
-WE-FINANCIAL-TIME-001 is on main (`5a660d6`). `resolveCivilDate` resolves an absolute instant in an explicit IANA timezone to a civil date, or null. `civilDateInTimeZone` is that same function. It does not store a financial timezone, read notification preferences, or replace `todayIso`.
+WE-RECURRENCE-READMODEL-002 is on main (`ec2d4bb`). `composeEffectiveExpenses` reads persisted expenses plus derived recurring occurrences for an explicit civil range. Opening the app and local midnight do not write default occurrences. In-app readers use device-local `financialToday`. Notifications and the Intelligence Contract use their existing civil date. Spending, month close, export, and sync stay on persisted rows. Paid, Skip, and per-occurrence edit of a derived row persist only that occurrence.
+
+WE-FINANCIAL-TIME-001 is on main (`5a660d6`). `resolveCivilDate` resolves an absolute instant in an explicit IANA timezone to a civil date, or null. `civilDateInTimeZone` is that same function. It does not choose which timezone is authoritative, read notification preferences, or replace `todayIso`.
 
 WE-RECURRENCE-PROJECTION-001 is on main (`0f0a3b0`). `projectRecurringOccurrences` derives due occurrence existence for an explicit civil month range. The effective expense read is what production obligation surfaces now call. Canonical civil timezone storage is not in this tranche.
 

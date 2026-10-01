@@ -625,6 +625,12 @@ export interface PersistedState {
    * Derived ExpectedPayday occurrences are not stored.
    */
   paySchedules: PaySchedule[];
+  /**
+   * Steward-authored IANA timezone for the financial calendar.
+   * Absent means UNKNOWN. It is not the device zone and not the
+   * notification timezone. Stored dates are not rewritten when it changes.
+   */
+  financialTimeZone?: string;
 }
 
 export interface ChartMonthPoint {
@@ -694,8 +700,10 @@ export interface ExpenseInput {
  * reject version 9 instead of stripping restriction on round-trip.
  * Version 10 stores steward PaySchedule rules. Older builds reject version 10
  * instead of dropping expected-pay timing on round-trip.
+ * Version 11 may store financialTimeZone. Older builds reject version 11
+ * instead of dropping that authority. Absence on version 11 is UNKNOWN.
  */
-export type LedgerBackupVersion = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
+export type LedgerBackupVersion = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11;
 
 export interface LedgerBackup {
   version: LedgerBackupVersion;
@@ -728,6 +736,8 @@ export interface LedgerBackup {
   debtPurposeAttributions?: DebtPurposeAttribution[];
   /** Present on version 10. Earlier versions import as []. */
   paySchedules?: PaySchedule[];
+  /** Present on version 11 when the steward has established it. Absence is UNKNOWN. */
+  financialTimeZone?: string;
 }
 
 export interface AffordabilitySnapshot {

@@ -336,6 +336,8 @@ export function WealthEngineDashboard() {
             onPreviewReconciliation={engine.previewPreservedCopies}
             onConfirmReconciliation={engine.confirmPreservedCopies}
             onCancelReconciliation={engine.cancelPreservedCopies}
+            financialTimeZone={engine.financialTimeZone}
+            onEstablishFinancialTimeZone={engine.establishFinancialTimeZone}
           />
         )}
 
@@ -488,6 +490,8 @@ export function WealthEngineDashboard() {
                 onPreviewReconciliation={engine.previewPreservedCopies}
                 onConfirmReconciliation={engine.confirmPreservedCopies}
                 onCancelReconciliation={engine.cancelPreservedCopies}
+                financialTimeZone={engine.financialTimeZone}
+                onEstablishFinancialTimeZone={engine.establishFinancialTimeZone}
                 accounts={engine.accounts}
                 moneyAvailable={engine.moneyAvailable}
                 restrictedEffectiveTotal={engine.restrictedEffectiveTotal}

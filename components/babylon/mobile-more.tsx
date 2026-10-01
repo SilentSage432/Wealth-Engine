@@ -5,6 +5,7 @@ import { CalendarCheck } from "lucide-react";
 import { ConnectedBanksCard } from "@/components/babylon/connected-banks-card";
 import { ObservationTeaching } from "@/components/babylon/observation-teaching";
 import { DeviceNotifications } from "@/components/babylon/device-notifications";
+import { FinancialTimeZoneField } from "@/components/babylon/financial-time-zone-field";
 import {
   FinancialPosition,
   type FinancialPositionBalanceObservation,
@@ -119,6 +120,8 @@ interface MobileMoreProps {
   onUpdateProtected: (wealth: number, emergency: number) => string | null;
   onEditorOpenChange?: (open: boolean) => void;
   balanceObservation?: FinancialPositionBalanceObservation;
+  financialTimeZone?: string;
+  onEstablishFinancialTimeZone: (zone: string) => boolean;
 }
 
 function GroupHeading({ children }: { children: string }) {
@@ -186,6 +189,8 @@ export function MobileMore({
   onUpdateProtected,
   onEditorOpenChange,
   balanceObservation,
+  financialTimeZone,
+  onEstablishFinancialTimeZone,
 }: MobileMoreProps) {
   const [guidanceOpen, setGuidanceOpen] = useState(false);
   const [referenceOpen, setReferenceOpen] = useState(false);
@@ -350,6 +355,10 @@ export function MobileMore({
             onExportBackup={onExportBackup}
           />
         </PhoneMaintenanceDisclosure>
+        <FinancialTimeZoneField
+          financialTimeZone={financialTimeZone}
+          onEstablish={onEstablishFinancialTimeZone}
+        />
         <DeviceNotifications />
         <VaultDataBackups
           startClosedWhenQuiet

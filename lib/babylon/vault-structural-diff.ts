@@ -82,6 +82,10 @@ const FINANCIAL_SCALARS = [
   { key: "lastClosedMonthKey" as const, label: "Last closed month" },
 ] as const;
 
+const PLANNING_SCALARS = [
+  { key: "financialTimeZone" as const, label: "Financial time zone" },
+] as const;
+
 const SYSTEM_SCALARS = [
   { key: "displayName" as const, label: "Profile name" },
   { key: "expenseSemanticsVersion" as const, label: "Expense semantics version" },
@@ -269,6 +273,17 @@ export function compareVaultStructure(
           : "different",
     });
   }
+  for (const meta of PLANNING_SCALARS) {
+    scalars.push({
+      ...meta,
+      group: "planning",
+      status:
+        canonicalDurableJson(localDoc[meta.key] ?? null) ===
+        canonicalDurableJson(cloudDoc[meta.key] ?? null)
+          ? "same"
+          : "different",
+    });
+  }
   for (const meta of SYSTEM_SCALARS) {
     scalars.push({
       ...meta,
@@ -288,6 +303,9 @@ export function compareVaultStructure(
   const financialScalarDiff = scalars.some(
     (row) => row.group === "financial" && row.status === "different"
   );
+  const planningScalarDiff = scalars.some(
+    (row) => row.group === "planning" && row.status === "different"
+  );
   const systemScalarDiff = scalars.some(
     (row) => row.group === "system" && row.status === "different"
   );
@@ -299,7 +317,8 @@ export function compareVaultStructure(
     planning.localOnly > 0 ||
     planning.cloudOnly > 0 ||
     planning.sharedDifferent > 0 ||
-    financialScalarDiff;
+    financialScalarDiff ||
+    planningScalarDiff;
 
   const hasSystemOrMetadataDifferences =
     system.localOnly > 0 ||

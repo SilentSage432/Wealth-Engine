@@ -84,6 +84,7 @@ function moreProps(
     onSetAccountPurpose: () => ({ status: "applied" as const }),
     onClearAccountPurpose: () => ({ status: "applied" as const }),
     onUpdateProtected: () => null,
+    onEstablishFinancialTimeZone: () => false,
     ...partial,
   };
   return { props, spies };

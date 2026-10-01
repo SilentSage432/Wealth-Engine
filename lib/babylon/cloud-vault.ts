@@ -6,6 +6,7 @@
  * before a normal update would race. Do not add that pattern here.
  */
 
+import { canonicalIanaTimeZone } from "@/lib/babylon/civil-time";
 import { isUuid } from "@/lib/babylon/cloud-mappers";
 import { EXPENSE_SEMANTICS_VERSION, normalizePersistedState } from "@/lib/babylon/persistence";
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -14,9 +15,11 @@ import type { PersistedState } from "@/types/babylon";
 
 /**
  * Financial document generation. This is backup version 6 generation with
- * soft-added debt-position fields and paySchedules inside vault_data (no
- * schemaVersion bump; no SQL upgrade RPC). Older schema-6 documents missing
- * those soft keys soft-migrate on read via normalizePersistedState.
+ * soft-added debt-position fields, paySchedules, and an optional
+ * financialTimeZone inside vault_data (no schemaVersion bump; no SQL upgrade
+ * RPC). Older schema-6 documents missing those soft keys stay readable.
+ * financialTimeZone is omitted while unknown so an existing fingerprint does
+ * not change until the steward establishes it.
  */
 export const CLOUD_VAULT_SCHEMA_VERSION = 6 as const;
 
@@ -63,10 +66,13 @@ const DEBT_POSITION_CLOUD_KEYS = [
 
 const PAY_SCHEDULE_CLOUD_KEYS = ["paySchedules"] as const;
 
+/** Omitted from the document while the steward has not established a zone. */
+const FINANCIAL_TIME_ZONE_KEY = "financialTimeZone" as const;
+
 export type CloudVaultData = Pick<
   PersistedState,
   (typeof CLOUD_VAULT_DATA_KEYS)[number]
->;
+> & { financialTimeZone?: string };
 
 export type CloudVaultGetResult =
   | {
@@ -334,7 +340,7 @@ export function financialVaultFingerprint(state: PersistedState): string {
 
 /** Financial PersistedState only. Extra fields on the input are not copied. */
 export function serializeCloudVaultData(state: PersistedState): CloudVaultData {
-  return {
+  const core: CloudVaultData = {
     incomes: state.incomes,
     expenses: state.expenses,
     debts: state.debts,
@@ -356,6 +362,14 @@ export function serializeCloudVaultData(state: PersistedState): CloudVaultData {
     debtPurposeAttributions: state.debtPurposeAttributions,
     paySchedules: state.paySchedules,
   };
+  const zone =
+    typeof state.financialTimeZone === "string"
+      ? canonicalIanaTimeZone(state.financialTimeZone)
+      : null;
+  if (zone && zone === state.financialTimeZone) {
+    return { ...core, financialTimeZone: zone };
+  }
+  return core;
 }
 
 /**
@@ -373,6 +387,10 @@ export function parseCloudVaultData(raw: unknown): PersistedState | null {
     raw,
     "paySchedules"
   );
+  const hasFinancialTimeZone = Object.prototype.hasOwnProperty.call(
+    raw,
+    FINANCIAL_TIME_ZONE_KEY
+  );
   // Reject partial debt-key presence (mixed / corrupt).
   if (!hasDebtKeys) {
     for (const key of DEBT_POSITION_CLOUD_KEYS) {
@@ -385,6 +403,9 @@ export function parseCloudVaultData(raw: unknown): PersistedState | null {
   }
   if (hasPaySchedules) {
     expectedKeys = [...expectedKeys, ...PAY_SCHEDULE_CLOUD_KEYS];
+  }
+  if (hasFinancialTimeZone) {
+    expectedKeys = [...expectedKeys, FINANCIAL_TIME_ZONE_KEY];
   }
   if (keys.length !== expectedKeys.length) return null;
   for (const key of expectedKeys) {
