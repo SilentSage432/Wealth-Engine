@@ -34,7 +34,6 @@ function moreProps(
     onExportBackup: vi.fn(),
     onImportBackup: vi.fn(() => null as string | null),
     onClearAllData: vi.fn(),
-    onOpenMonthlyClose: vi.fn(),
     onSignOutCloud: vi.fn(async () => true),
     onCheckCloud: vi.fn(async () => undefined),
     onConnectCloud: vi.fn(),
@@ -44,8 +43,6 @@ function moreProps(
   const props: ComponentProps<typeof MobileMore> = {
     username: "Ada",
     onUsernameChange: spies.onUsernameChange,
-    monthAlreadyClosed: false,
-    onOpenMonthlyClose: spies.onOpenMonthlyClose,
     wisdomIndex: 0,
     onSelectWisdomIndex: vi.fn(),
     connectedCount: 1,
@@ -78,13 +75,6 @@ function moreProps(
     availableAfterPlannedNeeds: planned(),
     remainingDebt: 0,
     discreet: false,
-    onAddAccount: () => true,
-    onUpdateAccount: () => true,
-    onRemoveAccount: () => ({ status: "applied" as const }),
-    onSetAccountPurpose: () => ({ status: "applied" as const }),
-    onClearAccountPurpose: () => ({ status: "applied" as const }),
-    onUpdateProtected: () => null,
-    onEstablishFinancialTimeZone: () => false,
     ...partial,
   };
   return { props, spies };
@@ -102,7 +92,7 @@ function renderMore(
 }
 
 describe("phone More maintenance compression", () => {
-  it("keeps the More group order and leaves close-month and connections visible", () => {
+  it("keeps the More group order and leaves connections visible", () => {
     renderMore();
     const labels = ["Financial setup", "Connections", "Guidance", "Data and cloud", "Danger zone"];
     const headings = labels.map((label) => screen.getByRole("heading", { name: label }));
@@ -112,7 +102,10 @@ describe("phone More maintenance compression", () => {
           Node.DOCUMENT_POSITION_FOLLOWING
       ).toBeTruthy();
     }
-    expect(screen.getByRole("button", { name: "Close this month" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Close this month" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Add Account" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Establish financial time zone" })).toBeNull();
+    expect(screen.getByText("Not established")).toBeTruthy();
     expect(screen.getByText("1 bank connected")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Connect Bank" })).toBeTruthy();
     expect(screen.getByRole("button", { name: /Financial Guidance/ })).toBeTruthy();
@@ -172,7 +165,6 @@ describe("phone More maintenance compression", () => {
     expect(spies.onBootstrapCloud).not.toHaveBeenCalled();
     expect(spies.onExportBackup).not.toHaveBeenCalled();
     expect(spies.onClearAllData).not.toHaveBeenCalled();
-    expect(spies.onOpenMonthlyClose).not.toHaveBeenCalled();
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(setItem).not.toHaveBeenCalled();
     setItem.mockRestore();

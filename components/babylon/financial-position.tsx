@@ -143,22 +143,24 @@ interface FinancialPositionProps {
   discreet?: boolean;
   /** Full keeps the orientation readings. Manage keeps account and designation editing. */
   presentation?: "full" | "manage";
-  onAddAccount: (input: FinancialAccountInput) => boolean;
-  onUpdateAccount: (id: string, input: FinancialAccountInput) => boolean;
-  onRemoveAccount: (
+  /** Phone projection shows the position and hides account authorship. */
+  readOnly?: boolean;
+  onAddAccount?: (input: FinancialAccountInput) => boolean;
+  onUpdateAccount?: (id: string, input: FinancialAccountInput) => boolean;
+  onRemoveAccount?: (
     id: string,
     preserve?: "allow_drop" | "keep_as_existing" | "cancel"
   ) => PurposeClearResult | { status: "applied" };
-  onSetAccountPurpose: (
+  onSetAccountPurpose?: (
     accountId: string,
     purpose: FinancialAccountPurpose,
     reconcile?: FirstDesignationReconcileChoice | "cancel"
   ) => PurposeActionResult;
-  onClearAccountPurpose: (
+  onClearAccountPurpose?: (
     accountId: string,
     preserve?: "allow_drop" | "keep_as_existing" | "cancel"
   ) => PurposeClearResult;
-  onUpdateProtected: (wealth: number, emergency: number) => string | null;
+  onUpdateProtected?: (wealth: number, emergency: number) => string | null;
   onEditorOpenChange?: (open: boolean) => void;
   /** Default for a new account as-of date. Blank when financial today is unknown. */
   financialToday?: string | null;
@@ -372,6 +374,7 @@ export function FinancialPosition({
   remainingDebt,
   discreet = false,
   presentation = "full",
+  readOnly = false,
   onAddAccount,
   onUpdateAccount,
   onRemoveAccount,
@@ -474,6 +477,7 @@ export function FinancialPosition({
 
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
+    if (readOnly || !onAddAccount || !onUpdateAccount) return;
     const restrictedRaw = draft.restrictedAmount.trim();
     const restrictedParsed =
       restrictedRaw === "" ? 0 : Number.parseFloat(restrictedRaw);
@@ -505,6 +509,7 @@ export function FinancialPosition({
 
   const handleProtectedSubmit = (event: FormEvent) => {
     event.preventDefault();
+    if (readOnly || !onUpdateProtected) return;
     const error = onUpdateProtected(
       Number.parseFloat(wealthDraft),
       Number.parseFloat(emergencyDraft)
@@ -522,6 +527,7 @@ export function FinancialPosition({
     purpose: FinancialAccountPurpose,
     choice?: FirstDesignationReconcileChoice | "cancel"
   ) => {
+    if (readOnly || !onSetAccountPurpose) return;
     const result = onSetAccountPurpose(accountId, purpose, choice);
     if (result.status === "needs_reconcile") {
       setReconcile({
@@ -547,7 +553,7 @@ export function FinancialPosition({
   ) => {
     setPurposeError(null);
     if (purpose === "none") {
-      if (account.purpose === undefined) return;
+      if (account.purpose === undefined || readOnly || !onClearAccountPurpose) return;
       const result = onClearAccountPurpose(account.id);
       if (result.status === "needs_preserve_choice") {
         setPreserveChoice({
@@ -646,6 +652,7 @@ export function FinancialPosition({
                   {RESTRICTION_CONFLICT_COPY}
                 </p>
               ) : null}
+              {readOnly ? null : (
               <div className="mt-2 max-w-xs">
                 <Select
                   value={account.purpose ?? "none"}
@@ -674,10 +681,12 @@ export function FinancialPosition({
                   </SelectContent>
                 </Select>
               </div>
+              )}
             </div>
             <p className="font-[family-name:var(--font-display)] text-lg font-semibold tabular-nums text-slate-100">
               {money(accountPosition.balance)}
             </p>
+            {readOnly ? null : (
             <div className="flex items-center gap-1">
               <Button
                 type="button"
@@ -699,6 +708,7 @@ export function FinancialPosition({
                 <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
               </Button>
             </div>
+            )}
             <AccountObservation
               account={account}
               balanceObservation={balanceObservation}
@@ -907,19 +917,23 @@ export function FinancialPosition({
                 )}
               </div>
             </div>
+            {readOnly ? null : (
             <Button type="button" size="sm" onClick={openAdd}>
               <Plus className="h-3.5 w-3.5" aria-hidden="true" />
               Add Account
             </Button>
+            )}
           </div>
           </>
           ) : (
           <div className="flex items-center justify-between gap-3">
             <h3 className="text-sm font-medium text-slate-100">Accounts</h3>
+            {readOnly ? null : (
             <Button type="button" size="sm" onClick={openAdd}>
               <Plus className="h-3.5 w-3.5" aria-hidden="true" />
               Add Account
             </Button>
+            )}
           </div>
           )}
 
@@ -1001,9 +1015,11 @@ export function FinancialPosition({
                   {money(protectedMoney)}
                 </p>
               </div>
+              {readOnly ? null : (
               <Button type="button" size="sm" variant="outline" onClick={openProtected}>
                 Edit
               </Button>
+              )}
             </div>
             <p className="mt-2 text-xs leading-relaxed text-slate-400">
               {EXISTING_WEALTH_BUILDING_LABEL} {money(openingWealthBuilding)} ·{" "}
@@ -1419,6 +1435,7 @@ export function FinancialPosition({
                 if (linked) {
                   void balanceObservation?.onRemoveAssociation(pendingRemove.id);
                 }
+                if (!onRemoveAccount) return;
                 const result = onRemoveAccount(pendingRemove.id);
                 if (result.status === "needs_preserve_choice") {
                   setPreserveChoice({
@@ -1447,7 +1464,7 @@ export function FinancialPosition({
         open={reconcile !== null}
         onOpenChange={(open) => {
           if (!open) {
-            if (reconcile) {
+            if (reconcile && onSetAccountPurpose) {
               onSetAccountPurpose(reconcile.accountId, reconcile.purpose, "cancel");
             }
             setReconcile(null);
@@ -1546,6 +1563,7 @@ export function FinancialPosition({
             <AlertDialogAction
               onClick={() => {
                 if (!preserveChoice) return;
+                if (!onClearAccountPurpose || !onRemoveAccount) return;
                 if (preserveChoice.kind === "clear") {
                   const result = onClearAccountPurpose(
                     preserveChoice.account.id,
@@ -1573,6 +1591,7 @@ export function FinancialPosition({
             <AlertDialogAction
               onClick={() => {
                 if (!preserveChoice) return;
+                if (!onClearAccountPurpose || !onRemoveAccount) return;
                 if (preserveChoice.kind === "clear") {
                   const result = onClearAccountPurpose(
                     preserveChoice.account.id,

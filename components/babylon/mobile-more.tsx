@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { CalendarCheck } from "lucide-react";
 import { ConnectedBanksCard } from "@/components/babylon/connected-banks-card";
 import { ObservationTeaching } from "@/components/babylon/observation-teaching";
 import { DeviceNotifications } from "@/components/babylon/device-notifications";
@@ -22,44 +21,14 @@ import {
 import { PhoneMaintenanceDisclosure } from "@/components/babylon/phone-maintenance-disclosure";
 import { ProfileNameField } from "@/components/babylon/profile-name-field";
 import { WisdomBox } from "@/components/babylon/wisdom-box";
-import { FINANCIAL_CALENDAR_UNKNOWN } from "@/lib/babylon/civil-time";
-import { Button } from "@/components/ui/button";
 import type { AvailableAfterPlannedNeeds } from "@/lib/babylon/available-after-planned-needs";
-import type { FirstDesignationReconcileChoice } from "@/lib/babylon/account-purpose";
 import { phoneCloudSessionStartsClosed } from "@/lib/babylon/mobile-more";
 import { vaultSyncCopy, type VaultSyncView } from "@/lib/babylon/vault-sync";
-import type {
-  BudgetTarget,
-  FinancialAccount,
-  FinancialAccountInput,
-  FinancialAccountPurpose,
-} from "@/types/babylon";
-
-type PurposeActionResult =
-  | { status: "applied" }
-  | {
-      status: "needs_reconcile";
-      purpose: FinancialAccountPurpose;
-      opening: number;
-      accountPosition: number;
-    }
-  | { status: "rejected"; reason: string };
-
-type PurposeClearResult =
-  | { status: "applied" }
-  | {
-      status: "needs_preserve_choice";
-      accountPosition: number;
-      purpose: FinancialAccountPurpose;
-    }
-  | { status: "rejected"; reason: string };
+import type { BudgetTarget, FinancialAccount } from "@/types/babylon";
 
 interface MobileMoreProps {
   username: string;
   onUsernameChange: (value: string) => void;
-  monthAlreadyClosed: boolean;
-  onOpenMonthlyClose: () => void;
-  financialCalendarKnown?: boolean;
   financialToday?: string | null;
   wisdomIndex: number;
   onSelectWisdomIndex: (index: number) => void;
@@ -105,26 +74,8 @@ interface MobileMoreProps {
   obligationsReadable?: boolean;
   remainingDebt: number;
   discreet: boolean;
-  onAddAccount: (input: FinancialAccountInput) => boolean;
-  onUpdateAccount: (id: string, input: FinancialAccountInput) => boolean;
-  onRemoveAccount: (
-    id: string,
-    preserve?: "allow_drop" | "keep_as_existing" | "cancel"
-  ) => PurposeClearResult | { status: "applied" };
-  onSetAccountPurpose: (
-    accountId: string,
-    purpose: FinancialAccountPurpose,
-    reconcile?: FirstDesignationReconcileChoice | "cancel"
-  ) => PurposeActionResult;
-  onClearAccountPurpose: (
-    accountId: string,
-    preserve?: "allow_drop" | "keep_as_existing" | "cancel"
-  ) => PurposeClearResult;
-  onUpdateProtected: (wealth: number, emergency: number) => string | null;
-  onEditorOpenChange?: (open: boolean) => void;
   balanceObservation?: FinancialPositionBalanceObservation;
   financialTimeZone?: string;
-  onEstablishFinancialTimeZone: (zone: string) => boolean;
 }
 
 function GroupHeading({ children }: { children: string }) {
@@ -138,9 +89,6 @@ function GroupHeading({ children }: { children: string }) {
 export function MobileMore({
   username,
   onUsernameChange,
-  monthAlreadyClosed,
-  onOpenMonthlyClose,
-  financialCalendarKnown = true,
   financialToday = null,
   wisdomIndex,
   onSelectWisdomIndex,
@@ -186,16 +134,8 @@ export function MobileMore({
   obligationsReadable = true,
   remainingDebt,
   discreet,
-  onAddAccount,
-  onUpdateAccount,
-  onRemoveAccount,
-  onSetAccountPurpose,
-  onClearAccountPurpose,
-  onUpdateProtected,
-  onEditorOpenChange,
   balanceObservation,
   financialTimeZone,
-  onEstablishFinancialTimeZone,
 }: MobileMoreProps) {
   const [guidanceOpen, setGuidanceOpen] = useState(false);
   const [referenceOpen, setReferenceOpen] = useState(false);
@@ -217,6 +157,7 @@ export function MobileMore({
         </PhoneMaintenanceDisclosure>
         <FinancialPosition
           presentation="manage"
+          readOnly
           accounts={accounts}
           moneyAvailable={moneyAvailable}
           restrictedEffectiveTotal={restrictedEffectiveTotal}
@@ -233,36 +174,8 @@ export function MobileMore({
           remainingDebt={remainingDebt}
           financialToday={financialToday}
           discreet={discreet}
-          onAddAccount={onAddAccount}
-          onUpdateAccount={onUpdateAccount}
-          onRemoveAccount={onRemoveAccount}
-          onSetAccountPurpose={onSetAccountPurpose}
-          onClearAccountPurpose={onClearAccountPurpose}
-          onUpdateProtected={onUpdateProtected}
-          onEditorOpenChange={onEditorOpenChange}
           balanceObservation={balanceObservation}
         />
-        <Button
-          type="button"
-          variant="outline"
-          className="w-full"
-          onClick={onOpenMonthlyClose}
-          disabled={monthAlreadyClosed || !financialCalendarKnown}
-          aria-label={
-            !financialCalendarKnown
-              ? FINANCIAL_CALENDAR_UNKNOWN
-              : monthAlreadyClosed
-                ? "Month already closed"
-                : "Close this month"
-          }
-        >
-          <CalendarCheck className="h-4 w-4" aria-hidden="true" />
-          {!financialCalendarKnown
-            ? "Set financial time zone"
-            : monthAlreadyClosed
-              ? "Month closed"
-              : "Close Month"}
-        </Button>
       </section>
 
       <section className="space-y-3" aria-label="Connections">
@@ -371,7 +284,7 @@ export function MobileMore({
         </PhoneMaintenanceDisclosure>
         <FinancialTimeZoneField
           financialTimeZone={financialTimeZone}
-          onEstablish={onEstablishFinancialTimeZone}
+          readOnly
         />
         <DeviceNotifications />
         <VaultDataBackups

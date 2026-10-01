@@ -91,6 +91,7 @@ export function WealthEngineDashboard() {
 
   useTributeHotkeys(openTributeHotkey, {
     enabled:
+      desktopLayout &&
       hydrated &&
       !tributeOpen &&
       !monthlyCloseOpen &&
@@ -250,6 +251,7 @@ export function WealthEngineDashboard() {
       financialToday={engine.financialToday}
       discreet={discreet}
       disclosure={desktopLayout}
+      readOnly={!desktopLayout}
       onFinalize={engine.finalizeMonthlyPlan}
       onUpsertPaySchedule={engine.upsertPaySchedule}
       onRemovePaySchedule={engine.removePaySchedule}
@@ -370,8 +372,6 @@ export function WealthEngineDashboard() {
                 isDiscreetMode={discreet}
                 openMonthMessage={engine.monthCloseAttention?.message ?? null}
                 onToggleDiscreetMode={engine.toggleDiscreetMode}
-                onRecordTribute={() => engine.openTribute("income")}
-                onOpenMonthlyClose={() => engine.setMonthlyCloseOpen(true)}
                 financialCalendarKnown={engine.financialCalendarKnown}
               />
             )}
@@ -387,7 +387,6 @@ export function WealthEngineDashboard() {
           >
             {!desktopLayout && mobileDestination === "home" && (
               <>
-                {debtRebaseBanner}
                 <MobileHome
                 moneyAvailable={engine.moneyAvailable}
                 restrictedEffectiveTotal={engine.restrictedEffectiveTotal}
@@ -424,9 +423,6 @@ export function WealthEngineDashboard() {
                 budgetTargets={engine.budgetTargets}
                 plannedTotal={engine.budgetPlannedTotal}
                 actualTotal={engine.budgetActualTotal}
-                onUpdateTargetFull={engine.updateBudgetTargetFull}
-                onDeleteTarget={engine.deleteBudgetTarget}
-                onAutoScaleCaps={engine.autoScaleBudgetCaps}
                 debts={engine.debts}
                 monthlyDebtBudget={monthlyDebtBudget}
                 currentMonthKey={engine.currentMonthKey}
@@ -453,13 +449,8 @@ export function WealthEngineDashboard() {
                 desireSpend={engine.desireSpend}
                 totalSpent={engine.lifetimeSpent}
                 budgetTargets={engine.budgetTargets}
-                onDeleteIncome={engine.deleteIncome}
-                onDeleteExpense={engine.deleteExpense}
-                onDeleteDebt={engine.deleteDebt}
-                onToggleExpenseSettled={engine.toggleExpenseSettled}
+                onMarkPaid={engine.toggleExpenseSettled}
                 recurringObligations={engine.recurringObligations}
-                onUpdateExpense={engine.updateExpenseOccurrence}
-                onUpdateRecurringObligation={engine.updateRecurringObligation}
                 financialToday={engine.financialToday}
                 discreet={discreet}
               />
@@ -469,10 +460,7 @@ export function WealthEngineDashboard() {
               <MobileMore
                 username={engine.username}
                 onUsernameChange={engine.setUsername}
-                monthAlreadyClosed={engine.monthlyCloseSummary.alreadyClosed}
-                financialCalendarKnown={engine.financialCalendarKnown}
                 financialToday={engine.financialToday}
-                onOpenMonthlyClose={() => engine.setMonthlyCloseOpen(true)}
                 wisdomIndex={engine.wisdomIndex}
                 onSelectWisdomIndex={engine.setWisdomIndex}
                 connectedCount={connectedCount}
@@ -503,7 +491,6 @@ export function WealthEngineDashboard() {
                 onConfirmReconciliation={engine.confirmPreservedCopies}
                 onCancelReconciliation={engine.cancelPreservedCopies}
                 financialTimeZone={engine.financialTimeZone}
-                onEstablishFinancialTimeZone={engine.establishFinancialTimeZone}
                 accounts={engine.accounts}
                 moneyAvailable={engine.moneyAvailable}
                 restrictedEffectiveTotal={engine.restrictedEffectiveTotal}
@@ -519,13 +506,6 @@ export function WealthEngineDashboard() {
                 obligationsReadable={engine.obligationsReadable}
                 remainingDebt={engine.remainingDebt}
                 discreet={discreet}
-                onAddAccount={engine.addAccount}
-                onUpdateAccount={engine.updateAccount}
-                onRemoveAccount={engine.removeAccount}
-                onSetAccountPurpose={engine.setAccountPurpose}
-                onClearAccountPurpose={engine.clearAccountPurpose}
-                onUpdateProtected={engine.updateProtectedDesignations}
-                onEditorOpenChange={setAccountEditorOpen}
                 balanceObservation={balanceObservationView}
               />
             )}

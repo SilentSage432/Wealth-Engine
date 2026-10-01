@@ -28,6 +28,8 @@ interface FundThisMonthSectionProps {
   financialToday?: string | null;
   /** Desktop Overview only. Phone leaves this unset. */
   disclosure?: boolean;
+  /** Phone projection shows payday timing and hides schedule authorship. */
+  readOnly?: boolean;
   planSummary?: ReactNode;
   children?: ReactNode;
 }
@@ -226,12 +228,13 @@ export function FundThisMonthSection({
   onRemovePaySchedule,
   financialToday = null,
   disclosure = false,
+  readOnly = false,
   planSummary = null,
   children = null,
 }: FundThisMonthSectionProps) {
   const view = composeFundThisMonthView(revision, paySchedules);
   const [editingSchedule, setEditingSchedule] = useState(
-    () => paySchedules.length === 0
+    () => !readOnly && paySchedules.length === 0
   );
   const path = view.status === "path" ? <FundingPath view={view} money={money} /> : null;
 
@@ -277,10 +280,11 @@ export function FundThisMonthSection({
       {view.status === "no_schedule" ? (
         <div className="space-y-3 rounded-xl border border-dashed border-slate-700/80 bg-slate-950/30 p-4">
           <p className="text-sm text-slate-300">
-            Add an expected pay schedule to break this monthly plan into pay
-            periods.
+            {readOnly
+              ? "No expected pay schedule is recorded."
+              : "Add an expected pay schedule to break this monthly plan into pay periods."}
           </p>
-          {!editingSchedule ? (
+          {!readOnly && !editingSchedule ? (
             <Button
               type="button"
               size="sm"
@@ -301,7 +305,8 @@ export function FundThisMonthSection({
         </div>
       ) : null}
 
-      {view.status === "path" || view.status === "no_expected_funding" ? (
+      {!readOnly &&
+      (view.status === "path" || view.status === "no_expected_funding") ? (
         <div className="flex flex-wrap gap-2">
           <Button
             type="button"
@@ -317,7 +322,7 @@ export function FundThisMonthSection({
         </div>
       ) : null}
 
-      {editingSchedule ? (
+      {!readOnly && editingSchedule ? (
         <ExpectedPayScheduleEditor
           schedules={paySchedules}
           financialToday={financialToday}

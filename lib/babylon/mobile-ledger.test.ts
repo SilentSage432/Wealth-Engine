@@ -156,11 +156,11 @@ describe("phone Ledger source boundaries", () => {
     expect(ledgerSource).toContain('aria-label="Ledger records"');
     expect(ledgerSource).toContain("aria-selected");
     expect(ledgerSource).toContain("formatDiscreetCurrency");
-    expect(ledgerSource).toContain("onDeleteIncome");
-    expect(ledgerSource).toContain("onDeleteExpense");
-    expect(ledgerSource).toContain("onDeleteDebt");
-    expect(ledgerSource).toContain("onToggleExpenseSettled");
-    expect(ledgerSource).toContain("Edit rule");
+    expect(ledgerSource).not.toContain("onDeleteIncome");
+    expect(ledgerSource).not.toContain("onDeleteExpense");
+    expect(ledgerSource).not.toContain("onDeleteDebt");
+    expect(ledgerSource).toContain("onMarkPaid");
+    expect(ledgerSource).not.toContain("Edit rule");
     expect(ledgerSource).toContain("recurringObligationId");
     expect(ledgerSource).toContain("wealthShare");
     expect(ledgerSource).not.toContain("overflow-x-auto");
@@ -193,7 +193,7 @@ describe("phone Ledger source boundaries", () => {
     expect(budgetBlock).toContain("<MobileBudget");
     expect(homeSource).not.toContain("MobileLedger");
     expect(budgetSource).not.toContain("MobileLedger");
-    expect(headerSource).toContain("Add");
+    expect(headerSource).not.toContain(">Add<");
     expect(desktopBlock).toContain("budgetBlueprint");
     expect(desktopBlock).toContain("{ledgers}");
   });

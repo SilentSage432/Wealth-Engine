@@ -39,12 +39,6 @@ interface MobileBudgetProps {
   budgetTargets: BudgetTarget[];
   plannedTotal: number;
   actualTotal: number;
-  onUpdateTargetFull: (
-    id: string,
-    updatedData: Partial<Omit<BudgetTarget, "id">>
-  ) => boolean;
-  onDeleteTarget: (id: string, reassignToId?: string | null) => void;
-  onAutoScaleCaps: () => boolean;
   debts: DebtEntry[];
   monthlyDebtBudget: number;
   currentMonthKey: string | null;
@@ -82,9 +76,6 @@ export function MobileBudget({
   budgetTargets,
   plannedTotal,
   actualTotal,
-  onUpdateTargetFull,
-  onDeleteTarget,
-  onAutoScaleCaps,
   debts,
   monthlyDebtBudget,
   currentMonthKey,
@@ -203,10 +194,8 @@ export function MobileBudget({
         plannedTotal={plannedTotal}
         actualTotal={actualTotal}
         expenditurePool={expenditurePool}
-        onUpdateTargetFull={onUpdateTargetFull}
-        onDeleteTarget={onDeleteTarget}
-        onAutoScaleCaps={onAutoScaleCaps}
         calendarKnown={calendarKnown}
+        readOnly
       />
 
       <DebtFreedomEngine

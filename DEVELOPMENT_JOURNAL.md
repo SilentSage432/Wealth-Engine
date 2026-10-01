@@ -1,5 +1,15 @@
 # Development Journal
 
+## 2026-10-01 — WE-MOBILE-PROJECTION-001 Portable projection surface
+
+- Phone Home, Budget, Ledger, and More no longer expose record, close, debt rebase, budget-cap edits, plan or pay-schedule edits, ledger delete or rule edits, account edits, or financial-timezone changes.
+- The same readings stay: position, due and upcoming needs, budget figures, the stored plan, ledger history, accounts, and the established financial time zone.
+- Paid on an unpaid obligation still calls `toggleExpenseSettled` and the existing whole-vault save. A settled phone row does not offer Reopen. Still upcoming writes nothing.
+- Cloud, backup, import, reset, bank connection, Plaid association, notifications, security, display name, and discreet mode stay on the phone.
+- Desktop authoring is unchanged. The record hotkey runs only in the desktop layout. This tranche does not add a server command.
+- Full suite: 73 files, 1084 tests passed. `tsc --noEmit` passed. ESLint on the edited files passed. Production build passed.
+- Not committed.
+
 ## 2026-10-01 — WE-FINANCIAL-TIME-ACTIVATION-003 Canonical financial civil date
 
 - `financialToday` is derived from the current instant and `PersistedState.financialTimeZone` through `financialCivilDate`. Absence is null. There is no device, notification, server, or UTC fallback.
@@ -8,7 +18,7 @@
 - Intelligence Contract version is 4. `meta.iana_timezone` remains the notification preference. `meta.civil_date` is the financial civil date and is not resolved from that preference. No financial timezone field was added to the contract.
 - Financial midnight is a short timer from `msUntilNextFinancialMidnight`, with visibility and focus as the backstop. A day change does not write the vault. Clocks stay device-local.
 - Full suite: 72 files, 1074 tests passed. `tsc --noEmit` passed. ESLint on the edited files passed. Production build passed.
-- Not committed.
+- Committed as `e86781c`.
 
 ## 2026-10-01 — WE-FINANCIAL-TIME-AUTHORITY-002 Steward financial timezone
 

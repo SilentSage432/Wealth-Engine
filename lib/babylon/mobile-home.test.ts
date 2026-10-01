@@ -168,7 +168,7 @@ describe("phone Home source boundaries", () => {
     expect(moreBlock).not.toContain("{financialPosition}");
     expect(moreSource).toContain("WisdomBox");
     expect(moreSource).toContain("ConnectedBanksCard");
-    expect(moreSource).toContain("Close Month");
+    expect(moreSource).not.toContain("Close Month");
   });
 
   it("keeps Home free of Protected Money as a steward-facing label", () => {
@@ -189,7 +189,9 @@ describe("phone Home source boundaries", () => {
   });
 
   it("leaves month-close attention on the phone header and keeps the desktop overview", () => {
-    expect(headerSource).toContain("Review close");
+    expect(headerSource).not.toContain("Review close");
+    expect(headerSource).not.toContain("onRecordTribute");
+    expect(headerSource).toContain("onToggleDiscreetMode");
     expect(desktopBlock).toContain("financialPosition");
     expect(desktopBlock).toContain("upcomingNeedsCard");
     expect(desktopBlock).toContain("focusCards");

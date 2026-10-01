@@ -75,6 +75,8 @@ interface MonthlyPlanPanelProps {
   discreet?: boolean;
   /** Desktop Overview compresses a finalized map. Phone leaves this unset. */
   disclosure?: boolean;
+  /** Phone projection shows the stored map and hides finalize, revise, and pay-schedule authorship. */
+  readOnly?: boolean;
   onFinalize: (input: MonthlyPlanFinalizeSubmission) => MonthlyPlanFinalizeOutcome;
   onUpsertPaySchedule: (
     schedule: PaySchedule
@@ -123,6 +125,7 @@ export function MonthlyPlanPanel({
   paySchedules,
   discreet = false,
   disclosure = false,
+  readOnly = false,
   onFinalize,
   onUpsertPaySchedule,
   onRemovePaySchedule,
@@ -202,6 +205,7 @@ export function MonthlyPlanPanel({
   }
 
   const openDraft = (mode: "first" | "revise", sourcePeriod: string) => {
+    if (readOnly) return;
     const current = latestMonthlyPlanRevision(plans, sourcePeriod);
     if (mode === "revise" && current) {
       const seed = seedMonthlyPlanFromRevision(current);
@@ -321,6 +325,7 @@ export function MonthlyPlanPanel({
                 onUpsertPaySchedule={onUpsertPaySchedule}
                 onRemovePaySchedule={onRemovePaySchedule}
                 financialToday={financialToday}
+                readOnly={readOnly}
                 planSummary={
                   <div>
                     <p className="text-sm font-medium text-slate-100">
@@ -347,7 +352,9 @@ export function MonthlyPlanPanel({
                   revision={latest}
                   money={money}
                   monthTitle={monthTitle}
-                  onRevise={() => openDraft("revise", periodKey)}
+                  onRevise={
+                    readOnly ? undefined : () => openDraft("revise", periodKey)
+                  }
                 />
               </FundThisMonthSection>
             ) : (
@@ -356,7 +363,9 @@ export function MonthlyPlanPanel({
                   revision={latest}
                   money={money}
                   monthTitle={monthTitle}
-                  onRevise={() => openDraft("revise", periodKey)}
+                  onRevise={
+                    readOnly ? undefined : () => openDraft("revise", periodKey)
+                  }
                 />
                 <FundThisMonthSection
                   revision={latest}
@@ -365,6 +374,7 @@ export function MonthlyPlanPanel({
                   onUpsertPaySchedule={onUpsertPaySchedule}
                   onRemovePaySchedule={onRemovePaySchedule}
                   financialToday={financialToday}
+                  readOnly={readOnly}
                 />
               </>
             )
@@ -375,13 +385,15 @@ export function MonthlyPlanPanel({
               <p className="text-sm text-slate-200">
                 No map for {monthTitle} yet.
               </p>
+              {readOnly ? null : (
               <Button type="button" onClick={() => openDraft("first", periodKey)}>
                 Map {monthTitle}
               </Button>
+              )}
             </div>
           ) : null}
 
-          {drafting && preview ? (
+          {!readOnly && drafting && preview ? (
             <div className="space-y-5">
               <div className="space-y-2">
                 <Label
@@ -1029,7 +1041,7 @@ function RevisionSummary({
   revision: MonthlyPlanRevision;
   money: (value: number) => string;
   monthTitle: string;
-  onRevise: () => void;
+  onRevise?: () => void;
 }) {
   const wealth = planResultWealthBuilding(
     revision.protectedContext.openingWealthBuilding,
@@ -1136,9 +1148,11 @@ function RevisionSummary({
           Earlier revisions of this period remain saved.
         </p>
       ) : null}
+      {onRevise ? (
       <Button type="button" variant="outline" onClick={onRevise}>
         Revise map
       </Button>
+      ) : null}
     </div>
   );
 }

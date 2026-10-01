@@ -8,7 +8,9 @@ import { readBrowserIanaTimeZone } from "@/lib/babylon/notification-device";
 
 interface FinancialTimeZoneFieldProps {
   financialTimeZone?: string;
-  onEstablish: (zone: string) => boolean;
+  onEstablish?: (zone: string) => boolean;
+  /** Phone projection shows the established zone and hides the change control. */
+  readOnly?: boolean;
 }
 
 /**
@@ -19,6 +21,7 @@ interface FinancialTimeZoneFieldProps {
 export function FinancialTimeZoneField({
   financialTimeZone,
   onEstablish,
+  readOnly = false,
 }: FinancialTimeZoneFieldProps) {
   const [draft, setDraft] = useState(financialTimeZone ?? "");
   const [note, setNote] = useState<string | null>(null);
@@ -29,6 +32,7 @@ export function FinancialTimeZoneField({
   const established = financialTimeZone ?? null;
 
   function save() {
+    if (!onEstablish) return;
     const accepted = onEstablish(draft);
     setNote(accepted ? null : "Enter a valid IANA timezone.");
   }
@@ -46,6 +50,8 @@ export function FinancialTimeZoneField({
       <p className="text-xs text-slate-300">
         {established ? established : "Not established"}
       </p>
+      {readOnly ? null : (
+      <>
       <Input
         value={draft}
         onChange={(event) => {
@@ -80,6 +86,8 @@ export function FinancialTimeZoneField({
         {established ? "Change financial time zone" : "Establish financial time zone"}
       </Button>
       {note ? <p className="text-xs text-slate-400">{note}</p> : null}
+      </>
+      )}
     </div>
   );
 }

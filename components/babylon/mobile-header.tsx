@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Eye, EyeOff, Plus } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FINANCIAL_CALENDAR_UNKNOWN } from "@/lib/babylon/civil-time";
 import { GREETING_NAME_FALLBACK } from "@/lib/babylon/constants";
@@ -17,8 +17,6 @@ interface MobileHeaderProps {
   isDiscreetMode: boolean;
   openMonthMessage?: string | null;
   onToggleDiscreetMode: () => void;
-  onRecordTribute: () => void;
-  onOpenMonthlyClose: () => void;
   financialCalendarKnown?: boolean;
 }
 
@@ -31,8 +29,6 @@ export function MobileHeader({
   isDiscreetMode,
   openMonthMessage = null,
   onToggleDiscreetMode,
-  onRecordTribute,
-  onOpenMonthlyClose,
   financialCalendarKnown = true,
 }: MobileHeaderProps) {
   const [greetingHour] = useState(() => new Date().getHours());
@@ -71,29 +67,11 @@ export function MobileHeader({
               <Eye className="h-4 w-4" aria-hidden="true" />
             )}
           </Button>
-          <Button
-            type="button"
-            variant="amber"
-            className="shrink-0 px-3"
-            onClick={onRecordTribute}
-            aria-label="Add (shortcut N)"
-            title="Add · N"
-          >
-            <Plus className="h-4 w-4" aria-hidden="true" />
-            Add
-          </Button>
         </div>
       </div>
       {openMonthMessage && financialCalendarKnown ? (
         <p className="px-3 pb-2.5 text-sm leading-relaxed text-slate-300">
-          {openMonthMessage}{" "}
-          <button
-            type="button"
-            className="font-medium text-emerald-300 underline-offset-2 hover:underline"
-            onClick={onOpenMonthlyClose}
-          >
-            Review close
-          </button>
+          {openMonthMessage}
         </p>
       ) : openMonthMessage ? (
         <p className="px-3 pb-2.5 text-sm leading-relaxed text-slate-300">

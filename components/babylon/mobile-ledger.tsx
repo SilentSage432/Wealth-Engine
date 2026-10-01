@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, type KeyboardEvent } from "react";
-import { Check, Pencil, Trash2 } from "lucide-react";
-import { LedgerRecordEditors } from "@/components/babylon/ledger-record-editors";
+import { Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -24,7 +23,6 @@ import type {
   BudgetTarget,
   DebtEntry,
   ExpenseEntry,
-  ExpenseKind,
   IncomeEntry,
   RecurringObligation,
 } from "@/types/babylon";
@@ -38,27 +36,8 @@ interface MobileLedgerProps {
   totalSpent: number;
   budgetTargets: BudgetTarget[];
   financialToday?: string | null;
-  onDeleteIncome: (id: string) => void;
-  onDeleteExpense: (id: string) => void;
-  onDeleteDebt: (id: string) => void;
-  onToggleExpenseSettled: (id: string) => void;
+  onMarkPaid: (id: string) => void;
   recurringObligations: RecurringObligation[];
-  onUpdateExpense: (
-    id: string,
-    patch: { amount: number; dueDate: string }
-  ) => boolean;
-  onUpdateRecurringObligation: (
-    id: string,
-    patch: {
-      name: string;
-      amount: number;
-      category: ExpenseKind;
-      budgetCategoryId: string;
-      dueDay: number;
-      isActive: boolean;
-      intervalMonths: number;
-    }
-  ) => boolean;
   discreet: boolean;
 }
 
@@ -71,13 +50,8 @@ export function MobileLedger({
   totalSpent,
   budgetTargets,
   financialToday = null,
-  onDeleteIncome,
-  onDeleteExpense,
-  onDeleteDebt,
-  onToggleExpenseSettled,
+  onMarkPaid,
   recurringObligations,
-  onUpdateExpense,
-  onUpdateRecurringObligation,
   discreet,
 }: MobileLedgerProps) {
   const [section, setSection] = useState<PhoneLedgerSection>("income");
@@ -85,6 +59,11 @@ export function MobileLedger({
     formatDiscreetCurrency(value, discreet, formatCurrency);
   const needPct =
     totalSpent > 0 ? Math.round((needSpend / totalSpent) * 100) : null;
+
+  const categoryLabel = (id: string | undefined) => {
+    if (!id) return "Uncategorized";
+    return budgetTargets.find((target) => target.id === id)?.categoryName ?? "Uncategorized";
+  };
 
   const onTabKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     const next = selectPhoneLedgerSection(section, event.key);
@@ -95,21 +74,6 @@ export function MobileLedger({
   };
 
   return (
-    <LedgerRecordEditors
-      budgetTargets={budgetTargets}
-      recurringObligations={recurringObligations}
-      onToggleExpenseSettled={onToggleExpenseSettled}
-      onUpdateExpense={onUpdateExpense}
-      onUpdateRecurringObligation={onUpdateRecurringObligation}
-    >
-      {({
-        categoryLabel,
-        pulsingSettledId,
-        handleToggleSettled,
-        clearPulse,
-        openExpenseEdit,
-        openRuleEdit,
-      }) => (
         <section className="min-w-0 space-y-3" aria-label="Ledger">
           <div
             role="tablist"
@@ -151,7 +115,7 @@ export function MobileLedger({
             >
               {incomes.length === 0 ? (
                 <p className="py-10 text-center text-sm text-slate-500">
-                  No entries yet. Use Add to begin.
+                  No entries yet.
                 </p>
               ) : (
                 <ul className="space-y-2">
@@ -182,17 +146,6 @@ export function MobileLedger({
                         {money(row.debtShare)} · Living Budget{" "}
                         {money(row.expenditureShare)}
                       </p>
-                      <div className="mt-2 flex justify-end">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="text-slate-500 hover:text-rose-400"
-                          onClick={() => onDeleteIncome(row.id)}
-                          aria-label={`Delete income ${row.source}`}
-                        >
-                          <Trash2 aria-hidden="true" />
-                        </Button>
-                      </div>
                     </li>
                   ))}
                 </ul>
@@ -231,7 +184,7 @@ export function MobileLedger({
 
               {expenses.length === 0 ? (
                 <p className="py-10 text-center text-sm text-slate-500">
-                  No entries yet. Use Add to begin.
+                  No entries yet.
                 </p>
               ) : (
                 <ul className="space-y-2">
@@ -284,55 +237,19 @@ export function MobileLedger({
                         <p className="mt-1 text-xs text-slate-400">
                           {row.category === "need" ? "Need" : "Want"} · {bucket}
                         </p>
-                        {row.recurringObligationId ? (
-                          <button
+                        {row.isSettled ? null : (
+                        <div className="mt-2 flex justify-end">
+                          <Button
                             type="button"
-                            className="mt-1 inline-flex min-h-11 items-center text-xs font-medium text-slate-400 underline-offset-2 hover:text-slate-200 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60"
-                            onClick={() => openRuleEdit(row.recurringObligationId!)}
-                          >
-                            Edit rule
-                          </button>
-                        ) : null}
-                        <div className="mt-2 flex items-center justify-end gap-1">
-                          <button
-                            type="button"
-                            onClick={() => handleToggleSettled(row)}
-                            onAnimationEnd={() => clearPulse(row.id)}
-                            aria-label={
-                              row.isSettled
-                                ? `Mark ${row.name} as upcoming`
-                                : `Mark ${row.name} as paid`
-                            }
-                            aria-pressed={row.isSettled}
-                            className={cn(
-                              "flex h-11 w-11 items-center justify-center rounded-md border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/60",
-                              row.isSettled
-                                ? "border-emerald-500/50 bg-emerald-500/15 text-emerald-400"
-                                : "border-slate-700 bg-slate-950/50 text-slate-500",
-                              pulsingSettledId === row.id && "animate-settle-pulse"
-                            )}
+                            size="sm"
+                            onClick={() => onMarkPaid(row.id)}
+                            aria-label={`Mark ${row.name} paid`}
                           >
                             <Check className="h-4 w-4" aria-hidden="true" />
-                          </button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="text-slate-500 hover:text-slate-200"
-                            onClick={() => openExpenseEdit(row)}
-                            aria-label={`Edit expense ${row.name}`}
-                          >
-                            <Pencil aria-hidden="true" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="text-slate-500 hover:text-rose-400"
-                            onClick={() => onDeleteExpense(row.id)}
-                            aria-label={`Delete expense ${row.name}`}
-                          >
-                            <Trash2 aria-hidden="true" />
+                            Paid
                           </Button>
                         </div>
+                        )}
                       </li>
                     );
                   })}
@@ -350,7 +267,7 @@ export function MobileLedger({
             >
               {debts.length === 0 ? (
                 <p className="py-10 text-center text-sm text-slate-500">
-                  No entries yet. Use Add to begin.
+                  No entries yet.
                 </p>
               ) : (
                 <ul className="space-y-2">
@@ -391,17 +308,6 @@ export function MobileLedger({
                           indicatorClassName="bg-amber-500"
                           aria-label={modeledDebtProgressAria(row.creditor, pct)}
                         />
-                        <div className="mt-2 flex justify-end">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="text-slate-500 hover:text-rose-400"
-                            onClick={() => onDeleteDebt(row.id)}
-                            aria-label={`Delete debt ${row.creditor}`}
-                          >
-                            <Trash2 aria-hidden="true" />
-                          </Button>
-                        </div>
                       </li>
                     );
                   })}
@@ -410,7 +316,5 @@ export function MobileLedger({
             </div>
           )}
         </section>
-      )}
-    </LedgerRecordEditors>
   );
 }

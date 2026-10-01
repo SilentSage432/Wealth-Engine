@@ -98,7 +98,7 @@ describe("phone More source boundaries", () => {
     expect(moreSource).toContain("VaultDataBackups");
     expect(moreSource).toContain("VaultResetLedger");
     expect(moreSource).toContain("aria-expanded");
-    expect(moreSource).toContain("Close Month");
+    expect(moreSource).not.toContain("Close Month");
     expect(moreSource).toContain("ProfileNameField");
     expect(profileNameSource).toContain("Profile name");
     expect(sidebarSource).toContain("ProfileNameField");
@@ -235,7 +235,7 @@ describe("phone More maintenance boundaries", () => {
 
   it("compresses phone maintenance without changing the desktop panel", () => {
     expect(moreSource.indexOf('regionId="more-profile-name"')).toBeLessThan(
-      moreSource.indexOf("Close Month")
+      moreSource.indexOf('aria-label="Connections"')
     );
     expect(moreSource.indexOf('regionId="more-cloud-session"')).toBeLessThan(
       moreSource.indexOf("<DeviceNotifications")

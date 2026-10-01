@@ -52,13 +52,15 @@ interface BudgetBlueprintProps {
   plannedTotal: number;
   actualTotal: number;
   expenditurePool: number;
-  onUpdateTargetFull: (
+  onUpdateTargetFull?: (
     id: string,
     updatedData: Partial<Omit<BudgetTarget, "id">>
   ) => boolean;
-  onDeleteTarget: (id: string, reassignToId?: string | null) => void;
+  onDeleteTarget?: (id: string, reassignToId?: string | null) => void;
   onAutoScaleCaps?: () => boolean;
   calendarKnown?: boolean;
+  /** Phone projection shows the figures and hides cap authorship. */
+  readOnly?: boolean;
 }
 
 export function BudgetBlueprint({
@@ -73,6 +75,7 @@ export function BudgetBlueprint({
   onDeleteTarget,
   onAutoScaleCaps,
   calendarKnown = true,
+  readOnly = false,
 }: BudgetBlueprintProps) {
   const [editing, setEditing] = useState<BudgetCategoryVariance | null>(null);
   const [draftName, setDraftName] = useState("");
@@ -117,6 +120,7 @@ export function BudgetBlueprint({
     event.preventDefault();
     if (!editing) return;
     const amount = Number.parseFloat(draftCap);
+    if (!onUpdateTargetFull) return;
     const ok = onUpdateTargetFull(editing.id, {
       categoryName: draftName,
       plannedAmount: amount,
@@ -131,6 +135,7 @@ export function BudgetBlueprint({
       reassignmentOptions.length > 0 && reassignToId
         ? reassignToId
         : null;
+    if (!onDeleteTarget) return;
     onDeleteTarget(editing.id, target);
     closeEditor();
   };
@@ -176,7 +181,7 @@ export function BudgetBlueprint({
                 {calendarKnown ? money(actualTotal) : "Unknown"}
               </span>
             </p>
-            {onAutoScaleCaps ? (
+            {onAutoScaleCaps && !readOnly ? (
               <Button
                 type="button"
                 variant="outline"
@@ -215,7 +220,9 @@ export function BudgetBlueprint({
             ) : null}
             {variances.length === 0 ? (
               <p className="text-sm text-slate-500">
-                No categories yet. Use Add to create one.
+                {readOnly
+                  ? "No categories yet."
+                  : "No categories yet. Use Add to create one."}
               </p>
             ) : (
               <ul className="space-y-2">
@@ -252,6 +259,7 @@ export function BudgetBlueprint({
                           )}
                         </p>
                       </div>
+                      {readOnly ? null : (
                       <Button
                         type="button"
                         variant="outline"
@@ -262,6 +270,7 @@ export function BudgetBlueprint({
                         <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
                         Edit
                       </Button>
+                      )}
                     </li>
                   );
                 })}
@@ -307,7 +316,7 @@ export function BudgetBlueprint({
                 )}
               </p>
             </div>
-            {onAutoScaleCaps && (
+            {onAutoScaleCaps && !readOnly && (
               <Button
                 type="button"
                 variant="outline"
