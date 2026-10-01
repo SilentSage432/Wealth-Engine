@@ -19,6 +19,19 @@ export type DeviceNotificationState =
   | "not-enabled"
   | "enabled-on-device";
 
+/**
+ * Phone More presentation. Quiet notification controls may start closed.
+ * This does not change permission, registration, or delivery.
+ */
+export function deviceNotificationSummaryMayClose(input: {
+  state: DeviceNotificationState;
+  note: string | null;
+  busy: boolean;
+}): boolean {
+  if (input.busy || input.note) return false;
+  return input.state === "not-enabled" || input.state === "enabled-on-device";
+}
+
 export function deviceNotificationLabel(state: DeviceNotificationState): string {
   switch (state) {
     case "unsupported":

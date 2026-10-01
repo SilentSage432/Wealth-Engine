@@ -2,9 +2,11 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { PhoneMaintenanceDisclosure } from "@/components/babylon/phone-maintenance-disclosure";
 import {
   classifyDeviceNotification,
   deviceNotificationLabel,
+  deviceNotificationSummaryMayClose,
   disableNotificationsOnDevice,
   enableNotificationsOnDevice,
   preferenceTimezoneRefresh,
@@ -262,7 +264,7 @@ export function DeviceNotifications() {
     setBusy(false);
   }
 
-  return (
+  const panel = (
     <div className="space-y-2 rounded-lg border border-slate-800 px-3 py-3">
       <p className="text-sm text-slate-200">{deviceNotificationLabel(state)}</p>
       {state === "enabled-on-device" ? (
@@ -309,5 +311,15 @@ export function DeviceNotifications() {
         </div>
       ) : null}
     </div>
+  );
+
+  return (
+    <PhoneMaintenanceDisclosure
+      regionId="more-device-notifications"
+      allowClosed={deviceNotificationSummaryMayClose({ state, note, busy })}
+      summary={deviceNotificationLabel(state)}
+    >
+      {panel}
+    </PhoneMaintenanceDisclosure>
   );
 }

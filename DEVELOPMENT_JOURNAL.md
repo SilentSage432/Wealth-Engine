@@ -1,5 +1,29 @@
 # Development Journal
 
+## 2026-09-30 — WE-UX-HIERARCHY-005 Phone More maintenance compression
+
+### What changed
+- Phone More starts quiet maintenance closed. A signed-in clean cloud session shows the cloud name and the existing up-to-date revision line. Notification controls show the existing device label when this device is not enabled or is enabled and there is no failure note. Backup controls show that there is no import result. The profile summary shows the current name, or that it is blank. The reset warning stays visible and the reset button starts closed.
+- Show opens the existing controls. Those controls stay mounted. The toggle does not sign in, sync, export, import, or reset.
+- Conflict, dirty, offline, checking, bootstrap, hydrate, unavailable, and other non-clean sync states stay open. A busy check, reconciliation, and a conflict note stay open. Unsupported, unconfigured, and blocked notifications stay open. An import error or a restored backup stays open.
+- Quiet phone account rows start closed. The summary shows the count, each name, the operational balance the row already uses, and that row’s evidence line. Restriction, unknown-balance, and negative-reading sentences stay visible with the account name. Loading or unavailable evidence, and a link in progress, keep the rows open. Already Set Aside, its explanation, and a set-aside conflict stay outside that disclosure. An empty list stays “No accounts yet.”
+- Close Month, Connections, and Guidance stay as they were. Desktop sidebar maintenance stays open.
+
+### Ownership
+- Disclosure control: `components/babylon/phone-maintenance-disclosure.tsx`. It owns only open/closed presentation.
+- Whether a cloud session may start closed is `phoneCloudSessionStartsClosed`. Whether notification controls may start closed is `deviceNotificationSummaryMayClose`. Both read existing state. They do not change sync or notification behavior.
+- Account summary text uses `operationalAccountPosition` and `describeAccountEvidenceLine`, the same readings the open row already shows.
+
+### Validation
+- Focused tests: `lib/babylon/mobile-more-maintenance-disclosure.test.ts`, `lib/babylon/mobile-more.test.ts`, `lib/babylon/financial-position-accounts-disclosure.test.ts`, `lib/babylon/financial-position-disclosure.test.ts`, and `lib/babylon/notification-device.test.ts`.
+- Full suite: 65 files, 961 tests passed.
+- `tsc --noEmit` passed. ESLint on touched TypeScript files clean. Production build passed. `git diff --check` clean.
+
+### Not in this tranche
+- No phone Home, Budget, or Ledger change. No desktop Overview change.
+- No sync, reconciliation, backup, notification, auth, account, or Financial Position behavior change.
+- No persistence or schema change.
+
 ## 2026-09-30 — WE-UX-HIERARCHY-004 Desktop Monthly Plan summary
 
 ### What changed

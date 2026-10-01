@@ -3,6 +3,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Landmark, Pencil, Plus, Trash2 } from "lucide-react";
 import { OverviewDisclosure } from "@/components/babylon/overview-disclosure";
+import { PhoneMaintenanceDisclosure } from "@/components/babylon/phone-maintenance-disclosure";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -753,9 +754,7 @@ export function FinancialPosition({
   const evidenceDescription = describeMoneyAvailableEvidence(evidenceInput);
   const freshEvidenceExplanation =
     moneyAvailableEvidenceIsFreshExplanation(evidenceInput);
-  const accountNotices =
-    presentation === "full"
-      ? accounts.flatMap((account) => {
+  const accountNotices = accounts.flatMap((account) => {
           const notices: {
             key: string;
             name: string;
@@ -801,8 +800,7 @@ export function FinancialPosition({
             });
           }
           return notices;
-        })
-      : [];
+        });
 
   return (
     <section aria-label="Financial Position" className="animate-fade-up">
@@ -918,7 +916,73 @@ export function FinancialPosition({
           </div>
           )}
 
-          {presentation === "manage" ? accountList : null}
+          {presentation === "manage" && accounts.length === 0 ? accountList : null}
+          {presentation === "manage" && accounts.length > 0 ? (
+            <>
+              <PhoneMaintenanceDisclosure
+                regionId="more-account-machinery"
+                allowClosed={
+                  linkingId === null &&
+                  balanceObservation?.load.status !== "loading" &&
+                  balanceObservation?.load.status !== "unavailable"
+                }
+                summary={
+                  <span className="block">
+                    <span className="block text-sm font-medium text-slate-100">
+                      {accounts.length === 1
+                        ? "1 account"
+                        : `${accounts.length} accounts`}
+                    </span>
+                    {accounts.map((account) => {
+                      const position = operationalAccountPosition({
+                        account,
+                        load: balanceObservation?.load,
+                      });
+                      return (
+                        <span
+                          key={account.id}
+                          className="mt-1 block text-xs font-normal leading-relaxed text-slate-400"
+                        >
+                          <span className="text-slate-200">{account.name}</span>
+                          {" · "}
+                          <span className="tabular-nums text-slate-200">
+                            {money(position.balance)}
+                          </span>
+                          {" · "}
+                          {describeAccountEvidenceLine({
+                            position,
+                            nowMs: Date.now(),
+                          })}
+                        </span>
+                      );
+                    })}
+                  </span>
+                }
+              >
+                {accountList}
+              </PhoneMaintenanceDisclosure>
+              {accountNotices.length > 0 ? (
+                <div className="space-y-2">
+                  {accountNotices.map((notice) => (
+                    <p
+                      key={notice.key}
+                      role={notice.tone === "alert" ? "alert" : undefined}
+                      className={
+                        notice.tone === "unknown"
+                          ? "text-[11px] leading-relaxed text-slate-500"
+                          : "text-[11px] leading-relaxed text-amber-200"
+                      }
+                    >
+                      <span className="font-medium text-slate-100">
+                        {notice.name}.
+                      </span>{" "}
+                      {notice.text}
+                    </p>
+                  ))}
+                </div>
+              ) : null}
+            </>
+          ) : null}
 
           <div className="rounded-lg border border-slate-800/80 px-3 py-3 sm:px-4">
             <div className="flex flex-wrap items-start justify-between gap-3">

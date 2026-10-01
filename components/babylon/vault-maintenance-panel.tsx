@@ -31,6 +31,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { PhoneMaintenanceDisclosure } from "@/components/babylon/phone-maintenance-disclosure";
 import { wealthEngineBuildLabel } from "@/lib/babylon/build-identity";
 import {
   BOOTSTRAP_CONFIRM,
@@ -109,6 +110,11 @@ interface VaultDataBackupsProps {
   onExportBackup: () => void;
   onImportBackup: (raw: unknown) => string | null;
   children?: ReactNode;
+  /**
+   * Phone More only. Quiet backup controls start closed.
+   * An import result stays visible. Desktop leaves this off.
+   */
+  startClosedWhenQuiet?: boolean;
 }
 
 const RESET_TRIGGER_CLASS =
@@ -808,6 +814,7 @@ export function VaultDataBackups({
   onExportBackup,
   onImportBackup,
   children,
+  startClosedWhenQuiet = false,
 }: VaultDataBackupsProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importStatus, setImportStatus] = useState<string | null>(null);
@@ -835,7 +842,7 @@ export function VaultDataBackups({
     }
   };
 
-  return (
+  const backups = (
     <div className="space-y-2">
       <p className="px-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
         Data backups
@@ -882,6 +889,25 @@ export function VaultDataBackups({
       )}
       {children}
     </div>
+  );
+
+  if (!startClosedWhenQuiet) return backups;
+
+  return (
+    <PhoneMaintenanceDisclosure
+      regionId="more-data-backups"
+      allowClosed={importStatus === null}
+      summary={
+        <span className="block">
+          <span className="block text-sm text-slate-200">Data backups</span>
+          <span className="mt-0.5 block text-xs font-normal text-slate-400">
+            No import result on this device.
+          </span>
+        </span>
+      }
+    >
+      {backups}
+    </PhoneMaintenanceDisclosure>
   );
 }
 

@@ -18,12 +18,14 @@ import {
   type ReconciliationConfirmResult,
   type ReconciliationPreviewResult,
 } from "@/components/babylon/vault-maintenance-panel";
+import { PhoneMaintenanceDisclosure } from "@/components/babylon/phone-maintenance-disclosure";
 import { ProfileNameField } from "@/components/babylon/profile-name-field";
 import { WisdomBox } from "@/components/babylon/wisdom-box";
 import { Button } from "@/components/ui/button";
 import type { AvailableAfterPlannedNeeds } from "@/lib/babylon/available-after-planned-needs";
 import type { FirstDesignationReconcileChoice } from "@/lib/babylon/account-purpose";
-import type { VaultSyncView } from "@/lib/babylon/vault-sync";
+import { phoneCloudSessionStartsClosed } from "@/lib/babylon/mobile-more";
+import { vaultSyncCopy, type VaultSyncView } from "@/lib/babylon/vault-sync";
 import type {
   BudgetTarget,
   FinancialAccount,
@@ -190,7 +192,17 @@ export function MobileMore({
     <div className="min-w-0 space-y-6">
       <section className="space-y-3" aria-label="Financial setup">
         <GroupHeading>Financial setup</GroupHeading>
-        <ProfileNameField value={username} onChange={onUsernameChange} />
+        <PhoneMaintenanceDisclosure
+          regionId="more-profile-name"
+          allowClosed
+          summary={
+            username.trim()
+              ? `Profile name · ${username.trim()}`
+              : "Profile name is blank."
+          }
+        >
+          <ProfileNameField value={username} onChange={onUsernameChange} />
+        </PhoneMaintenanceDisclosure>
         <FinancialPosition
           presentation="manage"
           accounts={accounts}
@@ -296,26 +308,48 @@ export function MobileMore({
 
       <section className="space-y-3" aria-label="Data and cloud">
         <GroupHeading>Data and cloud</GroupHeading>
-        <VaultCloudSession
-          isCloudSynced={isCloudSynced}
-          vaultSync={vaultSync}
-          cloudBusy={cloudBusy}
-          conflictRefreshNote={conflictRefreshNote}
-          cloudUsername={cloudUsername}
-          onConnectCloud={onConnectCloud}
-          onSignOutCloud={onSignOutCloud}
-          onBootstrapCloud={onBootstrapCloud}
-          onHydrateCloud={onHydrateCloud}
-          onCheckCloud={onCheckCloud}
-          onCompareConflictCopies={onCompareConflictCopies}
-          reconciliationActive={reconciliationActive}
-          onPreviewReconciliation={onPreviewReconciliation}
-          onConfirmReconciliation={onConfirmReconciliation}
-          onCancelReconciliation={onCancelReconciliation}
-          onExportBackup={onExportBackup}
-        />
+        <PhoneMaintenanceDisclosure
+          regionId="more-cloud-session"
+          allowClosed={phoneCloudSessionStartsClosed({
+            isCloudSynced,
+            syncKind: vaultSync.kind,
+            cloudBusy: Boolean(cloudBusy),
+            reconciliationActive,
+            conflictRefreshNote,
+          })}
+          summary={
+            <span className="block min-w-0">
+              <span className="block truncate font-medium text-slate-100">
+                {cloudUsername.trim() || "Signed in"}
+              </span>
+              <span className="mt-0.5 block text-xs text-emerald-400">
+                {vaultSyncCopy(vaultSync).title}
+              </span>
+            </span>
+          }
+        >
+          <VaultCloudSession
+            isCloudSynced={isCloudSynced}
+            vaultSync={vaultSync}
+            cloudBusy={cloudBusy}
+            conflictRefreshNote={conflictRefreshNote}
+            cloudUsername={cloudUsername}
+            onConnectCloud={onConnectCloud}
+            onSignOutCloud={onSignOutCloud}
+            onBootstrapCloud={onBootstrapCloud}
+            onHydrateCloud={onHydrateCloud}
+            onCheckCloud={onCheckCloud}
+            onCompareConflictCopies={onCompareConflictCopies}
+            reconciliationActive={reconciliationActive}
+            onPreviewReconciliation={onPreviewReconciliation}
+            onConfirmReconciliation={onConfirmReconciliation}
+            onCancelReconciliation={onCancelReconciliation}
+            onExportBackup={onExportBackup}
+          />
+        </PhoneMaintenanceDisclosure>
         <DeviceNotifications />
         <VaultDataBackups
+          startClosedWhenQuiet
           onExportBackup={onExportBackup}
           onImportBackup={onImportBackup}
         />
@@ -323,14 +357,21 @@ export function MobileMore({
 
       <section className="space-y-3" aria-label="Danger zone">
         <GroupHeading>Danger zone</GroupHeading>
-        <p className="text-xs leading-relaxed text-slate-400">
-          Reset ledger deletes the income, categories, expenses, and debts
-          stored on this device. It asks you to confirm first.
-        </p>
-        <VaultResetLedger
-          onClearAllData={onClearAllData}
-          triggerClassName="flex min-h-11 w-full items-center justify-center gap-2 rounded-md border border-rose-900/60 px-3 text-sm text-rose-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/60"
-        />
+        <PhoneMaintenanceDisclosure
+          regionId="more-danger-zone"
+          allowClosed
+          summary={
+            <span className="text-xs font-normal leading-relaxed text-slate-400">
+              Reset ledger deletes the income, categories, expenses, and debts
+              stored on this device. It asks you to confirm first.
+            </span>
+          }
+        >
+          <VaultResetLedger
+            onClearAllData={onClearAllData}
+            triggerClassName="flex min-h-11 w-full items-center justify-center gap-2 rounded-md border border-rose-900/60 px-3 text-sm text-rose-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500/60"
+          />
+        </PhoneMaintenanceDisclosure>
       </section>
     </div>
   );

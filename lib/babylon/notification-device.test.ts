@@ -8,6 +8,7 @@ import {
   GENERIC_NOTIFICATION_TITLE,
   classifyDeviceNotification,
   deviceNotificationLabel,
+  deviceNotificationSummaryMayClose,
   disableNotificationsOnDevice,
   enableNotificationsOnDevice,
   encodeSubscriptionKey,
@@ -242,6 +243,39 @@ describe("opt-in payloads and failure cleanup", () => {
     });
     expect(result).toEqual({ ok: false, reason: "subscription" });
     expect(unsubscribe).not.toHaveBeenCalled();
+  });
+});
+
+describe("phone notification disclosure policy", () => {
+  it("closes only a quiet enabled or not-enabled device", () => {
+    for (const state of [
+      "unsupported",
+      "configuration-unavailable",
+      "permission-denied",
+      "not-enabled",
+      "enabled-on-device",
+    ] as const) {
+      expect(
+        deviceNotificationSummaryMayClose({ state, note: null, busy: false })
+      ).toBe(state === "not-enabled" || state === "enabled-on-device");
+    }
+  });
+
+  it("stays open while busy or while a note is showing", () => {
+    expect(
+      deviceNotificationSummaryMayClose({
+        state: "not-enabled",
+        note: null,
+        busy: true,
+      })
+    ).toBe(false);
+    expect(
+      deviceNotificationSummaryMayClose({
+        state: "enabled-on-device",
+        note: "Permission was not granted.",
+        busy: false,
+      })
+    ).toBe(false);
   });
 });
 
