@@ -1,5 +1,28 @@
 # Development Journal
 
+## 2026-09-30 — WE-UX-HIERARCHY-004 Desktop Monthly Plan summary
+
+### What changed
+- Desktop Overview starts a finalized Monthly Plan closed. The summary shows the period, revision, planned amount, Living share, and expected-payday timing.
+- Show opens the existing map and the expected-payday funding path. Those stay mounted.
+- Expected paydays stay labeled as timing. The existing sentence that they are not income stays visible.
+- A month with no map, an open draft, and a missing or invalid pay schedule stay visible. Draft overcommit stays on the draft.
+- Phone Budget uses the same panel with disclosure off.
+
+### Ownership
+- Disclosure control: existing `components/babylon/overview-disclosure.tsx`.
+- Payday timing in the summary comes from `composeFundThisMonthView`. The revision fields come from the stored Monthly Plan revision. React does not derive a new plan or payday.
+
+### Validation
+- Focused tests: `lib/babylon/monthly-plan-disclosure.test.ts`, 8 passed. Related paycheck-planner, monthly-plan UI, and secondary-disclosure tests passed with them.
+- Full suite: 64 files, 936 tests passed.
+- `tsc --noEmit` passed. ESLint on touched TypeScript files clean. Production build passed. `git diff --check` clean.
+
+### Not in this tranche
+- No phone Home, Budget, Ledger, or More behavior change.
+- No Monthly Plan revision, pay-schedule, funding, or temporal calculation change.
+- No income, allocation, sync, Plaid, persistence, or schema change.
+
 ## 2026-09-30 — WE-UX-HIERARCHY-003 Desktop account machinery
 
 ### What changed

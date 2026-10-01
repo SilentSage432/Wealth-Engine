@@ -416,8 +416,11 @@ describe("paycheck planner UI contracts", () => {
     );
     expect(finalizedBranch).toContain("<RevisionSummary");
     expect(finalizedBranch).toContain("<FundThisMonthSection");
-    expect(finalizedBranch.indexOf("<FundThisMonthSection")).toBeGreaterThan(
-      finalizedBranch.indexOf("<RevisionSummary")
+    expect(finalizedBranch).toContain("disclosure");
+    const openPlan = finalizedBranch.slice(finalizedBranch.lastIndexOf(") : ("));
+    expect(openPlan.indexOf("<RevisionSummary")).toBeGreaterThan(-1);
+    expect(openPlan.indexOf("<FundThisMonthSection")).toBeGreaterThan(
+      openPlan.indexOf("<RevisionSummary")
     );
   });
 

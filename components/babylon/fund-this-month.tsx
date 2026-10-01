@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { ExpectedPayScheduleEditor } from "@/components/babylon/expected-pay-schedule-editor";
+import { OverviewDisclosure } from "@/components/babylon/overview-disclosure";
 import { Button } from "@/components/ui/button";
 import {
   composeFundThisMonthView,
@@ -24,6 +25,10 @@ interface FundThisMonthSectionProps {
     schedule: PaySchedule
   ) => { ok: true } | { ok: false; message: string };
   onRemovePaySchedule: (id: string) => void;
+  /** Desktop Overview only. Phone leaves this unset. */
+  disclosure?: boolean;
+  planSummary?: ReactNode;
+  children?: ReactNode;
 }
 
 function TemporalFactList({
@@ -183,23 +188,78 @@ function FundingPath({
   );
 }
 
+function PaydayTimingSummary({ view }: { view: FundThisMonthView }) {
+  if (view.status === "path") {
+    const first = view.dateGroups[0]?.date;
+    const countLabel =
+      view.expectedPaydayCount === 1
+        ? "1 expected payday"
+        : `${view.expectedPaydayCount} expected paydays`;
+    return (
+      <p className="mt-1 text-xs text-slate-400">
+        {first ? (
+          <>
+            First expected payday {formatCivilDateLabel(first)}
+            {" · "}
+          </>
+        ) : null}
+        {countLabel}
+      </p>
+    );
+  }
+  if (view.status === "no_expected_funding") {
+    return (
+      <p className="mt-1 text-xs text-slate-400">
+        No expected paydays in {view.periodKey}.
+      </p>
+    );
+  }
+  return null;
+}
+
 export function FundThisMonthSection({
   revision,
   paySchedules,
   money,
   onUpsertPaySchedule,
   onRemovePaySchedule,
+  disclosure = false,
+  planSummary = null,
+  children = null,
 }: FundThisMonthSectionProps) {
   const view = composeFundThisMonthView(revision, paySchedules);
   const [editingSchedule, setEditingSchedule] = useState(
     () => paySchedules.length === 0
   );
+  const path = view.status === "path" ? <FundingPath view={view} money={money} /> : null;
 
   return (
     <section
       aria-label="Fund this month"
-      className={cn("space-y-3 border-t border-slate-800/80 pt-4")}
+      className={cn(
+        "space-y-3",
+        disclosure ? undefined : "border-t border-slate-800/80 pt-4"
+      )}
     >
+      {disclosure ? (
+        <div className="rounded-lg border border-slate-800/80">
+          <OverviewDisclosure
+            regionId="monthly-plan-detail"
+            summary={
+              <div>
+                {planSummary}
+                <PaydayTimingSummary view={view} />
+              </div>
+            }
+          >
+            <div className="space-y-4 border-t border-slate-800/80 px-4 py-4">
+              {children}
+              {path}
+            </div>
+          </OverviewDisclosure>
+        </div>
+      ) : null}
+
       <div className="space-y-1">
         <h3 className="font-[family-name:var(--font-display)] text-base text-slate-50">
           Fund this month
@@ -210,7 +270,7 @@ export function FundThisMonthSection({
         </p>
       </div>
 
-      {view.status === "path" ? <FundingPath view={view} money={money} /> : null}
+      {disclosure ? null : path}
 
       {view.status === "no_schedule" ? (
         <div className="space-y-3 rounded-xl border border-dashed border-slate-700/80 bg-slate-950/30 p-4">

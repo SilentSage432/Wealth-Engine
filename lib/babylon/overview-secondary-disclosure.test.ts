@@ -407,7 +407,7 @@ describe("desktop Overview composition", () => {
     expect(dashboard.slice(
       dashboard.indexOf("const monthlyPlan = ("),
       dashboard.indexOf("const budgetBlueprint")
-    )).not.toContain("disclosure");
+    )).toContain("disclosure={desktopLayout}");
     expect(dashboard.slice(
       dashboard.indexOf("const budgetBlueprint = ("),
       dashboard.indexOf("const ledgers")

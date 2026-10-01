@@ -246,6 +246,7 @@ export function WealthEngineDashboard() {
       openingEmergencyFund={engine.openingEmergencyFund}
       paySchedules={engine.paySchedules}
       discreet={discreet}
+      disclosure={desktopLayout}
       onFinalize={engine.finalizeMonthlyPlan}
       onUpsertPaySchedule={engine.upsertPaySchedule}
       onRemovePaySchedule={engine.removePaySchedule}

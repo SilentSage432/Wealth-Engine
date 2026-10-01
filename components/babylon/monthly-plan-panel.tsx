@@ -71,6 +71,8 @@ interface MonthlyPlanPanelProps {
   openingEmergencyFund: number;
   paySchedules: readonly PaySchedule[];
   discreet?: boolean;
+  /** Desktop Overview compresses a finalized map. Phone leaves this unset. */
+  disclosure?: boolean;
   onFinalize: (input: MonthlyPlanFinalizeSubmission) => MonthlyPlanFinalizeOutcome;
   onUpsertPaySchedule: (
     schedule: PaySchedule
@@ -117,6 +119,7 @@ export function MonthlyPlanPanel({
   openingEmergencyFund,
   paySchedules,
   discreet = false,
+  disclosure = false,
   onFinalize,
   onUpsertPaySchedule,
   onRemovePaySchedule,
@@ -291,21 +294,60 @@ export function MonthlyPlanPanel({
           </div>
 
           {!drafting && latest ? (
-            <>
-              <RevisionSummary
-                revision={latest}
-                money={money}
-                monthTitle={monthTitle}
-                onRevise={() => openDraft("revise", periodKey)}
-              />
+            disclosure ? (
               <FundThisMonthSection
+                disclosure
                 revision={latest}
                 paySchedules={paySchedules}
                 money={money}
                 onUpsertPaySchedule={onUpsertPaySchedule}
                 onRemovePaySchedule={onRemovePaySchedule}
-              />
-            </>
+                planSummary={
+                  <div>
+                    <p className="text-sm font-medium text-slate-100">
+                      Monthly Plan
+                    </p>
+                    <p className="mt-1 text-xs text-slate-400">
+                      {monthTitle} · Revision {latest.revision}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-400">
+                      Planned around{" "}
+                      <span className="tabular-nums text-slate-200">
+                        {money(latest.planningBasis)}
+                      </span>
+                      {" · "}
+                      Living{" "}
+                      <span className="tabular-nums text-slate-200">
+                        {money(latest.expenditureShare)}
+                      </span>
+                    </p>
+                  </div>
+                }
+              >
+                <RevisionSummary
+                  revision={latest}
+                  money={money}
+                  monthTitle={monthTitle}
+                  onRevise={() => openDraft("revise", periodKey)}
+                />
+              </FundThisMonthSection>
+            ) : (
+              <>
+                <RevisionSummary
+                  revision={latest}
+                  money={money}
+                  monthTitle={monthTitle}
+                  onRevise={() => openDraft("revise", periodKey)}
+                />
+                <FundThisMonthSection
+                  revision={latest}
+                  paySchedules={paySchedules}
+                  money={money}
+                  onUpsertPaySchedule={onUpsertPaySchedule}
+                  onRemovePaySchedule={onRemovePaySchedule}
+                />
+              </>
+            )
           ) : null}
 
           {!drafting && !latest ? (
