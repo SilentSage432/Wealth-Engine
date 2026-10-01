@@ -1,5 +1,29 @@
 # Development Journal
 
+## 2026-09-30 — WE-UX-HIERARCHY-003 Desktop account machinery
+
+### What changed
+- Desktop Financial Position starts a known account list closed. The closed summary shows the account count, Liquid Position, and the existing evidence caption when that caption is not the fresh-institution explanation.
+- Show opens the existing account rows: evidence lines, purpose, restriction detail, Edit, Remove, and link controls. Those rows stay mounted while closed.
+- A restriction conflict, an unknown observed balance, and a negative stored reading stay visible beside the closed summary, with the account name. Set-aside over Liquid Position, headline evidence, and the Financial Position readings stay outside the account disclosure.
+- An empty account list stays the existing “No accounts yet.” sentence. Phone More `presentation="manage"` stays open.
+- Open/closed state is component state. It is not written to the vault, storage, or the URL.
+
+### Ownership
+- Disclosure control: existing `components/babylon/overview-disclosure.tsx`. It owns only open/closed presentation.
+- Account attention copy stays the sentences already rendered on each row. `readAccountObservation` classifies the same observation view the row uses.
+
+### Validation
+- Focused tests: `lib/babylon/financial-position-accounts-disclosure.test.ts`, 11 passed. Related Financial Position, balance-evidence, and secondary-disclosure tests passed with them.
+- Full suite: 63 files, 928 tests passed.
+- `tsc --noEmit` passed. ESLint on touched TypeScript files clean. Production build passed. `git diff --check` clean.
+
+### Not in this tranche
+- No phone Home, Budget, Ledger, or More change.
+- No account model, balance-evidence, restriction, or Financial Position calculation change.
+- No connected-bank behavior change, Monthly Plan, payday, 10/20/70, or Living Budget change.
+- No sync, Plaid, persistence, or schema change.
+
 ## 2026-09-30 — WE-UX-HIERARCHY-002 Desktop Overview secondary stack
 
 ### What changed

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { Landmark, Pencil, Plus, Trash2 } from "lucide-react";
+import { OverviewDisclosure } from "@/components/babylon/overview-disclosure";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -35,7 +36,6 @@ import {
   depositoryChoiceLabel,
   describeAccountBalance,
   unassociatedDepositoryAccountIds,
-  type AccountBalanceView,
 } from "@/lib/babylon/balance-observation";
 import {
   BALANCE_EVIDENCE_UNAVAILABLE_LABEL,
@@ -163,6 +163,11 @@ interface FinancialPositionProps {
 }
 
 const HOW_THIS_IS_CALCULATED_LABEL = "How this is calculated";
+const RESTRICTION_CONFLICT_COPY =
+  "The declared unavailable amount is greater than the current account position. Unavailable money is still owned; available from this account is zero until the amounts agree.";
+const UNKNOWN_BALANCE_COPY = "Observed balance is unknown.";
+const NEGATIVE_READING_COPY =
+  "This stored reading is negative, so the declared balance is used.";
 
 const FINANCIAL_POSITION_CALCULATION_IDS = [
   "financial-position-hero-calculation",
@@ -179,6 +184,47 @@ const EMPTY_DRAFT = {
   asOf: "",
   restrictedAmount: "",
 };
+
+function readAccountObservation(
+  account: FinancialAccount,
+  balanceObservation: FinancialPositionProps["balanceObservation"]
+) {
+  if (!balanceObservation) return null;
+  const presentation = presentAccountObservation({
+    account,
+    load: balanceObservation.load,
+  });
+  if (presentation.status === "hidden") return null;
+  if (presentation.status === "unavailable") {
+    return { status: "unavailable" as const };
+  }
+  const evidence = presentation.evidence;
+  const association =
+    evidence.associations.find((row) => row.financialAccountId === account.id) ??
+    null;
+  const plaidAccount = association
+    ? evidence.plaidAccounts.find(
+        (row) => row.plaidAccountId === association.plaidAccountId
+      ) ?? null
+    : null;
+  const observation = association
+    ? evidence.observations.find(
+        (row) => row.plaidAccountId === association.plaidAccountId
+      ) ?? null
+    : null;
+  const view = describeAccountBalance({
+    account,
+    associatedPlaidAccountId: association?.plaidAccountId ?? null,
+    accountType: plaidAccount?.accountType ?? null,
+    subtype: plaidAccount?.subtype ?? null,
+    observation,
+  });
+  return {
+    status: "ready" as const,
+    evidence,
+    view,
+  };
+}
 
 function AccountObservation({
   account,
@@ -200,12 +246,9 @@ function AccountObservation({
   onRemoveAssociation: () => void;
 }) {
   if (!balanceObservation) return null;
-  const presentation = presentAccountObservation({
-    account,
-    load: balanceObservation.load,
-  });
-  if (presentation.status === "hidden") return null;
-  if (presentation.status === "unavailable") {
+  const model = readAccountObservation(account, balanceObservation);
+  if (!model) return null;
+  if (model.status === "unavailable") {
     return (
       <div className="basis-full space-y-2">
         <p className="text-[11px] leading-relaxed text-slate-500">
@@ -214,27 +257,7 @@ function AccountObservation({
       </div>
     );
   }
-  const evidence = presentation.evidence;
-  const association =
-    evidence.associations.find((row) => row.financialAccountId === account.id) ??
-    null;
-  const plaidAccount = association
-    ? evidence.plaidAccounts.find(
-        (row) => row.plaidAccountId === association.plaidAccountId
-      ) ?? null
-    : null;
-  const observation = association
-    ? evidence.observations.find(
-        (row) => row.plaidAccountId === association.plaidAccountId
-      ) ?? null
-    : null;
-  const view: AccountBalanceView = describeAccountBalance({
-    account,
-    associatedPlaidAccountId: association?.plaidAccountId ?? null,
-    accountType: plaidAccount?.accountType ?? null,
-    subtype: plaidAccount?.subtype ?? null,
-    observation,
-  });
+  const { evidence, view } = model;
   if (view.status === "hidden") return null;
 
   const ownerId =
@@ -302,16 +325,16 @@ function AccountObservation({
           </div>
         )
       ) : null}
-      {view.status === "unknown" ? (
-        <p className="text-[11px] leading-relaxed text-slate-500">
-          Observed balance is unknown.
-        </p>
-      ) : null}
-      {view.status === "differs" && !view.canAccept ? (
-        <p className="text-[11px] leading-relaxed text-amber-200">
-          This stored reading is negative, so the declared balance is used.
-        </p>
-      ) : null}
+          {view.status === "unknown" ? (
+            <p className="text-[11px] leading-relaxed text-slate-500">
+              {UNKNOWN_BALANCE_COPY}
+            </p>
+          ) : null}
+          {view.status === "differs" && !view.canAccept ? (
+            <p className="text-[11px] leading-relaxed text-amber-200">
+              {NEGATIVE_READING_COPY}
+            </p>
+          ) : null}
       {view.status !== "unlinked" ? (
         <Button
           type="button"
@@ -612,9 +635,7 @@ export function FinancialPosition({
                   role="alert"
                   className="mt-2 max-w-xs text-[11px] leading-relaxed text-amber-200"
                 >
-                  The declared unavailable amount is greater than the current
-                  account position. Unavailable money is still owned; available
-                  from this account is zero until the amounts agree.
+                  {RESTRICTION_CONFLICT_COPY}
                 </p>
               ) : null}
               <div className="mt-2 max-w-xs">
@@ -732,6 +753,56 @@ export function FinancialPosition({
   const evidenceDescription = describeMoneyAvailableEvidence(evidenceInput);
   const freshEvidenceExplanation =
     moneyAvailableEvidenceIsFreshExplanation(evidenceInput);
+  const accountNotices =
+    presentation === "full"
+      ? accounts.flatMap((account) => {
+          const notices: {
+            key: string;
+            name: string;
+            text: string;
+            tone: "alert" | "unknown" | "negative";
+          }[] = [];
+          const accountPosition = operationalAccountPosition({
+            account,
+            load: balanceObservation?.load,
+          });
+          if (
+            hasRestrictionConflict(
+              accountPosition.balance,
+              restrictedDeclared(account)
+            )
+          ) {
+            notices.push({
+              key: `${account.id}-restriction`,
+              name: account.name,
+              text: RESTRICTION_CONFLICT_COPY,
+              tone: "alert",
+            });
+          }
+          const model = readAccountObservation(account, balanceObservation);
+          if (model?.status === "ready" && model.view.status === "unknown") {
+            notices.push({
+              key: `${account.id}-unknown`,
+              name: account.name,
+              text: UNKNOWN_BALANCE_COPY,
+              tone: "unknown",
+            });
+          }
+          if (
+            model?.status === "ready" &&
+            model.view.status === "differs" &&
+            !model.view.canAccept
+          ) {
+            notices.push({
+              key: `${account.id}-negative`,
+              name: account.name,
+              text: NEGATIVE_READING_COPY,
+              tone: "negative",
+            });
+          }
+          return notices;
+        })
+      : [];
 
   return (
     <section aria-label="Financial Position" className="animate-fade-up">
@@ -980,7 +1051,56 @@ export function FinancialPosition({
           </div>
           ) : null}
 
-          {presentation === "full" ? accountList : null}
+          {presentation === "full" && accounts.length === 0 ? accountList : null}
+          {presentation === "full" && accounts.length > 0 ? (
+            <div className="rounded-lg border border-slate-800/80">
+              <OverviewDisclosure
+                regionId="financial-position-accounts"
+                summary={
+                  <div>
+                    <p className="text-sm font-medium text-slate-100">Accounts</p>
+                    <p className="mt-1 text-xs text-slate-400">
+                      {accounts.length === 1
+                        ? "1 account"
+                        : `${accounts.length} accounts`}
+                      {" · "}
+                      {LIQUID_POSITION_LABEL}{" "}
+                      <span className="tabular-nums text-slate-200">
+                        {money(moneyAvailable)}
+                      </span>
+                    </p>
+                    {freshEvidenceExplanation ? null : (
+                      <p className="mt-1 text-xs leading-relaxed text-slate-500">
+                        {evidenceDescription}
+                      </p>
+                    )}
+                  </div>
+                }
+              >
+                {accountList}
+              </OverviewDisclosure>
+              {accountNotices.length > 0 ? (
+                <div className="space-y-2 px-4 pb-3">
+                  {accountNotices.map((notice) => (
+                    <p
+                      key={notice.key}
+                      role={notice.tone === "alert" ? "alert" : undefined}
+                      className={
+                        notice.tone === "unknown"
+                          ? "text-[11px] leading-relaxed text-slate-500"
+                          : "text-[11px] leading-relaxed text-amber-200"
+                      }
+                    >
+                      <span className="font-medium text-slate-100">
+                        {notice.name}.
+                      </span>{" "}
+                      {notice.text}
+                    </p>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
 
           {presentation === "full" ? (
             <div className="rounded-lg border border-slate-800/80 px-3 py-3 sm:px-4">
