@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { deriveDueAttention } from "@/lib/babylon/attention";
 import { EMPTY_STATE } from "@/lib/babylon/constants";
@@ -21,9 +22,11 @@ import {
   isObligationMonthDue,
   materializeRecurringObligations,
   parseRecurringObligation,
+  recurringOccurrenceId,
   replaceExpenseOccurrence,
   replaceRecurringObligation,
 } from "@/lib/babylon/recurring-obligations";
+import { canonicalDurableJson } from "@/lib/babylon/vault-structural-diff";
 import type {
   ExpenseEntry,
   FinancialAccount,
@@ -704,5 +707,220 @@ describe("calendar-month obligation intervals", () => {
         "2026-01-01"
       )
     ).toBeNull();
+  });
+});
+
+function oneOff(partial: Partial<ExpenseEntry> = {}): ExpenseEntry {
+  return {
+    id: "one-off",
+    name: "Coffee",
+    category: "desire",
+    amount: 4,
+    date: "2026-10-02",
+    dueDate: "2026-10-02",
+    budgetCategoryId: "food",
+    isSettled: true,
+    ...partial,
+  };
+}
+
+describe("deterministic generated occurrence identity", () => {
+  it("rejects an empty rule id or a month that is not a month key", () => {
+    expect(recurringOccurrenceId("", "2026-11")).toBeNull();
+    expect(recurringOccurrenceId("  phone  ", "2026-11")).toBeNull();
+    expect(recurringOccurrenceId("phone-rule", "2026-11-01")).toBeNull();
+    expect(recurringOccurrenceId("phone-rule", "November")).toBeNull();
+  });
+
+  it("gives the same rule and month the same id on independent calls", () => {
+    const first = recurringOccurrenceId("phone-rule", "2026-11");
+    const second = recurringOccurrenceId("phone-rule", "2026-11");
+    expect(first).toBe("occ.10.phone-rule.2026-11");
+    expect(second).toBe(first);
+  });
+
+  it("separates months and rules, including rule ids that share a prefix", () => {
+    const november = recurringOccurrenceId("phone-rule", "2026-11");
+    const december = recurringOccurrenceId("phone-rule", "2026-12");
+    const other = recurringOccurrenceId("rent-rule", "2026-11");
+    const shorter = recurringOccurrenceId("rule", "2026-11");
+    const longer = recurringOccurrenceId("rule-extra", "2026-11");
+    expect(new Set([november, december, other, shorter, longer]).size).toBe(5);
+  });
+
+  it("materializes the same ids from independently initialized documents", () => {
+    const phone = rule({ startMonth: "2026-09", dueDay: 15 });
+    const left = materializeRecurringObligations([phone], [], "2026-09-24");
+    const right = materializeRecurringObligations(
+      [structuredClone(phone)],
+      [],
+      "2026-09-24"
+    );
+    expect(left.created.map((row) => row.id)).toEqual([
+      recurringOccurrenceId(phone.id, "2026-09"),
+      recurringOccurrenceId(phone.id, "2026-10"),
+    ]);
+    expect(canonicalDurableJson(left.expenses)).toBe(
+      canonicalDurableJson(right.expenses)
+    );
+  });
+
+  it("does not duplicate when default materialization repeats", () => {
+    const phone = rule({ startMonth: "2026-09", dueDay: 15 });
+    const once = materializeRecurringObligations([phone], [], "2026-09-24");
+    const twice = materializeRecurringObligations(
+      [phone],
+      once.expenses,
+      "2026-09-24"
+    );
+    expect(twice.created).toEqual([]);
+    expect(twice.expenses).toHaveLength(2);
+    expect(twice.expenses.map((row) => row.id)).toEqual(
+      once.expenses.map((row) => row.id)
+    );
+  });
+
+  it("leaves a one-off expense id alone", () => {
+    const coffee = oneOff();
+    const result = materializeRecurringObligations(
+      [rule()],
+      [coffee],
+      "2026-10-01"
+    );
+    const kept = result.expenses.find((row) => row.id === coffee.id);
+    expect(kept).toEqual(coffee);
+    expect(result.created.every((row) => row.id !== coffee.id)).toBe(true);
+    expect(result.created.every((row) => row.recurrenceMonth)).toBe(true);
+  });
+
+  it("keeps a legacy random id and does not mint the deterministic duplicate", () => {
+    const phone = rule({ startMonth: "2026-10", dueDay: 9 });
+    const legacy: ExpenseEntry = {
+      id: "806c3b62-00fd-49c0-850f-380ed6aea769",
+      name: "Edited name",
+      category: "need",
+      amount: 42.5,
+      date: "2026-11-01",
+      dueDate: "2026-11-09",
+      budgetCategoryId: phone.budgetCategoryId,
+      isSettled: true,
+      recurringObligationId: phone.id,
+      recurrenceMonth: "2026-11",
+    };
+    const result = materializeRecurringObligations(
+      [phone],
+      [legacy],
+      "2026-10-01"
+    );
+    expect(result.created.map((row) => row.recurrenceMonth)).toEqual(["2026-10"]);
+    const kept = result.expenses.find((row) => row.recurrenceMonth === "2026-11");
+    expect(kept).toEqual(legacy);
+    expect(
+      result.expenses.some((row) => row.id === recurringOccurrenceId(phone.id, "2026-11"))
+    ).toBe(false);
+  });
+
+  it("does not recreate a skipped month or rewrite an edited occurrence", () => {
+    const phone = rule({ startMonth: "2026-09", dueDay: 15 });
+    const materialized = materializeRecurringObligations(
+      [phone],
+      [],
+      "2026-09-24"
+    );
+    const september = materialized.expenses.find(
+      (row) => row.recurrenceMonth === "2026-09"
+    )!;
+    const edited = replaceExpenseOccurrence(materialized.expenses, september.id, {
+      amount: 90,
+      dueDate: "2026-09-20",
+    })!;
+    const again = materializeRecurringObligations([phone], edited, "2026-09-24");
+    expect(again.created).toEqual([]);
+    expect(again.expenses.find((row) => row.id === september.id)).toMatchObject({
+      amount: 90,
+      dueDate: "2026-09-20",
+      isSettled: false,
+      recurringObligationId: phone.id,
+      recurrenceMonth: "2026-09",
+    });
+
+    const removed = deleteExpenseOccurrence([phone], again.expenses, september.id)!;
+    const afterSkip = materializeRecurringObligations(
+      removed.rules,
+      removed.expenses,
+      "2026-09-24"
+    );
+    expect(afterSkip.created).toEqual([]);
+    expect(removed.rules[0]?.skippedMonths).toEqual(["2026-09"]);
+    expect(
+      afterSkip.expenses.some((row) => row.recurrenceMonth === "2026-09")
+    ).toBe(false);
+  });
+
+  it("matches independent November materialization from a revision-42 shaped baseline", () => {
+    const rules = [
+      rule({ id: "rule-due-9", dueDay: 9, startMonth: "2026-10" }),
+      rule({ id: "rule-due-12", dueDay: 12, startMonth: "2026-10" }),
+      rule({ id: "rule-due-16", dueDay: 16, startMonth: "2026-10" }),
+      rule({ id: "rule-due-26", dueDay: 26, startMonth: "2026-10" }),
+      rule({
+        id: "rule-quarterly",
+        dueDay: 26,
+        startMonth: "2026-12",
+        intervalMonths: 3,
+      }),
+    ];
+    const october = rules.slice(0, 4).map((item) => ({
+      id: `legacy-${item.id}`,
+      name: item.name,
+      category: item.category,
+      amount: item.amount,
+      date: dueDateForMonth(item.dueDay, "2026-10"),
+      dueDate: dueDateForMonth(item.dueDay, "2026-10"),
+      budgetCategoryId: item.budgetCategoryId,
+      isSettled: false,
+      recurringObligationId: item.id,
+      recurrenceMonth: "2026-10",
+    }));
+    const clientA = materializeRecurringObligations(
+      structuredClone(rules),
+      structuredClone(october),
+      "2026-10-01"
+    );
+    const clientB = materializeRecurringObligations(
+      structuredClone(rules),
+      structuredClone(october),
+      "2026-10-01"
+    );
+    expect(clientA.created).toHaveLength(4);
+    expect(clientA.created.map((row) => row.recurrenceMonth)).toEqual([
+      "2026-11",
+      "2026-11",
+      "2026-11",
+      "2026-11",
+    ]);
+    expect(clientA.created.map((row) => row.id)).toEqual(
+      rules.slice(0, 4).map((item) => recurringOccurrenceId(item.id, "2026-11"))
+    );
+    expect(canonicalDurableJson(clientA.expenses)).toBe(
+      canonicalDurableJson(clientB.expenses)
+    );
+    expect(clientA.created.every((row) => row.isSettled === false)).toBe(true);
+    expect(
+      clientA.expenses.filter((row) => row.id.startsWith("legacy-"))
+    ).toEqual(october);
+    expect(
+      clientA.expenses.some((row) => row.recurringObligationId === "rule-quarterly")
+    ).toBe(false);
+  });
+
+  it("persists new occurrences through the default id, not generateId", () => {
+    const source = readFileSync("hooks/useBabylonEngine.ts", "utf8");
+    const effect = source.slice(
+      source.indexOf("materializeRecurringObligations("),
+      source.indexOf("result.created.length")
+    );
+    expect(effect).toContain("materializeRecurringObligations(");
+    expect(effect).not.toContain("generateId");
   });
 });

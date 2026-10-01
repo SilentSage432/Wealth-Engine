@@ -217,17 +217,38 @@ function hasOccurrence(
 }
 
 /**
+ * Persisted id for one generated occurrence.
+ * The semantic key is the rule id plus the recurrence month.
+ * A length prefix keeps two rule ids from aliasing across the separator.
+ * Null when either part is not a supported key. No clock, randomness, or device.
+ */
+export function recurringOccurrenceId(
+  ruleId: string,
+  recurrenceMonth: string
+): string | null {
+  if (!ruleId || ruleId !== ruleId.trim()) return null;
+  if (!MONTH_KEY.test(recurrenceMonth)) return null;
+  return `occ.${String(ruleId.length)}.${ruleId}.${recurrenceMonth}`;
+}
+
+/**
  * Ensure each active rule has an Upcoming occurrence for a due month inside
  * the current month and the next month. A longer interval does not widen
  * that horizon. A month the interval does not include is left alone and is
  * not recorded as skipped. Existing and skipped due months are left alone.
  * Nothing is marked paid.
+ * A new row uses recurringOccurrenceId. A row already stored for that
+ * rule and month, including an older random id, is left as it was.
+ * createId is only for in-memory readers that must not persist these rows.
  */
 export function materializeRecurringObligations(
   rules: readonly RecurringObligation[],
   expenses: readonly ExpenseEntry[],
   today: string,
-  createId: () => string
+  createId: (
+    ruleId: string,
+    recurrenceMonth: string
+  ) => string | null = recurringOccurrenceId
 ): { expenses: ExpenseEntry[]; created: ExpenseEntry[] } {
   if (!isRealLocalIsoDate(today)) return { expenses: [...expenses], created: [] };
   const months = horizonMonthKeys(today);
@@ -248,9 +269,11 @@ export function materializeRecurringObligations(
       }
       if (rule.skippedMonths.includes(recurrenceMonth)) continue;
       if (hasOccurrence(next, rule.id, recurrenceMonth)) continue;
+      const id = createId(rule.id, recurrenceMonth);
+      if (!id) continue;
       const dueDate = dueDateForMonth(rule.dueDay, recurrenceMonth);
       const entry: ExpenseEntry = {
-        id: createId(),
+        id,
         name: rule.name,
         category: rule.category,
         amount: roundMoney(rule.amount),

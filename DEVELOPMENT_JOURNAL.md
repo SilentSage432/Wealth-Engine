@@ -1,5 +1,13 @@
 # Development Journal
 
+## 2026-10-01 — WE-RECURRENCE-IDENTITY-001 Stable generated occurrence ids
+
+- Persisted recurring occurrences now take `recurringOccurrenceId(ruleId, recurrenceMonth)` instead of `generateId()`.
+- The same rule and month produce the same expense id on every client. A different rule or month produces a different id.
+- An existing row for that pair, including a historical random id or a steward-edited amount, date, or paid flag, blocks a second row and is not rewritten.
+- In-memory Intelligence and notification reads may still label unread rows separately. They do not persist those labels.
+- No schema, sync, reconciliation, Attention, Quiet, Plaid, or 10/20/70 change. Not committed.
+
 ## 2026-09-30 — WE-FINANCIAL-QUIET-001 Recorded administration quiet
 
 ### What changed
