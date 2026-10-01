@@ -7,6 +7,11 @@ import {
   deriveMonthCloseAttention,
   financialAttentionEpistemic,
 } from "@/lib/babylon/attention";
+import { composeRecordedAdministrationQuiet } from "@/lib/babylon/financial-quiet";
+import {
+  protectedExceedsAvailable,
+  protectedOverflowExceeds,
+} from "@/lib/babylon/protected-money";
 import { serializeCloudVaultData } from "@/lib/babylon/cloud-vault";
 import { EMPTY_STATE, DEBT_RATE, EXPENDITURE_RATE, WEALTH_RATE } from "@/lib/babylon/constants";
 import { allocateIncome, totalOriginalDebt, totalRemainingDebt } from "@/lib/babylon/engine";
@@ -396,6 +401,67 @@ describe("intelligence contract", () => {
     ]);
     expect(mixed.attention.epistemic).toBe("unknown");
     expect(mixed.boundaries.unknowns).toContain("invalid_attention_due_date");
+  });
+
+  it("shares protected overflow and recorded-administration quiet with the canonical composers", () => {
+    const purpose = account();
+    purpose.purpose = "wealth_building";
+    purpose.balance = 800;
+    const fixture = state({
+      accounts: [purpose],
+      openingWealthBuilding: 300,
+      openingEmergencyFund: 0,
+    });
+    const contract = assembleIntelligenceContract({
+      state: fixture,
+      ianaTimeZone: "America/Boise",
+      now: NOW,
+      generatedAt: GENERATED,
+      balanceEvidence: READY_EMPTY,
+    });
+    const positions = contract.position.accounts.map((row, index) => ({
+      accountId: fixture.accounts[index]!.id,
+      balance: row.effective_balance_cents / 100,
+      source: "declared" as const,
+      asOf: row.declared_as_of,
+    }));
+    expect(protectedExceedsAvailable(300, 0, 800)).toBe(false);
+    expect(
+      protectedOverflowExceeds({
+        openingWealthBuilding: 300,
+        openingEmergencyFund: 0,
+        moneyAvailable: 800,
+        accounts: fixture.accounts,
+        positions,
+      })
+    ).toBe(true);
+    expect(contract.position.protected_exceeds_money_available).toBe(true);
+    expect(contract.recorded_administration).toEqual(
+      composeRecordedAdministrationQuiet({
+        expenses: [],
+        today: "2026-01-15",
+        currentMonthKey: "2026-01",
+        lastClosedMonthKey: null,
+        debtSemanticsVersion: fixture.debtSemanticsVersion,
+        debts: fixture.debts,
+        openingWealthBuilding: 300,
+        openingEmergencyFund: 0,
+        moneyAvailable: 800,
+        accounts: fixture.accounts,
+        positionTruth: { status: "knowable", positions },
+        cloudConflict: false,
+      })
+    );
+    expect(contract.recorded_administration.status).toBe("action_outstanding");
+    expect(contract.meta.contract_version).toBe("3");
+
+    const screen = readFileSync("hooks/useBabylonEngine.ts", "utf8");
+    const assembler = readFileSync("lib/babylon/intelligence-contract.ts", "utf8");
+    const quiet = readFileSync("lib/babylon/financial-quiet.ts", "utf8");
+    expect(screen).toContain("protectedOverflowExceeds");
+    expect(assembler).toContain("protectedOverflowExceeds");
+    expect(quiet).toContain("protectedOverflowExceeds");
+    expect(assembler).toContain("composeRecordedAdministrationQuiet");
   });
 
   it("does not invent a civil date when the timezone is unusable", () => {

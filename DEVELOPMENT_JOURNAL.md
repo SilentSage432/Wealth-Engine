@@ -1,5 +1,28 @@
 # Development Journal
 
+## 2026-09-30 — WE-FINANCIAL-QUIET-001 Recorded administration quiet
+
+### What changed
+- `composeRecordedAdministrationQuiet` reports quiet, action outstanding, or unknown for the current recorded operating record.
+- Quiet requires valid Attention quiet, no outstanding debt-position confirmation, no protected overflow, and no restriction conflict.
+- Loading position evidence, unavailable position evidence with nothing retained, a blocked observed reading, and a cloud conflict are unknown. They do not assert action.
+- `protectedOverflowExceeds` is the one composition of openings plus purpose positions. The screen, the Intelligence Contract, and Quiet call it.
+
+### Ownership
+- Quiet composition: `lib/babylon/financial-quiet.ts`.
+- Protected overflow comparison: `lib/babylon/protected-money.ts`.
+- Debt confirmation: `lib/babylon/debt-semantics.ts`.
+- Restriction conflict: `lib/babylon/account-restriction.ts`.
+- Attention predicates: `lib/babylon/attention.ts`.
+
+### Validation
+- Focused tests: `lib/babylon/financial-quiet.test.ts` and `lib/babylon/intelligence-contract.test.ts`.
+- Full suite: 67 files, 992 tests passed.
+- `tsc --noEmit` passed. ESLint on touched TypeScript files clean. Production build passed. `git diff --check` clean.
+
+### Not in this tranche
+- No new Attention kind. No shortfall, budget, plan, or payday gate. No UI, notification, Plaid behavior, persistence, or schema change.
+
 ## 2026-09-30 — WE-ATTENTION-COMPOSE-001 Epistemic Attention state
 
 ### What changed

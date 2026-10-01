@@ -29,8 +29,9 @@ import {
 import { realtimeBalanceAge } from "@/lib/babylon/foreground-balance-refresh";
 import { sumAccountBalances } from "@/lib/babylon/financial-position";
 import { civilDateInTimeZone } from "@/lib/babylon/notification-delivery";
+import { composeRecordedAdministrationQuiet } from "@/lib/babylon/financial-quiet";
 import {
-  protectedExceedsAvailable,
+  protectedOverflowExceeds,
   totalEmergencyFund,
   totalProtectedMoney,
   totalWealthBuilding,
@@ -46,6 +47,9 @@ import type { ExpenseEntry, PersistedState } from "@/types/babylon";
  * Allocation ≠ Execution. Debt Purpose ≠ Debt Position ≠ Debt Execution.
  * Contract version stays 3. attention.epistemic is present, quiet, or unknown.
  * Empty attention.items does not mean quiet. Kinds stay due_obligation and month_close.
+ * recorded_administration is the canonical Quiet reading for one vault document.
+ * It is not Attention quiet and it is not a health claim. This route does not
+ * see a cloud conflict or an Item repair.
  */
 export const INTELLIGENCE_CONTRACT_VERSION = "3";
 
@@ -298,6 +302,24 @@ export function assembleIntelligenceContract(input: IntelligenceContractInput) {
     }
   }
 
+  const recordedAdministration = composeRecordedAdministrationQuiet({
+    expenses: readingExpenses,
+    today: civilDate ?? "",
+    currentMonthKey,
+    lastClosedMonthKey: state.lastClosedMonthKey,
+    debtSemanticsVersion: state.debtSemanticsVersion,
+    debts: state.debts,
+    openingWealthBuilding: state.openingWealthBuilding,
+    openingEmergencyFund: state.openingEmergencyFund,
+    moneyAvailable,
+    accounts: state.accounts,
+    positionTruth:
+      balanceEvidence.status === "unavailable"
+        ? { status: "unavailable" }
+        : { status: "knowable", positions },
+    cloudConflict: false,
+  });
+
   return {
     meta: {
       contract_version: INTELLIGENCE_CONTRACT_VERSION,
@@ -377,11 +399,13 @@ export function assembleIntelligenceContract(input: IntelligenceContractInput) {
       money_available_cents: intelligenceCents(moneyAvailable),
       operational_balance_fields: ["money_available_cents", "effective_balance_cents"] as const,
       declared_balance_role: "provenance_fallback" as const,
-      protected_exceeds_money_available: protectedExceedsAvailable(
-        state.openingWealthBuilding,
-        state.openingEmergencyFund,
-        moneyAvailable
-      ),
+      protected_exceeds_money_available: protectedOverflowExceeds({
+        openingWealthBuilding: state.openingWealthBuilding,
+        openingEmergencyFund: state.openingEmergencyFund,
+        moneyAvailable,
+        accounts: state.accounts,
+        positions,
+      }),
       accounts: state.accounts.map((account, index) => {
         const position = positions[index];
         const declared = {
@@ -461,6 +485,7 @@ export function assembleIntelligenceContract(input: IntelligenceContractInput) {
       items: attention,
       epistemic: financialAttentionEpistemic(composedAttention),
     },
+    recorded_administration: recordedAdministration,
     boundaries: {
       unknowns,
     },

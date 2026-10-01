@@ -116,7 +116,7 @@ import {
 } from "@/lib/babylon/account-restriction";
 import {
   protectedDesignationError,
-  protectedExceedsAvailable,
+  protectedOverflowExceeds,
   totalEmergencyFund,
   totalProtectedMoney,
   totalWealthBuilding,
@@ -941,13 +941,13 @@ export function useBabylonEngine() {
     [openingEmergencyFund, emergencyShield]
   );
 
-  const protectedOverAvailable = protectedExceedsAvailable(
+  const protectedOverAvailable = protectedOverflowExceeds({
     openingWealthBuilding,
     openingEmergencyFund,
     moneyAvailable,
-    wealthBuildingPosition,
-    emergencyFundPosition
-  );
+    accounts,
+    positions: effectivePositions,
+  });
 
   const lifetimeActual = useMemo(
     () => actualSpendTotals(expenses),

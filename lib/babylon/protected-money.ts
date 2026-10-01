@@ -7,7 +7,13 @@
  * emergencyShield are never included.
  */
 
+import {
+  currentEmergencyFundPosition,
+  currentWealthBuildingPosition,
+} from "@/lib/babylon/account-purpose";
 import { roundMoney } from "@/lib/babylon/engine";
+import type { EffectiveAccountPosition } from "@/lib/babylon/balance-observation";
+import type { FinancialAccount } from "@/types/babylon";
 
 function cents(value: number): number {
   return Math.round(roundMoney(value) * 100);
@@ -101,4 +107,55 @@ export function protectedDesignationError(
     return "Protected designations exceed your current Liquid Position. Update your protected amounts or Financial Position.";
   }
   return null;
+}
+
+/**
+ * One composition for Already Set Aside versus Liquid Position.
+ * Purpose positions are included. Screen, contract, and Quiet all call this.
+ * Tracked allocation totals are not position and are not included.
+ */
+export function composeProtectedOverflow(input: {
+  openingWealthBuilding: number;
+  openingEmergencyFund: number;
+  moneyAvailable: number;
+  accounts: readonly FinancialAccount[];
+  positions: readonly EffectiveAccountPosition[];
+}): {
+  openingWealthBuilding: number;
+  openingEmergencyFund: number;
+  moneyAvailable: number;
+  currentWealthBuildingPosition: number;
+  currentEmergencyFundPosition: number;
+} {
+  return {
+    openingWealthBuilding: input.openingWealthBuilding,
+    openingEmergencyFund: input.openingEmergencyFund,
+    moneyAvailable: input.moneyAvailable,
+    currentWealthBuildingPosition: currentWealthBuildingPosition(
+      input.accounts,
+      input.positions
+    ),
+    currentEmergencyFundPosition: currentEmergencyFundPosition(
+      input.accounts,
+      input.positions
+    ),
+  };
+}
+
+/** True when that canonical composition exceeds Liquid Position. */
+export function protectedOverflowExceeds(input: {
+  openingWealthBuilding: number;
+  openingEmergencyFund: number;
+  moneyAvailable: number;
+  accounts: readonly FinancialAccount[];
+  positions: readonly EffectiveAccountPosition[];
+}): boolean {
+  const composed = composeProtectedOverflow(input);
+  return protectedExceedsAvailable(
+    composed.openingWealthBuilding,
+    composed.openingEmergencyFund,
+    composed.moneyAvailable,
+    composed.currentWealthBuildingPosition,
+    composed.currentEmergencyFundPosition
+  );
 }
