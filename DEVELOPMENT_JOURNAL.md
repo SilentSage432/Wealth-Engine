@@ -1,5 +1,24 @@
 # Development Journal
 
+## 2026-09-30 — WE-UX-HIERARCHY-006 Living Budget dedup
+
+### What changed
+- Desktop Overview Spending power no longer shows the Living Budget remaining dollar, percent, or pool. Those stay on the Golden Triad Living Budget card.
+- The labor-hours tile stays. It still converts that same remainder with `laborHoursForAmount` and the existing main-income rate.
+
+### Ownership
+- Presentation: `components/babylon/spending-power-focus.tsx`.
+- The remainder is still `livingBudgetRemaining`. This tranche does not calculate it.
+
+### Validation
+- Focused tests: `lib/babylon/spending-power-focus.test.ts`, `lib/babylon/overview-secondary-disclosure.test.ts`, `lib/babylon/mobile-home.test.ts`, and `lib/babylon/mobile-budget.test.ts`.
+- Full suite: 66 files, 964 tests passed.
+- `tsc --noEmit` passed. ESLint on touched TypeScript files clean. Production build passed. `git diff --check` clean.
+
+### Not in this tranche
+- No phone Budget change. No Golden Triad, chart, Financial Position, Upcoming Needs, Budget Blueprint, or purchase-test change.
+- No calculation, allocation, income, plan, payday, sync, Plaid, persistence, or schema change.
+
 ## 2026-09-30 — WE-UX-HIERARCHY-005 Phone More maintenance compression
 
 ### What changed

@@ -217,9 +217,6 @@ export function WealthEngineDashboard() {
   const focusCards = (
     <SpendingPowerFocus
       expenditureRemaining={engine.expenditureRemaining}
-      expenditurePool={engine.expenditurePool}
-      expenditureRemainingPct={engine.expenditureRemainingPct}
-      expenditureBarTone={engine.expenditureBarTone}
       hourlyLaborRate={engine.hourlyLaborRate}
       discreet={discreet}
     />
