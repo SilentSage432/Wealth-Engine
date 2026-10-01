@@ -5,6 +5,9 @@
  * Generation creates Upcoming expenses. It never marks them paid.
  * A missing interval is monthly. Months the interval does not include are
  * not skips, and the rule does not set money aside between occurrences.
+ * projectRecurringOccurrences answers a caller-supplied month range. It does
+ * not persist, and it does not read the device clock. Hydration still uses
+ * materializeRecurringObligations.
  */
 
 /** UI frequencies. The rule itself accepts any positive integer interval. */
@@ -291,6 +294,215 @@ export function materializeRecurringObligations(
 
   if (created.length === 0) return { expenses: [...expenses], created };
   return { expenses: next, created };
+}
+
+/**
+ * Inclusive civil months the caller already resolved.
+ * This is not a timezone and not a device clock reading.
+ */
+export interface CivilMonthRange {
+  /** Inclusive YYYY-MM. */
+  fromMonth: string;
+  /** Inclusive YYYY-MM. */
+  throughMonth: string;
+}
+
+export type RecurrenceProjectionInvalidReason =
+  | "invalid_range"
+  | "invalid_rule"
+  | "invalid_occurrence_evidence"
+  | "duplicate_semantic_occurrence";
+
+/**
+ * Persisted evidence is the stored expense row.
+ * A derived occurrence is the default the rule implies for that month.
+ */
+export interface ProjectedRecurringOccurrence {
+  origin: "persisted" | "derived";
+  expense: ExpenseEntry;
+}
+
+export type RecurrenceProjection =
+  | {
+      status: "projected";
+      occurrences: readonly ProjectedRecurringOccurrence[];
+    }
+  | {
+      status: "invalid";
+      reason: RecurrenceProjectionInvalidReason;
+    };
+
+function monthKeyFromIndex(index: number): string {
+  const year = Math.floor(index / 12);
+  const month = (index % 12) + 1;
+  return `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}`;
+}
+
+/** Inclusive month keys. Null when either boundary is not a real month or the range runs backward. */
+function civilMonthsInRange(range: CivilMonthRange): string[] | null {
+  if (!range || typeof range.fromMonth !== "string" || typeof range.throughMonth !== "string") {
+    return null;
+  }
+  const from = calendarMonthIndex(range.fromMonth);
+  const through = calendarMonthIndex(range.throughMonth);
+  if (from === null || through === null || from > through) return null;
+  const months: string[] = [];
+  for (let index = from; index <= through; index += 1) {
+    months.push(monthKeyFromIndex(index));
+  }
+  return months;
+}
+
+function occurrenceSemanticKey(ruleId: string, recurrenceMonth: string): string {
+  return `${String(ruleId.length)}.${ruleId}.${recurrenceMonth}`;
+}
+
+/**
+ * A one-off expense has no semantic key. A half-filled or impossible
+ * rule/month pair is invalid evidence. Valid evidence keeps its stored id.
+ */
+function readOccurrenceEvidence(
+  expense: ExpenseEntry
+): { ok: true; key: string | null; month: string | null } | { ok: false } {
+  if (!expense || typeof expense !== "object") return { ok: false };
+  const hasRule = expense.recurringObligationId !== undefined;
+  const hasMonth = expense.recurrenceMonth !== undefined;
+  if (!hasRule && !hasMonth) return { ok: true, key: null, month: null };
+  if (!hasRule || !hasMonth) return { ok: false };
+  const ruleId = expense.recurringObligationId;
+  const month = expense.recurrenceMonth;
+  if (!ruleId || ruleId !== ruleId.trim()) return { ok: false };
+  if (!month || calendarMonthIndex(month) === null) return { ok: false };
+  return { ok: true, key: occurrenceSemanticKey(ruleId, month), month };
+}
+
+/** True when parsing would keep this rule as it already is. No silent cleanup. */
+function isAuthoritativeRecurringRule(rule: RecurringObligation): boolean {
+  if (!rule || typeof rule !== "object") return false;
+  const parsed = parseRecurringObligation(rule);
+  if (!parsed) return false;
+  if (parsed.id !== rule.id || !recurringOccurrenceId(rule.id, rule.startMonth)) {
+    return false;
+  }
+  if (parsed.name !== rule.name) return false;
+  if (parsed.amount !== rule.amount) return false;
+  if (parsed.category !== rule.category) return false;
+  if (parsed.budgetCategoryId !== rule.budgetCategoryId) return false;
+  if (parsed.dueDay !== rule.dueDay) return false;
+  if (parsed.startMonth !== rule.startMonth) return false;
+  if (parsed.intervalMonths !== rule.intervalMonths) return false;
+  if (parsed.isActive !== rule.isActive) return false;
+  if (parsed.createdAt !== rule.createdAt) return false;
+  if (parsed.skippedMonths.length !== rule.skippedMonths.length) return false;
+  for (let index = 0; index < parsed.skippedMonths.length; index += 1) {
+    if (parsed.skippedMonths[index] !== rule.skippedMonths[index]) return false;
+  }
+  return true;
+}
+
+function derivedOccurrence(
+  rule: RecurringObligation,
+  recurrenceMonth: string
+): ExpenseEntry | null {
+  const id = recurringOccurrenceId(rule.id, recurrenceMonth);
+  if (!id) return null;
+  const dueDate = dueDateForMonth(rule.dueDay, recurrenceMonth);
+  return {
+    id,
+    name: rule.name,
+    category: rule.category,
+    amount: roundMoney(rule.amount),
+    date: dueDate,
+    dueDate,
+    budgetCategoryId: rule.budgetCategoryId,
+    isSettled: false,
+    recurringObligationId: rule.id,
+    recurrenceMonth,
+  };
+}
+
+/**
+ * Which recurring occurrences exist in a caller-supplied inclusive month range.
+ *
+ * Financial recurrence projection does not own timezone resolution. The caller
+ * supplies the authoritative civil range. This function does not read the
+ * device clock.
+ *
+ * A due month inside the range is derived when no stored expense already
+ * carries that rule id and recurrence month, including a month no client
+ * opened. The derived id is recurringOccurrenceId. A stored row is returned
+ * unchanged: legacy id, canonical id, paid, or steward-edited.
+ * skippedMonths and an inactive rule do not create a row. They also do not
+ * erase a row that is already stored. Duplicate semantic evidence fails closed.
+ * One-off expenses are not recurring occurrences.
+ *
+ * Nothing is persisted. Income, allocation, plans, and month close are not
+ * inputs. Hydration still uses materializeRecurringObligations.
+ */
+export function projectRecurringOccurrences(
+  rules: readonly RecurringObligation[],
+  expenses: readonly ExpenseEntry[],
+  range: CivilMonthRange
+): RecurrenceProjection {
+  const months = civilMonthsInRange(range);
+  if (!months) return { status: "invalid", reason: "invalid_range" };
+
+  const seenRuleIds = new Set<string>();
+  for (const rule of rules) {
+    if (!isAuthoritativeRecurringRule(rule) || seenRuleIds.has(rule.id)) {
+      return { status: "invalid", reason: "invalid_rule" };
+    }
+    seenRuleIds.add(rule.id);
+  }
+
+  const evidence = new Map<string, ExpenseEntry>();
+  for (const expense of expenses) {
+    const read = readOccurrenceEvidence(expense);
+    if (!read.ok) return { status: "invalid", reason: "invalid_occurrence_evidence" };
+    if (!read.key) continue;
+    if (evidence.has(read.key)) {
+      return { status: "invalid", reason: "duplicate_semantic_occurrence" };
+    }
+    evidence.set(read.key, expense);
+  }
+
+  const occurrences: ProjectedRecurringOccurrence[] = [];
+  const claimed = new Set<string>();
+  for (const recurrenceMonth of months) {
+    for (const rule of rules) {
+      if (!rule.isActive) continue;
+      if (
+        !isObligationMonthDue(
+          rule.startMonth,
+          recurrenceMonth,
+          obligationIntervalMonths(rule)
+        )
+      ) {
+        continue;
+      }
+      if (rule.skippedMonths.includes(recurrenceMonth)) continue;
+      const key = occurrenceSemanticKey(rule.id, recurrenceMonth);
+      const stored = evidence.get(key);
+      if (stored) {
+        occurrences.push({ origin: "persisted", expense: stored });
+      } else {
+        const created = derivedOccurrence(rule, recurrenceMonth);
+        if (!created) return { status: "invalid", reason: "invalid_rule" };
+        occurrences.push({ origin: "derived", expense: created });
+      }
+      claimed.add(key);
+    }
+    for (const expense of expenses) {
+      const read = readOccurrenceEvidence(expense);
+      if (!read.ok || !read.key || read.month !== recurrenceMonth || claimed.has(read.key)) {
+        continue;
+      }
+      occurrences.push({ origin: "persisted", expense });
+      claimed.add(read.key);
+    }
+  }
+
+  return { status: "projected", occurrences };
 }
 
 export function replaceRecurringObligation(

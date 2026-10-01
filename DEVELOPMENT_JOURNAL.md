@@ -1,5 +1,15 @@
 # Development Journal
 
+## 2026-10-01 — WE-RECURRENCE-PROJECTION-001 Pure recurrence projection
+
+- `projectRecurringOccurrences` answers which recurring occurrences exist in a caller-supplied inclusive month range.
+- A due month is derived when no stored row has that rule and recurrence month, including months no client opened. Derived rows use `recurringOccurrenceId` and are not marked paid.
+- A stored row is returned as persisted evidence and is not rewritten. Skips and inactive rules do not create rows. Duplicate semantic evidence fails closed.
+- The function does not read the device clock, persist, or take income, allocation, plans, or month close as inputs.
+- Hydration still materializes the current month and the next month and still persists that result. Notifications and the Intelligence Contract are unchanged.
+- Focused projection tests and the existing recurrence suite passed. Full suite: 68 files, 1029 tests passed. `tsc --noEmit` passed. ESLint on the edited TypeScript files passed. Production build passed.
+- Not committed.
+
 ## 2026-10-01 — WE-SYNC-RECONCILIATION-007 Legacy equivalent generated occurrences
 
 - Preserved-copy reconciliation can collapse one already-diverged shape: every authority scope matches, and the only difference is generated recurring occurrences that share a rule and recurrence month and match in every persisted field except id.
