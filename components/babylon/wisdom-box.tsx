@@ -8,6 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { OverviewDisclosure } from "@/components/babylon/overview-disclosure";
 import { BABYLON_WISDOM } from "@/lib/babylon/constants";
 import { cn } from "@/lib/utils";
 
@@ -15,14 +16,17 @@ interface WisdomBoxProps {
   wisdomIndex: number;
   expanded: boolean;
   onSelectIndex: (index: number) => void;
+  /** Desktop Overview starts the quote card closed. The Guidance destination stays open. */
+  disclosure?: boolean;
 }
 
 export function WisdomBox({
   wisdomIndex,
   expanded,
   onSelectIndex,
+  disclosure = false,
 }: WisdomBoxProps) {
-  return (
+  const card = (
     <Card
       className={cn(
         "wisdom-console relative overflow-hidden border-emerald-900/40 bg-gradient-to-br from-slate-900 via-slate-900 to-emerald-950/40",
@@ -99,5 +103,26 @@ export function WisdomBox({
         )}
       </CardContent>
     </Card>
+  );
+  if (!disclosure) return card;
+  const quote = BABYLON_WISDOM[wisdomIndex] ?? "";
+  return (
+    <OverviewDisclosure
+      regionId="overview-guidance"
+      className="rounded-xl border border-emerald-900/40 bg-slate-900/40"
+      summary={
+        <div>
+          <p className="text-xs font-medium text-emerald-400">Financial Guidance</p>
+          <p className="mt-1 font-[family-name:var(--font-display)] text-lg text-slate-100">
+            How this ledger works
+          </p>
+          <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-slate-300">
+            {quote}
+          </p>
+        </div>
+      }
+    >
+      {card}
+    </OverviewDisclosure>
   );
 }

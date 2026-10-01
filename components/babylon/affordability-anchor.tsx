@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { OverviewDisclosure } from "@/components/babylon/overview-disclosure";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -14,12 +15,15 @@ interface AffordabilityAnchorProps {
   desiresPoolRemaining: number;
   hourlyLaborRate: number;
   discreet?: boolean;
+  /** Desktop Overview starts the purchase test closed. Phone analysis stays open. */
+  disclosure?: boolean;
 }
 
 export function AffordabilityAnchor({
   desiresPoolRemaining,
   hourlyLaborRate,
   discreet = false,
+  disclosure = false,
 }: AffordabilityAnchorProps) {
   const [amountRaw, setAmountRaw] = useState("");
 
@@ -45,7 +49,7 @@ export function AffordabilityAnchor({
     [amount, hourlyLaborRate]
   );
 
-  return (
+  const anchor = (
     <section className="animate-fade-up rounded-xl border border-slate-800/80 bg-slate-900/40 px-4 py-4 sm:px-5">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="min-w-0 flex-1 space-y-1">
@@ -105,5 +109,27 @@ export function AffordabilityAnchor({
         </div>
       </div>
     </section>
+  );
+  if (!disclosure) return anchor;
+  return (
+    <OverviewDisclosure
+      regionId="overview-affordability"
+      className="rounded-xl border border-slate-800/80 bg-slate-900/40"
+      summary={
+        <div>
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+            Affordability Anchor
+          </p>
+          <p className="mt-1 text-sm text-slate-200">
+            Left for wants:{" "}
+            <span className="tabular-nums text-slate-50">
+              {money(desiresPoolRemaining)}
+            </span>
+          </p>
+        </div>
+      }
+    >
+      {anchor}
+    </OverviewDisclosure>
   );
 }

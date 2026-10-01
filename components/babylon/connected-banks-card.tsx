@@ -1,6 +1,7 @@
 "use client";
 
 import { Landmark } from "lucide-react";
+import { OverviewDisclosure } from "@/components/babylon/overview-disclosure";
 import { Card, CardContent } from "@/components/ui/card";
 import { PlaidLinkButton } from "@/components/babylon/plaid-link-button";
 import { VaultErrorBoundary } from "@/components/babylon/vault-error-boundary";
@@ -26,6 +27,12 @@ interface ConnectedBanksCardProps {
   onConnect?: () => void;
   onRepair?: (itemId: string) => void;
   onRequireAuth?: () => void;
+  /**
+   * Desktop Overview only. A signed-in healthy connection keeps the count
+   * visible and starts Connect Bank closed. Repair, signed-out, loading, and
+   * zero-bank states stay fully open.
+   */
+  disclosureWhenHealthy?: boolean;
 }
 
 function statusCopy(count: number, isCloudSynced: boolean): string {
@@ -51,6 +58,7 @@ export function ConnectedBanksCard({
   onConnect,
   onRepair,
   onRequireAuth,
+  disclosureWhenHealthy = false,
 }: ConnectedBanksCardProps) {
   const handleClick = () => {
     if (!isCloudSynced) {
@@ -67,6 +75,60 @@ export function ConnectedBanksCard({
     }
     onConnect();
   };
+
+  const connectButton = (
+    <PlaidLinkButton
+      variant="button"
+      label={isCloudSynced ? "Connect Bank" : "Sign In"}
+      launching={launching && repairs.length === 0}
+      initializing={initializing}
+      onClick={handleClick}
+      className="shrink-0"
+    />
+  );
+
+  const healthySummary =
+    disclosureWhenHealthy &&
+    isCloudSynced &&
+    !isLoading &&
+    repairs.length === 0 &&
+    connectedCount > 0;
+
+  if (healthySummary) {
+    return (
+      <VaultErrorBoundary compact>
+        <Card
+          className={cn(
+            "border-slate-800 bg-slate-900/60 transition-colors hover:border-emerald-800/60",
+            className
+          )}
+        >
+          <CardContent className="p-0">
+            <OverviewDisclosure
+              regionId="connected-banks-actions"
+              summary={
+                <div className="flex items-center gap-3">
+                  <div className="rounded-xl bg-emerald-500/10 p-3 text-emerald-300">
+                    <Landmark className="h-5 w-5" aria-hidden="true" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-xs uppercase tracking-wider text-slate-500">
+                      Connected Bank Accounts
+                    </p>
+                    <p className="font-[family-name:var(--font-display)] text-lg font-semibold text-slate-50 sm:text-xl">
+                      {statusCopy(connectedCount, isCloudSynced)}
+                    </p>
+                  </div>
+                </div>
+              }
+            >
+              <div className="px-4 pb-4">{connectButton}</div>
+            </OverviewDisclosure>
+          </CardContent>
+        </Card>
+      </VaultErrorBoundary>
+    );
+  }
 
   return (
     <VaultErrorBoundary compact>
@@ -106,14 +168,7 @@ export function ConnectedBanksCard({
                   : statusCopy(connectedCount, isCloudSynced)}
               </p>
             </div>
-            <PlaidLinkButton
-              variant="button"
-              label={isCloudSynced ? "Connect Bank" : "Sign In"}
-              launching={launching && repairs.length === 0}
-              initializing={initializing}
-              onClick={handleClick}
-              className="shrink-0"
-            />
+            {connectButton}
           </div>
 
           {isCloudSynced && repairs.length > 0 ? (

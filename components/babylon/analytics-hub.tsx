@@ -15,6 +15,7 @@ import {
   YAxis,
 } from "recharts";
 import { ChartTooltipShell } from "@/components/babylon/chart-tooltip";
+import { OverviewDisclosure } from "@/components/babylon/overview-disclosure";
 import { EmptyLedger } from "@/components/babylon/empty-ledger";
 import {
   Card,
@@ -34,6 +35,8 @@ interface AnalyticsHubProps {
   currentMonthDesire: number;
   currentMonthRemaining: number;
   discreet?: boolean;
+  /** Desktop Overview starts the charts closed. Phone analysis stays open. */
+  disclosure?: boolean;
 }
 
 export function AnalyticsHub({
@@ -43,12 +46,13 @@ export function AnalyticsHub({
   currentMonthDesire,
   currentMonthRemaining,
   discreet = false,
+  disclosure = false,
 }: AnalyticsHubProps) {
   const money = (value: number) =>
     formatDiscreetCurrency(value, discreet, formatCurrency);
   const axisMoney = (value: number) =>
     discreet ? money(value) : formatCompactCurrency(value);
-  return (
+  const charts = (
     <section className="flex flex-col gap-4 xl:flex-row">
       <Card className="min-w-0 flex-1 animate-fade-up xl:flex-[3]">
         <CardHeader className="px-4 sm:px-6">
@@ -212,5 +216,37 @@ export function AnalyticsHub({
         </CardContent>
       </Card>
     </section>
+  );
+  if (!disclosure) return charts;
+  return (
+    <OverviewDisclosure
+      regionId="overview-analytics"
+      className="rounded-xl border border-slate-800/80 bg-slate-900/40"
+      summary={
+        <div>
+          <p className="font-[family-name:var(--font-display)] text-lg text-slate-50 sm:text-xl">
+            Income and allocations
+          </p>
+          <p className="mt-1 text-xs text-slate-400">
+            Needs{" "}
+            <span className="tabular-nums text-slate-200">
+              {money(currentMonthNeed)}
+            </span>
+            {" · "}
+            Wants{" "}
+            <span className="tabular-nums text-slate-200">
+              {money(currentMonthDesire)}
+            </span>
+            {" · "}
+            Remaining{" "}
+            <span className="tabular-nums text-slate-200">
+              {money(currentMonthRemaining)}
+            </span>
+          </p>
+        </div>
+      }
+    >
+      {charts}
+    </OverviewDisclosure>
   );
 }

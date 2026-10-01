@@ -14,6 +14,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { OverviewDisclosure } from "@/components/babylon/overview-disclosure";
 import { STREAM_KIND_LABELS } from "@/lib/babylon/constants";
 import { formatDiscreetCurrency } from "@/lib/babylon/discreet";
 import { cn, formatCurrency } from "@/lib/utils";
@@ -22,6 +23,8 @@ import type { IncomeStreamKind, TributeEngineSnapshot } from "@/types/babylon";
 interface TributeEnginesPanelProps {
   snapshot: TributeEngineSnapshot;
   discreet?: boolean;
+  /** Desktop Overview starts the type rows closed. Phone analysis stays open. */
+  disclosure?: boolean;
 }
 
 const KIND_ACCENT: Record<
@@ -58,35 +61,27 @@ const KIND_TOOLTIPS: Partial<Record<IncomeStreamKind, string>> = {
   other: "Other income is irregular money that still splits 10/20/70.",
 };
 
+const INCOME_BREAKDOWN_DESCRIPTION =
+  "This month's income by type, and how each type changed from last month.";
+
 export function TributeEnginesPanel({
   snapshot,
   discreet = false,
+  disclosure = false,
 }: TributeEnginesPanelProps) {
   const money = (value: number) =>
     formatDiscreetCurrency(value, discreet, formatCurrency);
-  return (
-    <TooltipProvider delayDuration={200}>
-      <section className="animate-fade-up">
-        <Card className="border-slate-800/80">
-          <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <CardTitle className="font-[family-name:var(--font-display)] text-lg sm:text-xl">
-                Income Breakdown
-              </CardTitle>
-              <CardDescription>
-                This month&apos;s income by type, and how each type changed from
-                last month.
-              </CardDescription>
-            </div>
-            <div className="shrink-0 text-left sm:text-right">
-              <p className="text-[10px] uppercase tracking-wider text-slate-500">
-                Income this month
-              </p>
-              <p className="font-[family-name:var(--font-display)] text-2xl font-semibold tabular-nums text-slate-50">
-                {money(snapshot.monthTotal)}
-              </p>
-            </div>
-          </CardHeader>
+  const monthTotal = (
+    <div className="shrink-0 text-left sm:text-right">
+      <p className="text-[10px] uppercase tracking-wider text-slate-500">
+        Income this month
+      </p>
+      <p className="font-[family-name:var(--font-display)] text-2xl font-semibold tabular-nums text-slate-50">
+        {money(snapshot.monthTotal)}
+      </p>
+    </div>
+  );
+  const breakdown = (
           <CardContent className="space-y-5">
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="rounded-lg border border-slate-800/70 bg-slate-950/40 px-3.5 py-3">
@@ -214,6 +209,43 @@ export function TributeEnginesPanel({
               </ul>
             )}
           </CardContent>
+  );
+
+  return (
+    <TooltipProvider delayDuration={200}>
+      <section className="animate-fade-up">
+        <Card className="border-slate-800/80">
+          {disclosure ? (
+            <OverviewDisclosure
+              regionId="overview-income-breakdown"
+              summary={
+                <div>
+                  <p className="font-[family-name:var(--font-display)] text-lg text-slate-50 sm:text-xl">
+                    Income Breakdown
+                  </p>
+                  {monthTotal}
+                </div>
+              }
+            >
+              <CardDescription className="px-6 pb-2">
+                {INCOME_BREAKDOWN_DESCRIPTION}
+              </CardDescription>
+              {breakdown}
+            </OverviewDisclosure>
+          ) : (
+            <>
+              <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <CardTitle className="font-[family-name:var(--font-display)] text-lg sm:text-xl">
+                    Income Breakdown
+                  </CardTitle>
+                  <CardDescription>{INCOME_BREAKDOWN_DESCRIPTION}</CardDescription>
+                </div>
+                {monthTotal}
+              </CardHeader>
+              {breakdown}
+            </>
+          )}
         </Card>
       </section>
     </TooltipProvider>

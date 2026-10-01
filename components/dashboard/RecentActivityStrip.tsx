@@ -14,12 +14,15 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { OverviewDisclosure } from "@/components/babylon/overview-disclosure";
 import { cn, formatCurrency, formatRelativeTime } from "@/lib/utils";
 import type { ActivityEvent } from "@/types/babylon";
 
 interface RecentActivityStripProps {
   events: ActivityEvent[];
   now?: Date;
+  /** Desktop Overview starts the event list closed. */
+  disclosure?: boolean;
 }
 
 function ActivityIcon({ event }: { event: ActivityEvent }) {
@@ -76,8 +79,9 @@ function ActivityIcon({ event }: { event: ActivityEvent }) {
 export function RecentActivityStrip({
   events,
   now = new Date(),
+  disclosure = false,
 }: RecentActivityStripProps) {
-  return (
+  const strip = (
     <section className="animate-fade-up">
       <Card className="border-slate-800/80">
         <CardHeader className="px-4 sm:px-6">
@@ -136,5 +140,28 @@ export function RecentActivityStrip({
         </CardContent>
       </Card>
     </section>
+  );
+  if (!disclosure) return strip;
+  const latest = events[0];
+  return (
+    <OverviewDisclosure
+      regionId="overview-recent-activity"
+      className="rounded-xl border border-slate-800/80 bg-slate-900/40"
+      summary={
+        <div>
+          <p className="font-[family-name:var(--font-display)] text-lg text-slate-50 sm:text-xl">
+            Recent Activity
+          </p>
+          <p className="mt-1 text-xs text-slate-400">
+            {events.length === 0 ? "Nothing here yet" : `${events.length} recent`}
+          </p>
+          {latest ? (
+            <p className="mt-1 truncate text-sm text-slate-200">{latest.title}</p>
+          ) : null}
+        </div>
+      }
+    >
+      {strip}
+    </OverviewDisclosure>
   );
 }

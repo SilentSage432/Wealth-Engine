@@ -1,5 +1,28 @@
 # Development Journal
 
+## 2026-09-30 — WE-UX-HIERARCHY-002 Desktop Overview secondary stack
+
+### What changed
+- Desktop Overview starts these supporting sections closed: income breakdown, charts, recent activity, lifetime stats, the guidance quote, and the purchase test.
+- Each closed section keeps a summary. The type rows, charts, event list, stat cards, quote selector, and purchase field open on Show.
+- A signed-in bank card with at least one connection and no repair keeps “N banks connected” visible and starts Connect Bank closed. The button stays mounted. Repair, signed-out, loading, and zero-bank states stay open.
+- Open/closed state is component state. It is not written to the vault, storage, or the URL.
+- Phone Budget’s deeper analysis and phone More are unchanged.
+
+### Ownership
+- Shared desktop control: `components/babylon/overview-disclosure.tsx`. It owns only open/closed presentation.
+- Section summaries stay in the components that already own that copy.
+
+### Validation
+- Focused tests: `lib/babylon/overview-secondary-disclosure.test.ts`, 13 passed.
+- Full suite: 62 files, 917 tests passed.
+- `tsc --noEmit` passed. ESLint on touched TypeScript files clean. Production build passed. `git diff --check` clean.
+
+### Not in this tranche
+- No phone Home, Budget, Ledger, or More change.
+- No Financial Position, Upcoming Needs, Living Budget, 10/20/70, monthly plan, category, debt planner, or account-list change.
+- No calculation, sync, Plaid, month-close, persistence, or schema change.
+
 ## 2026-09-30 — WE-UX-HIERARCHY-001 Financial Position disclosure
 
 ### What changed

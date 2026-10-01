@@ -288,6 +288,7 @@ export function WealthEngineDashboard() {
   const banksCard = (
     <>
     <ConnectedBanksCard
+      disclosureWhenHealthy
       connectedCount={connectedCount}
       isLoading={isLoading}
       launching={launching}
@@ -525,36 +526,41 @@ export function WealthEngineDashboard() {
                       {banksCard}
                       {debtFreedom}
                       <AffordabilityAnchor
+                        disclosure
                         desiresPoolRemaining={engine.desiresPoolRemaining}
                         hourlyLaborRate={engine.hourlyLaborRate}
                       />
-                      <TributeEnginesPanel snapshot={engine.tributeEngines} />
+                      <TributeEnginesPanel
+                        disclosure
+                        snapshot={engine.tributeEngines}
+                      />
                       {monthlyPlan}
                       {budgetBlueprint}
                       <AnalyticsHub
+                        disclosure
                         chartData={engine.chartData}
                         donutData={engine.donutData}
                         currentMonthNeed={engine.currentMonthNeed}
                         currentMonthDesire={engine.currentMonthDesire}
                         currentMonthRemaining={engine.currentMonthRemaining}
                       />
-                      <RecentActivityStrip events={engine.recentActivity} />
+                      <RecentActivityStrip
+                        disclosure
+                        events={engine.recentActivity}
+                      />
                     </>
                   )}
 
-                  <section
-                    className={cn(
-                      "grid gap-4",
-                      showWisdom ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-3"
-                    )}
-                  >
+                  <section className="grid grid-cols-1 gap-4">
                     {showOverview && (
                       <QuickStats
+                        disclosure
                         totalIncome={engine.totalIncome}
                         debtAllocated={engine.debtAllocated}
                       />
                     )}
                     <WisdomBox
+                      disclosure={showOverview}
                       wisdomIndex={engine.wisdomIndex}
                       expanded={showWisdom}
                       onSelectIndex={engine.setWisdomIndex}
