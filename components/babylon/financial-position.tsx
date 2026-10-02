@@ -14,6 +14,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { EmergencyFundDestinationReading } from "@/components/babylon/emergency-fund-destination";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -87,6 +88,7 @@ import {
 } from "@/lib/babylon/financial-position-composition";
 import { formatCurrency } from "@/lib/utils";
 import type { AvailableAfterPlannedNeeds } from "@/lib/babylon/available-after-planned-needs";
+import type { DestinationRelationship } from "@/lib/babylon/financial-destination";
 import type { FirstDesignationReconcileChoice } from "@/lib/babylon/account-purpose";
 import type {
   FinancialAccount,
@@ -161,6 +163,14 @@ interface FinancialPositionProps {
     preserve?: "allow_drop" | "keep_as_existing" | "cancel"
   ) => PurposeClearResult;
   onUpdateProtected?: (wealth: number, emergency: number) => string | null;
+  /** Derived destination relationship. Absent means no declaration. */
+  emergencyFundDestination?: DestinationRelationship;
+  /** Desktop appends a declaration. Phone does not receive this. */
+  onDeclareEmergencyFundDestination?: (input: {
+    amount: number;
+    label?: string;
+    rationale?: string;
+  }) => string | null;
   onEditorOpenChange?: (open: boolean) => void;
   /** Default for a new account as-of date. Blank when financial today is unknown. */
   financialToday?: string | null;
@@ -381,6 +391,8 @@ export function FinancialPosition({
   onSetAccountPurpose,
   onClearAccountPurpose,
   onUpdateProtected,
+  emergencyFundDestination = { status: "no_destination" },
+  onDeclareEmergencyFundDestination,
   onEditorOpenChange,
   financialToday = null,
   balanceObservation,
@@ -1036,6 +1048,12 @@ export function FinancialPosition({
                 {CURRENTLY_POSITIONED_HINT}
               </p>
             ) : null}
+            <EmergencyFundDestinationReading
+              relationship={emergencyFundDestination}
+              money={money}
+              authoring={!readOnly}
+              onDeclare={onDeclareEmergencyFundDestination}
+            />
             {presentation === "full" ? (
               <div
                 id="financial-position-set-aside-calculation"

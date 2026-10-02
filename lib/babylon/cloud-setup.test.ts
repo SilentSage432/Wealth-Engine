@@ -201,8 +201,8 @@ describe("cloud setup", () => {
     expect(authBlock).not.toContain("initialize");
     expect(plaid).not.toContain("wealth_engine_vaults");
     expect(plaid).not.toContain("cloud-setup");
-    expect(buildLedgerBackup(richState()).version).toBe(11);
-    expect(LEDGER_BACKUP_VERSION).toBe(11);
+    expect(buildLedgerBackup(richState()).version).toBe(12);
+    expect(LEDGER_BACKUP_VERSION).toBe(12);
   });
 
   it("treats modern financial state as non-empty", () => {

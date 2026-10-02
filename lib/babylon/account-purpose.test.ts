@@ -263,7 +263,7 @@ describe("Protected composition with purpose positions", () => {
 
 describe("purpose backup and cloud versions", () => {
   it("exports backup version 10 and keeps cloud schema 6", () => {
-    expect(LEDGER_BACKUP_VERSION).toBe(11);
+    expect(LEDGER_BACKUP_VERSION).toBe(12);
     expect(CLOUD_VAULT_SCHEMA_VERSION).toBe(6);
     const backup = buildLedgerBackup({
       ...EMPTY_STATE,
@@ -276,7 +276,7 @@ describe("purpose backup and cloud versions", () => {
         }),
       ],
     });
-    expect(backup.version).toBe(11);
+    expect(backup.version).toBe(12);
     expect(backup.accounts?.[0]?.purpose).toBe("wealth_building");
   });
 

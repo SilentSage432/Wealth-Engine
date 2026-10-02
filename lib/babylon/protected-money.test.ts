@@ -334,7 +334,7 @@ describe("existing protected money", () => {
       [3000]
     );
     const backup = buildLedgerBackup(state);
-    expect(backup.version).toBe(11);
+    expect(backup.version).toBe(12);
     const restored = validateLedgerBackup(backup);
     expect(restored?.openingWealthBuilding).toBe(700);
     expect(restored?.openingEmergencyFund).toBe(500);

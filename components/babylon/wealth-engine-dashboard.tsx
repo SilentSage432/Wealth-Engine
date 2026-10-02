@@ -157,6 +157,8 @@ export function WealthEngineDashboard() {
       onSetAccountPurpose={engine.setAccountPurpose}
       onClearAccountPurpose={engine.clearAccountPurpose}
       onUpdateProtected={engine.updateProtectedDesignations}
+      emergencyFundDestination={engine.emergencyFundDestination}
+      onDeclareEmergencyFundDestination={engine.declareEmergencyFundDestination}
       onEditorOpenChange={setAccountEditorOpen}
       financialToday={engine.financialToday}
       balanceObservation={balanceObservationView}
@@ -405,6 +407,7 @@ export function WealthEngineDashboard() {
                 onNavigate={setMobileDestination}
                 accounts={engine.accounts}
                 balanceObservation={balanceObservationView}
+                emergencyFundDestination={engine.emergencyFundDestination}
               />
               </>
             )}
@@ -507,6 +510,7 @@ export function WealthEngineDashboard() {
                 remainingDebt={engine.remainingDebt}
                 discreet={discreet}
                 balanceObservation={balanceObservationView}
+                emergencyFundDestination={engine.emergencyFundDestination}
               />
             )}
 

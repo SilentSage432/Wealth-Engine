@@ -39,6 +39,8 @@ import {
   phoneHomeUpcomingPreview,
 } from "@/lib/babylon/mobile-home";
 import { formatCurrency, formatRelativeTime } from "@/lib/utils";
+import { EmergencyFundDestinationReading } from "@/components/babylon/emergency-fund-destination";
+import type { DestinationRelationship } from "@/lib/babylon/financial-destination";
 import type { ActivityEvent, ExpenseEntry, FinancialAccount } from "@/types/babylon";
 
 interface MobileHomeProps {
@@ -60,6 +62,7 @@ interface MobileHomeProps {
   onNavigate: (destination: MobileDestination) => void;
   accounts?: readonly FinancialAccount[];
   balanceObservation?: FinancialPositionBalanceObservation;
+  emergencyFundDestination?: DestinationRelationship;
 }
 
 function formatDueDay(isoDate: string): string {
@@ -106,6 +109,7 @@ export function MobileHome({
   onNavigate,
   accounts = [],
   balanceObservation,
+  emergencyFundDestination = { status: "no_destination" },
 }: MobileHomeProps) {
   const money = (value: number) =>
     formatDiscreetCurrency(value, discreet, formatCurrency);
@@ -298,6 +302,11 @@ export function MobileHome({
                   Already-set-aside amounts exceed Liquid Position.
                 </p>
               ) : null}
+              <EmergencyFundDestinationReading
+                relationship={emergencyFundDestination}
+                money={money}
+                authoring={false}
+              />
             </div>
             <div className="mt-4 border-t border-slate-800/80 pt-3">
               <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">

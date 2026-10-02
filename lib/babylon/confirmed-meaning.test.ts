@@ -413,7 +413,7 @@ describe("confirmed meaning boundaries", () => {
     expect(migration).not.toContain("GRANT UPDATE");
     expect(migration).not.toContain("pending_transaction_id");
     expect(CLOUD_VAULT_SCHEMA_VERSION).toBe(6);
-    expect(LEDGER_BACKUP_VERSION).toBe(11);
+    expect(LEDGER_BACKUP_VERSION).toBe(12);
   });
 
   it("sends no owner id and does not teach from the ledger or attention", () => {

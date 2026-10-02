@@ -24,6 +24,7 @@ import { WisdomBox } from "@/components/babylon/wisdom-box";
 import type { AvailableAfterPlannedNeeds } from "@/lib/babylon/available-after-planned-needs";
 import { phoneCloudSessionStartsClosed } from "@/lib/babylon/mobile-more";
 import { vaultSyncCopy, type VaultSyncView } from "@/lib/babylon/vault-sync";
+import type { DestinationRelationship } from "@/lib/babylon/financial-destination";
 import type { BudgetTarget, FinancialAccount } from "@/types/babylon";
 
 interface MobileMoreProps {
@@ -76,6 +77,7 @@ interface MobileMoreProps {
   discreet: boolean;
   balanceObservation?: FinancialPositionBalanceObservation;
   financialTimeZone?: string;
+  emergencyFundDestination?: DestinationRelationship;
 }
 
 function GroupHeading({ children }: { children: string }) {
@@ -136,6 +138,7 @@ export function MobileMore({
   discreet,
   balanceObservation,
   financialTimeZone,
+  emergencyFundDestination,
 }: MobileMoreProps) {
   const [guidanceOpen, setGuidanceOpen] = useState(false);
   const [referenceOpen, setReferenceOpen] = useState(false);
@@ -175,6 +178,7 @@ export function MobileMore({
           financialToday={financialToday}
           discreet={discreet}
           balanceObservation={balanceObservation}
+          emergencyFundDestination={emergencyFundDestination}
         />
       </section>
 

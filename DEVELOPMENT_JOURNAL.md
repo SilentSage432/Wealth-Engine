@@ -1,5 +1,15 @@
 # Development Journal
 
+## 2026-10-01 — WE-DESTINATION-001 Steward-declared Emergency Fund destination
+
+- A destination is an append-only steward declaration that owned Emergency Fund position should be at least a dollar amount the steward enters. Wealth Engine does not calculate that amount.
+- Owned Emergency Fund position is `currentEmergencyFundPosition` plus residual `openingEmergencyFund`. Restriction does not reduce it. `emergencyShield`, tracked allocations, and Protected Money totals are not the comparator.
+- The relationship is below, at or above, or unknown. Unknown covers protected overflow and an unresolved cloud conflict, and it does not report a distance. No declaration is `no_destination`.
+- Replacing the amount appends a declaration. Prior rows stay. `declaredAt` is an absolute instant. Cloud schema stays 6; the key is omitted while empty. Ledger export is version 12. Versions 1–11 that contain destination declarations are rejected.
+- Desktop Financial Position can declare and replace. Phone Home and read-only Financial Position show the relationship and do not author it. Attention, Quiet, Direction, and the Paid command's write boundary are unchanged.
+- Full suite: 79 files, 1141 tests passed. `tsc --noEmit` passed. ESLint on the edited files passed. Production build passed. `git diff --check` passed.
+- Not committed.
+
 ## 2026-10-01 — WE-MOBILE-PAID-COMMAND-002 Bounded canonical Paid
 
 - Mobile Home Due and the mobile ledger call an authenticated online command instead of `toggleExpenseSettled`.

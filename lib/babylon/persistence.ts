@@ -18,6 +18,7 @@ import {
   isLocalIsoDate,
 } from "@/lib/babylon/financial-position";
 import { canonicalIanaTimeZone } from "@/lib/babylon/civil-time";
+import { parseFinancialDestinations } from "@/lib/babylon/financial-destination";
 import { parsePaySchedule } from "@/lib/babylon/pay-schedule";
 import type {
   AllocationEvent,
@@ -34,6 +35,7 @@ import type {
   IncomeInterval,
   IncomeStreamKind,
   LedgerBackup,
+  FinancialDestinationDeclaration,
   MonthlyPlanRevision,
   PaySchedule,
   PeriodArchive,
@@ -42,8 +44,8 @@ import type {
   SurplusDisposition,
 } from "@/types/babylon";
 
-/** Current export version. Version 11 may store financialTimeZone. Version 10 adds steward PaySchedule rules. */
-export const LEDGER_BACKUP_VERSION = 11 as const;
+/** Current export version. Version 12 may store financialDestinations. Version 11 may store financialTimeZone. */
+export const LEDGER_BACKUP_VERSION = 12 as const;
 
 /** Local vault marker. 2 means `isSettled: false` is an Upcoming obligation. */
 export const EXPENSE_SEMANTICS_VERSION = 2 as const;
@@ -570,6 +572,7 @@ export function normalizePersistedState(raw: unknown): PersistedState {
     : [];
 
   const financialTimeZone = readFinancialTimeZone(raw.financialTimeZone);
+  const financialDestinations = readFinancialDestinations(raw.financialDestinations);
 
   const debtSemanticsVersion = resolveDebtSemanticsVersion(
     raw.debtSemanticsVersion,
@@ -615,6 +618,7 @@ export function normalizePersistedState(raw: unknown): PersistedState {
     debtPurposeAttributions,
     paySchedules,
     ...(financialTimeZone ? { financialTimeZone } : {}),
+    ...(financialDestinations ? { financialDestinations } : {}),
   };
 }
 
@@ -626,6 +630,19 @@ function readFinancialTimeZone(value: unknown): string | undefined {
   if (typeof value !== "string") return undefined;
   const zone = canonicalIanaTimeZone(value);
   return zone ?? undefined;
+}
+
+/**
+ * Absent and [] mean no declarations. A malformed collection is omitted here;
+ * cloud and backup validation reject it instead of keeping a partial chain.
+ */
+function readFinancialDestinations(
+  value: unknown
+): FinancialDestinationDeclaration[] | undefined {
+  if (value === undefined) return undefined;
+  const parsed = parseFinancialDestinations(value);
+  if (!parsed || parsed.length === 0) return undefined;
+  return parsed;
 }
 
 /**
@@ -646,7 +663,14 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
     raw.version !== 8 &&
     raw.version !== 9 &&
     raw.version !== 10 &&
-    raw.version !== 11
+    raw.version !== 11 &&
+    raw.version !== 12
+  ) {
+    return null;
+  }
+  if (
+    raw.version !== 12 &&
+    Object.prototype.hasOwnProperty.call(raw, "financialDestinations")
   ) {
     return null;
   }
@@ -669,7 +693,8 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
     raw.version === 8 ||
     raw.version === 9 ||
     raw.version === 10 ||
-    raw.version === 11
+    raw.version === 11 ||
+    raw.version === 12
       ? expenses
       : settleLegacyExpenses(expenses);
 
@@ -726,9 +751,9 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
     typeof raw.displayName === "string" ? raw.displayName : "";
 
   // Version 1 has no account contract. Ignore any stray `accounts` field so a
-  // version-1 file cannot smuggle balances. Versions 2–11 require a valid list;
+  // version-1 file cannot smuggle balances. Versions 2–12 require a valid list;
   // one bad row rejects the whole backup. Versions ≤7 strip purpose and
-  // restriction. Version 8 keeps purpose and strips restriction. Versions 9–11
+  // restriction. Version 8 keeps purpose and strips restriction. Versions 9–12
   // keep purpose and restrictedAmount; rejects invalid optional fields.
   let accounts: FinancialAccount[] = [];
   if (
@@ -741,11 +766,15 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
     raw.version === 8 ||
     raw.version === 9 ||
     raw.version === 10 ||
-    raw.version === 11
+    raw.version === 11 ||
+    raw.version === 12
   ) {
     if (raw.accounts === undefined) return null;
     const parsed =
-      raw.version === 9 || raw.version === 10 || raw.version === 11
+      raw.version === 9 ||
+      raw.version === 10 ||
+      raw.version === 11 ||
+      raw.version === 12
         ? parseArray(raw.accounts, (row) => parseFinancialAccount(row, "strict"))
         : raw.version === 8
           ? parseArray(raw.accounts, (row) => {
@@ -781,6 +810,7 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
   // Versions 1–3 have no protected-designation contract. Force zero even if
   // stray fields are present. Versions 4–11 must include both amounts; a
   // missing field rejects the backup instead of silently dropping a designation.
+  // Version 12 keeps the same contract.
   let openingWealthBuilding = 0;
   let openingEmergencyFund = 0;
   if (
@@ -791,7 +821,8 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
     raw.version === 8 ||
     raw.version === 9 ||
     raw.version === 10 ||
-    raw.version === 11
+    raw.version === 11 ||
+    raw.version === 12
   ) {
     const wealth = nonNegativeMoney(raw.openingWealthBuilding);
     const emergency = nonNegativeMoney(raw.openingEmergencyFund);
@@ -803,6 +834,7 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
   // Versions 1–4 have no recurring-rule contract. Force an empty list even if
   // stray rules are present. Versions 5–11 must include the list; a missing
   // list rejects the backup instead of silently dropping recurrence.
+  // Version 12 keeps the same contract.
   let recurringObligations: RecurringObligation[] = [];
   if (
     raw.version === 5 ||
@@ -811,7 +843,8 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
     raw.version === 8 ||
     raw.version === 9 ||
     raw.version === 10 ||
-    raw.version === 11
+    raw.version === 11 ||
+    raw.version === 12
   ) {
     if (raw.recurringObligations === undefined) return null;
     const parsed = parseArray(raw.recurringObligations, parseRecurringObligation);
@@ -822,6 +855,7 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
   // Versions 1–5 have no monthly-plan contract. Force an empty list even if
   // stray revisions are present. Versions 6–11 must include the list; a missing
   // or corrupt list rejects the backup instead of dropping historical intent.
+  // Version 12 keeps the same contract.
   let monthlyPlans: MonthlyPlanRevision[] = [];
   if (
     raw.version === 6 ||
@@ -829,7 +863,8 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
     raw.version === 8 ||
     raw.version === 9 ||
     raw.version === 10 ||
-    raw.version === 11
+    raw.version === 11 ||
+    raw.version === 12
   ) {
     if (raw.monthlyPlans === undefined) return null;
     const parsed = parseArray(raw.monthlyPlans, parseMonthlyPlanRevision);
@@ -839,7 +874,7 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
 
   // Versions 1–6 have no debt-position epoch contract. Soft-migrate to legacy
   // semantics when debts exist (fail-closed: modeled remaining is NOT treated
-  // as authoritative). Versions 7–11 require explicit epoch fields.
+  // as authoritative). Versions 7–12 require explicit epoch fields.
   let debtSemanticsVersion: 1 | 2 = DEBT_SEMANTICS_LEGACY;
   let debtPositionEpochAt: string | null = null;
   let debtPurposeAttributions: DebtPurposeAttribution[] = [];
@@ -848,7 +883,8 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
     raw.version === 8 ||
     raw.version === 9 ||
     raw.version === 10 ||
-    raw.version === 11
+    raw.version === 11 ||
+    raw.version === 12
   ) {
     if (
       raw.debtSemanticsVersion !== DEBT_SEMANTICS_LEGACY &&
@@ -883,9 +919,9 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
   }
 
   // Versions 1–9 have no pay-schedule contract. Force an empty list even if
-  // stray schedules are present. Versions 10 and 11 must include the list.
+  // stray schedules are present. Versions 10–12 must include the list.
   let paySchedules: PaySchedule[] = [];
-  if (raw.version === 10 || raw.version === 11) {
+  if (raw.version === 10 || raw.version === 11 || raw.version === 12) {
     if (raw.paySchedules === undefined) return null;
     const parsed = parseArray(raw.paySchedules, parsePaySchedule);
     if (!parsed) return null;
@@ -893,11 +929,21 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
   }
 
   let financialTimeZone: string | undefined;
-  if (raw.version === 11 && raw.financialTimeZone !== undefined) {
+  if (
+    (raw.version === 11 || raw.version === 12) &&
+    raw.financialTimeZone !== undefined
+  ) {
     if (typeof raw.financialTimeZone !== "string") return null;
     const zone = canonicalIanaTimeZone(raw.financialTimeZone);
     if (!zone || zone !== raw.financialTimeZone) return null;
     financialTimeZone = zone;
+  }
+
+  let financialDestinations: FinancialDestinationDeclaration[] | undefined;
+  if (raw.version === 12 && raw.financialDestinations !== undefined) {
+    const parsed = parseFinancialDestinations(raw.financialDestinations);
+    if (!parsed || parsed.length === 0) return null;
+    financialDestinations = parsed;
   }
 
   return {
@@ -923,11 +969,13 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
     debtPurposeAttributions,
     paySchedules,
     ...(financialTimeZone ? { financialTimeZone } : {}),
+    ...(financialDestinations ? { financialDestinations } : {}),
   };
 }
 
 export function buildLedgerBackup(state: PersistedState): LedgerBackup {
   const financialTimeZone = readFinancialTimeZone(state.financialTimeZone);
+  const financialDestinations = readFinancialDestinations(state.financialDestinations);
   return {
     version: LEDGER_BACKUP_VERSION,
     exportedAt: new Date().toISOString(),
@@ -951,6 +999,7 @@ export function buildLedgerBackup(state: PersistedState): LedgerBackup {
     debtPurposeAttributions: state.debtPurposeAttributions ?? [],
     paySchedules: state.paySchedules ?? [],
     ...(financialTimeZone ? { financialTimeZone } : {}),
+    ...(financialDestinations ? { financialDestinations } : {}),
   };
 }
 

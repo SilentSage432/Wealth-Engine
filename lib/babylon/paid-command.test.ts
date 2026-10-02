@@ -295,6 +295,18 @@ describe("paidDocumentChangeIsBounded", () => {
       const changed = structuredClone(result.state);
       const bag = changed as unknown as Record<string, unknown>;
       if (key === "financialTimeZone") changed.financialTimeZone = "America/Chicago";
+      else if (key === "financialDestinations") {
+        changed.financialDestinations = [
+          {
+            id: "dest-1",
+            dimension: "owned_emergency_fund",
+            relation: "at_least",
+            amount: 1,
+            declaredAt: "2026-10-01T00:00:00.000Z",
+            supersedesId: null,
+          },
+        ];
+      }
       else if (key === "displayName") changed.displayName = "Changed";
       else if (key === "activityLog") {
         changed.activityLog = [

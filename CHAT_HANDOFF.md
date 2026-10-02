@@ -6,6 +6,8 @@
 **Architecture map:** [`ARCHITECTURE.md`](./ARCHITECTURE.md) — layers, dependency rules, canonical ownership matrix.
 
 ## Current state
+WE-DESTINATION-001 is local and not committed. The steward can declare one Emergency Fund minimum on desktop Financial Position. The comparable reading is owned Emergency Fund position: account-backed `emergency_fund` effective balances plus residual `openingEmergencyFund`. The relationship is below, at or above, or unknown. Unknown does not show a distance. Phone Home and phone Financial Position show that reading and do not author it. Declarations are append-only. Cloud schema stays 6, with `financialDestinations` omitted until one exists. Ledger export is version 12. Attention, Quiet, Direction, and Paid's bounded write are unchanged.
+
 WE-MOBILE-PAID-COMMAND-002 is local and not committed. Mobile Home Due and the mobile ledger mark an unpaid occurrence paid through an authenticated online command. The command settles one acknowledged occurrence, and materializes a derived recurring occurrence only when that single month is still the canonical projection. It does not append activity, submit a replacement vault, or run while offline or signed out. A settled phone row does not offer Reopen. Still upcoming writes nothing. Desktop Paid and Reopen still use `toggleExpenseSettled` and whole-vault sync.
 
 WE-MOBILE-PROJECTION-001 made the phone a portable projection. It keeps position, obligations, budget and plan readings, ledger history, and maintenance. It does not offer record, close, rebase, budget-cap edits, plan or pay-schedule edits, ledger deletes, account edits, or financial-timezone changes. Desktop authoring is unchanged.

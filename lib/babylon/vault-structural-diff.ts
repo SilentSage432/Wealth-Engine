@@ -69,6 +69,7 @@ const PLANNING_COLLECTIONS = [
   { key: "monthlyPlans" as const, label: "Monthly plans" },
   { key: "paySchedules" as const, label: "Expected pay schedules" },
   { key: "periodArchives" as const, label: "Period archives" },
+  { key: "financialDestinations" as const, label: "Emergency Fund destinations" },
 ] as const;
 
 const SYSTEM_COLLECTIONS = [

@@ -12,15 +12,17 @@ import { EXPENSE_SEMANTICS_VERSION, normalizePersistedState } from "@/lib/babylo
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import type { Json, Database } from "@/lib/supabase/database.types";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { PersistedState } from "@/types/babylon";
+import type { FinancialDestinationDeclaration, PersistedState } from "@/types/babylon";
 
 /**
  * Financial document generation. This is backup version 6 generation with
- * soft-added debt-position fields, paySchedules, and an optional
- * financialTimeZone inside vault_data (no schemaVersion bump; no SQL upgrade
- * RPC). Older schema-6 documents missing those soft keys stay readable.
- * financialTimeZone is omitted while unknown so an existing fingerprint does
- * not change until the steward establishes it.
+ * soft-added debt-position fields, paySchedules, an optional
+ * financialTimeZone, and an optional financialDestinations list inside
+ * vault_data (no schemaVersion bump; no SQL upgrade RPC). Older schema-6
+ * documents missing those soft keys stay readable. financialTimeZone is
+ * omitted while unknown, and financialDestinations is omitted while empty,
+ * so an existing fingerprint does not change until the steward establishes
+ * that fact.
  */
 export const CLOUD_VAULT_SCHEMA_VERSION = 6 as const;
 
@@ -70,10 +72,19 @@ const PAY_SCHEDULE_CLOUD_KEYS = ["paySchedules"] as const;
 /** Omitted from the document while the steward has not established a zone. */
 const FINANCIAL_TIME_ZONE_KEY = "financialTimeZone" as const;
 
+/**
+ * Omitted while the steward has declared no destination.
+ * An empty array is not written. Older documents stay byte-stable.
+ */
+const FINANCIAL_DESTINATIONS_KEY = "financialDestinations" as const;
+
 export type CloudVaultData = Pick<
   PersistedState,
   (typeof CLOUD_VAULT_DATA_KEYS)[number]
-> & { financialTimeZone?: string };
+> & {
+  financialTimeZone?: string;
+  financialDestinations?: FinancialDestinationDeclaration[];
+};
 
 export type CloudVaultGetResult =
   | {
@@ -367,10 +378,15 @@ export function serializeCloudVaultData(state: PersistedState): CloudVaultData {
     typeof state.financialTimeZone === "string"
       ? canonicalIanaTimeZone(state.financialTimeZone)
       : null;
+  const destinations = state.financialDestinations;
+  const withDestinations =
+    destinations && destinations.length > 0
+      ? { ...core, financialDestinations: destinations }
+      : core;
   if (zone && zone === state.financialTimeZone) {
-    return { ...core, financialTimeZone: zone };
+    return { ...withDestinations, financialTimeZone: zone };
   }
-  return core;
+  return withDestinations;
 }
 
 /**
@@ -392,6 +408,10 @@ export function parseCloudVaultData(raw: unknown): PersistedState | null {
     raw,
     FINANCIAL_TIME_ZONE_KEY
   );
+  const hasFinancialDestinations = Object.prototype.hasOwnProperty.call(
+    raw,
+    FINANCIAL_DESTINATIONS_KEY
+  );
   // Reject partial debt-key presence (mixed / corrupt).
   if (!hasDebtKeys) {
     for (const key of DEBT_POSITION_CLOUD_KEYS) {
@@ -407,6 +427,9 @@ export function parseCloudVaultData(raw: unknown): PersistedState | null {
   }
   if (hasFinancialTimeZone) {
     expectedKeys = [...expectedKeys, FINANCIAL_TIME_ZONE_KEY];
+  }
+  if (hasFinancialDestinations) {
+    expectedKeys = [...expectedKeys, FINANCIAL_DESTINATIONS_KEY];
   }
   if (keys.length !== expectedKeys.length) return null;
   for (const key of expectedKeys) {
