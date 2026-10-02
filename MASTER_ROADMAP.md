@@ -153,6 +153,7 @@ Canonical map: [`ARCHITECTURE.md`](./ARCHITECTURE.md) (layers, dependency rules,
 | Balance observation and account association | `lib/babylon/balance-observation.ts` |
 | Existing protected money | `lib/babylon/protected-money.ts` |
 | Emergency Fund destination | `lib/babylon/financial-destination.ts` |
+| Wealth Direction | `lib/babylon/financial-direction.ts` |
 | Monthly recurring obligations | `lib/babylon/recurring-obligations.ts` |
 | Finalized monthly intent | `lib/babylon/monthly-plan.ts` (`finalizeMonthlyPlan` on `hooks/useBabylonEngine.ts`). Schema 5 cloud rows become schema 6 only through `upgrade_wealth_engine_vault_schema_5`, which is not applied. WE-PLAN-UI-001 / WE-PLAN-UX-003 is the Overview and phone Budget financial-map ritual (`monthly-plan-panel.tsx`, `monthly-plan-map.ts`). Implementation candidate. Finalization does not update live caps. No historical comparison in this tranche. |
 | Available After Planned Needs | `lib/babylon/available-after-planned-needs.ts` |

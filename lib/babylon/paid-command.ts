@@ -339,4 +339,5 @@ export const PAID_UNCHANGED_DOCUMENT_KEYS = [
   ...CLOUD_VAULT_DATA_KEYS.filter((key) => key !== "expenses"),
   "financialTimeZone",
   "financialDestinations",
+  "financialDirections",
 ] as const;

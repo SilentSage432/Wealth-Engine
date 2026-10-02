@@ -247,7 +247,7 @@ describe("steward financial timezone authority", () => {
       ...historicalVault(),
       financialTimeZone: "America/Boise",
     });
-    expect(current.version).toBe(12);
+    expect(current.version).toBe(13);
     const asVersion11 = validateLedgerBackup({ ...current, version: 11 });
     expect(asVersion11?.version).toBe(11);
     expect(asVersion11?.financialTimeZone).toBe("America/Boise");
@@ -260,7 +260,7 @@ describe("steward financial timezone authority", () => {
       validateLedgerBackup({ ...current, financialTimeZone: " America/Boise " })
     ).toBeNull();
     const unknown = buildLedgerBackup(historicalVault());
-    expect(unknown.version).toBe(12);
+    expect(unknown.version).toBe(13);
     expect(unknown.financialTimeZone).toBeUndefined();
     expect(validateLedgerBackup(unknown)?.financialTimeZone).toBeUndefined();
   });

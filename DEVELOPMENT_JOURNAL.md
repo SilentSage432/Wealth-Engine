@@ -1,5 +1,15 @@
 # Development Journal
 
+## 2026-10-01 — WE-WEALTH-DIRECTION-001 Standing Wealth Direction
+
+- A direction is an append-only steward declaration that a share of new received Wealth Building capacity is intended for the Emergency Fund. The share is integer basis points from 1 through 10000. Wealth Engine does not choose it.
+- The source is `IncomeEntry.wealthShare` from `allocateIncome` on received income, including the debt-free combined wealth share. Expected pay, plans, openings, positions, shield, and month-close surplus are not that capacity. Dollar splits are derived and not stored.
+- Replacing the share appends a declaration. Prior rows stay. `declaredAt` is an absolute instant. Absence is `no_direction`, which is not 0% toward the Emergency Fund. This tranche does not stamp income or allocations and does not claim execution.
+- Cloud schema stays 6. The key is omitted while empty. Ledger export is version 13. Versions 1–12 that contain direction declarations are rejected. Desktop authors the share beside the monthly plan, outside the plan revision. Phone Budget shows the share and does not author it.
+- Attention, Quiet, Destination, 10/20/70, Monthly Plan persistence, and paycheck funding are unchanged. Paid preserves the direction collection.
+- Full suite: 81 files, 1156 tests passed. `tsc --noEmit` passed. ESLint on the edited files passed. Production build passed. `git diff --check` passed.
+- Not committed.
+
 ## 2026-10-01 — WE-DESTINATION-001 Steward-declared Emergency Fund destination
 
 - A destination is an append-only steward declaration that owned Emergency Fund position should be at least a dollar amount the steward enters. Wealth Engine does not calculate that amount.
@@ -8,7 +18,7 @@
 - Replacing the amount appends a declaration. Prior rows stay. `declaredAt` is an absolute instant. Cloud schema stays 6; the key is omitted while empty. Ledger export is version 12. Versions 1–11 that contain destination declarations are rejected.
 - Desktop Financial Position can declare and replace. Phone Home and read-only Financial Position show the relationship and do not author it. Attention, Quiet, Direction, and the Paid command's write boundary are unchanged.
 - Full suite: 79 files, 1141 tests passed. `tsc --noEmit` passed. ESLint on the edited files passed. Production build passed. `git diff --check` passed.
-- Not committed.
+- Committed as `70eec8e`.
 
 ## 2026-10-01 — WE-MOBILE-PAID-COMMAND-002 Bounded canonical Paid
 

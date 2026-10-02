@@ -620,7 +620,7 @@ describe("monthly plan persistence", () => {
     expect(normalizePersistedState(JSON.parse(JSON.stringify(original)))).toEqual(original);
 
     const backup = buildLedgerBackup(original);
-    expect(backup.version).toBe(12);
+    expect(backup.version).toBe(13);
     expect(validateLedgerBackup(backup)?.monthlyPlans).toEqual(original.monthlyPlans);
 
     const storage = new Map<string, string>();

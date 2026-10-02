@@ -12,15 +12,20 @@ import { EXPENSE_SEMANTICS_VERSION, normalizePersistedState } from "@/lib/babylo
 import { getSupabaseBrowserClient } from "@/lib/supabase/client";
 import type { Json, Database } from "@/lib/supabase/database.types";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { FinancialDestinationDeclaration, PersistedState } from "@/types/babylon";
+import type {
+  FinancialDestinationDeclaration,
+  FinancialDirectionDeclaration,
+  PersistedState,
+} from "@/types/babylon";
 
 /**
  * Financial document generation. This is backup version 6 generation with
  * soft-added debt-position fields, paySchedules, an optional
- * financialTimeZone, and an optional financialDestinations list inside
- * vault_data (no schemaVersion bump; no SQL upgrade RPC). Older schema-6
- * documents missing those soft keys stay readable. financialTimeZone is
- * omitted while unknown, and financialDestinations is omitted while empty,
+ * financialTimeZone, an optional financialDestinations list, and an optional
+ * financialDirections list inside vault_data (no schemaVersion bump; no SQL
+ * upgrade RPC). Older schema-6 documents missing those soft keys stay
+ * readable. financialTimeZone is omitted while unknown, and
+ * financialDestinations and financialDirections are omitted while empty,
  * so an existing fingerprint does not change until the steward establishes
  * that fact.
  */
@@ -78,12 +83,19 @@ const FINANCIAL_TIME_ZONE_KEY = "financialTimeZone" as const;
  */
 const FINANCIAL_DESTINATIONS_KEY = "financialDestinations" as const;
 
+/**
+ * Omitted while the steward has declared no direction.
+ * An empty array is not written. Older documents stay byte-stable.
+ */
+const FINANCIAL_DIRECTIONS_KEY = "financialDirections" as const;
+
 export type CloudVaultData = Pick<
   PersistedState,
   (typeof CLOUD_VAULT_DATA_KEYS)[number]
 > & {
   financialTimeZone?: string;
   financialDestinations?: FinancialDestinationDeclaration[];
+  financialDirections?: FinancialDirectionDeclaration[];
 };
 
 export type CloudVaultGetResult =
@@ -383,10 +395,15 @@ export function serializeCloudVaultData(state: PersistedState): CloudVaultData {
     destinations && destinations.length > 0
       ? { ...core, financialDestinations: destinations }
       : core;
+  const directions = state.financialDirections;
+  const withDirections =
+    directions && directions.length > 0
+      ? { ...withDestinations, financialDirections: directions }
+      : withDestinations;
   if (zone && zone === state.financialTimeZone) {
-    return { ...withDestinations, financialTimeZone: zone };
+    return { ...withDirections, financialTimeZone: zone };
   }
-  return withDestinations;
+  return withDirections;
 }
 
 /**
@@ -412,6 +429,10 @@ export function parseCloudVaultData(raw: unknown): PersistedState | null {
     raw,
     FINANCIAL_DESTINATIONS_KEY
   );
+  const hasFinancialDirections = Object.prototype.hasOwnProperty.call(
+    raw,
+    FINANCIAL_DIRECTIONS_KEY
+  );
   // Reject partial debt-key presence (mixed / corrupt).
   if (!hasDebtKeys) {
     for (const key of DEBT_POSITION_CLOUD_KEYS) {
@@ -430,6 +451,9 @@ export function parseCloudVaultData(raw: unknown): PersistedState | null {
   }
   if (hasFinancialDestinations) {
     expectedKeys = [...expectedKeys, FINANCIAL_DESTINATIONS_KEY];
+  }
+  if (hasFinancialDirections) {
+    expectedKeys = [...expectedKeys, FINANCIAL_DIRECTIONS_KEY];
   }
   if (keys.length !== expectedKeys.length) return null;
   for (const key of expectedKeys) {

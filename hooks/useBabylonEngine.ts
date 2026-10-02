@@ -13,6 +13,10 @@ import {
   ownedEmergencyFundPosition,
 } from "@/lib/babylon/financial-destination";
 import {
+  appendEmergencyFundDirection,
+  wealthDirectionState,
+} from "@/lib/babylon/financial-direction";
+import {
   currentEmergencyFundPosition,
   currentWealthBuildingPosition,
   isFirstPurposeDesignation,
@@ -187,6 +191,7 @@ import type {
   PaySchedule,
   PeriodArchive,
   FinancialDestinationDeclaration,
+  FinancialDirectionDeclaration,
   PersistedState,
   RecurringObligation,
   SurplusDisposition,
@@ -235,6 +240,10 @@ export function useBabylonEngine() {
   /** Empty means the steward has declared no destination. */
   const [financialDestinations, setFinancialDestinations] = useState<
     FinancialDestinationDeclaration[]
+  >([]);
+  /** Empty means the steward has declared no direction. */
+  const [financialDirections, setFinancialDirections] = useState<
+    FinancialDirectionDeclaration[]
   >([]);
   const financialTimeZoneRef = useRef(financialTimeZone);
   financialTimeZoneRef.current = financialTimeZone;
@@ -349,6 +358,7 @@ export function useBabylonEngine() {
     setPaySchedules(stored.paySchedules);
     setFinancialTimeZone(stored.financialTimeZone);
     setFinancialDestinations(stored.financialDestinations ?? []);
+    setFinancialDirections(stored.financialDirections ?? []);
     setUsernameState(loadUsername(stored.displayName));
     try {
       setIsDiscreetMode(
@@ -437,6 +447,7 @@ export function useBabylonEngine() {
       paySchedules,
       ...(financialTimeZone ? { financialTimeZone } : {}),
       ...(financialDestinations.length > 0 ? { financialDestinations } : {}),
+      ...(financialDirections.length > 0 ? { financialDirections } : {}),
     };
     savePersistedState(payload);
   }, [
@@ -463,6 +474,7 @@ export function useBabylonEngine() {
     paySchedules,
     financialTimeZone,
     financialDestinations,
+    financialDirections,
   ]);
 
   const vaultSnapshot = useMemo<PersistedState>(
@@ -489,6 +501,7 @@ export function useBabylonEngine() {
       paySchedules,
       ...(financialTimeZone ? { financialTimeZone } : {}),
       ...(financialDestinations.length > 0 ? { financialDestinations } : {}),
+      ...(financialDirections.length > 0 ? { financialDirections } : {}),
     }),
     [
       incomes,
@@ -513,6 +526,7 @@ export function useBabylonEngine() {
       paySchedules,
       financialTimeZone,
       financialDestinations,
+      financialDirections,
     ]
   );
   const vaultRef = useRef(vaultSnapshot);
@@ -558,6 +572,7 @@ export function useBabylonEngine() {
     setPaySchedules(next.paySchedules);
     setFinancialTimeZone(next.financialTimeZone);
     setFinancialDestinations(next.financialDestinations ?? []);
+    setFinancialDirections(next.financialDirections ?? []);
     setUsernameState(next.displayName);
   }, []);
 
@@ -1028,6 +1043,26 @@ export function useBabylonEngine() {
       return null;
     },
     [financialDestinations]
+  );
+
+  const wealthDirection = useMemo(
+    () => wealthDirectionState(financialDirections),
+    [financialDirections]
+  );
+
+  const declareWealthDirection = useCallback(
+    (input: { basisPoints: number }): string | null => {
+      const result = appendEmergencyFundDirection({
+        declarations: financialDirections,
+        id: generateId(),
+        basisPoints: input.basisPoints,
+        declaredAt: new Date().toISOString(),
+      });
+      if (!result.ok) return result.reason;
+      setFinancialDirections(result.declarations);
+      return null;
+    },
+    [financialDirections]
   );
 
   const lifetimeActual = useMemo(
@@ -1902,6 +1937,7 @@ export function useBabylonEngine() {
     setPaySchedules([]);
     setFinancialTimeZone(undefined);
     setFinancialDestinations([]);
+    setFinancialDirections([]);
     setUsernameState("");
     setTributeOpen(false);
     setTributeMode("income");
@@ -1934,6 +1970,7 @@ export function useBabylonEngine() {
       paySchedules,
       ...(financialTimeZone ? { financialTimeZone } : {}),
       ...(financialDestinations.length > 0 ? { financialDestinations } : {}),
+      ...(financialDirections.length > 0 ? { financialDirections } : {}),
     });
     const blob = new Blob([JSON.stringify(backup, null, 2)], {
       type: "application/json",
@@ -1970,6 +2007,7 @@ export function useBabylonEngine() {
     paySchedules,
     financialTimeZone,
     financialDestinations,
+    financialDirections,
   ]);
 
   const importBackup = useCallback((raw: unknown): string | null => {
@@ -2005,6 +2043,7 @@ export function useBabylonEngine() {
       paySchedules: backup.paySchedules ?? [],
       ...(backup.financialTimeZone ? { financialTimeZone: backup.financialTimeZone } : {}),
       ...(backup.financialDestinations ? { financialDestinations: backup.financialDestinations } : {}),
+      ...(backup.financialDirections ? { financialDirections: backup.financialDirections } : {}),
     };
 
     applyVault(next);
@@ -2802,6 +2841,8 @@ export function useBabylonEngine() {
     protectedOverAvailable,
     emergencyFundDestination,
     declareEmergencyFundDestination,
+    wealthDirection,
+    declareWealthDirection,
     debtAllocated,
     expenditurePool,
     totalSpent,

@@ -573,6 +573,23 @@ export interface DebtPurposeAttribution {
  * Append-only. The current declaration is the tail of the supersession chain.
  * declaredAt is an absolute instant. It is not a financial civil date.
  */
+/**
+ * One steward-authored direction declaration.
+ * Append-only. The current declaration is the tail of the supersession chain.
+ * declaredAt is an absolute instant. It is not a financial civil date.
+ * basisPoints is the share of new received Wealth Building capacity.
+ */
+export interface FinancialDirectionDeclaration {
+  id: string;
+  purpose: "emergency_fund";
+  /** Integer share from 1 through 10000. 10000 is the entire capacity. */
+  basisPoints: number;
+  /** Absolute UTC instant (Date.toISOString). */
+  declaredAt: string;
+  /** Null on the first declaration. Otherwise the id this declaration replaces. */
+  supersedesId: string | null;
+}
+
 export interface FinancialDestinationDeclaration {
   id: string;
   dimension: "owned_emergency_fund";
@@ -661,6 +678,12 @@ export interface PersistedState {
    * Absent means none. Not inferred from balances, allocations, or plans.
    */
   financialDestinations?: FinancialDestinationDeclaration[];
+  /**
+   * Append-only steward direction declarations.
+   * Absent means no direction. Not inferred from a destination, a balance,
+   * or an allocation. Not 0% toward the Emergency Fund.
+   */
+  financialDirections?: FinancialDirectionDeclaration[];
 }
 
 export interface ChartMonthPoint {
@@ -735,8 +758,11 @@ export interface ExpenseInput {
  * Version 12 may store financialDestinations. Older builds reject version 12
  * instead of dropping destination history. Absence on version 12 means none.
  * A version 1–11 file that contains financialDestinations is rejected.
+ * Version 13 may store financialDirections. Older builds reject version 13
+ * instead of dropping direction history. Absence on version 13 means none.
+ * A version 1–12 file that contains financialDirections is rejected.
  */
-export type LedgerBackupVersion = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12;
+export type LedgerBackupVersion = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13;
 
 export interface LedgerBackup {
   version: LedgerBackupVersion;
@@ -769,13 +795,18 @@ export interface LedgerBackup {
   debtPurposeAttributions?: DebtPurposeAttribution[];
   /** Present on version 10. Earlier versions import as []. */
   paySchedules?: PaySchedule[];
-  /** Present on version 11 or 12 when the steward has established it. Absence is UNKNOWN. */
+  /** Present on version 11, 12, or 13 when the steward has established it. Absence is UNKNOWN. */
   financialTimeZone?: string;
   /**
-   * Present on version 12 when the steward has declared a destination.
+   * Present on version 12 or 13 when the steward has declared a destination.
    * Absence means none. An empty array is not the canonical form.
    */
   financialDestinations?: FinancialDestinationDeclaration[];
+  /**
+   * Present on version 13 when the steward has declared a direction.
+   * Absence means none. An empty array is not the canonical form.
+   */
+  financialDirections?: FinancialDirectionDeclaration[];
 }
 
 export interface AffordabilitySnapshot {

@@ -16,6 +16,10 @@ import {
   type PhoneBudgetDeeper,
 } from "@/lib/babylon/mobile-budget";
 import { formatCurrency } from "@/lib/utils";
+import {
+  formatDirectionShare,
+  type WealthDirectionState,
+} from "@/lib/babylon/financial-direction";
 import type {
   BudgetCategoryVariance,
   BudgetTarget,
@@ -53,6 +57,7 @@ interface MobileBudgetProps {
   desiresPoolRemaining: number;
   hourlyLaborRate: number;
   monthlyPlan?: ReactNode;
+  wealthDirection?: WealthDirectionState;
 }
 
 function SectionLabel({ children }: { children: string }) {
@@ -90,6 +95,7 @@ export function MobileBudget({
   desiresPoolRemaining,
   hourlyLaborRate,
   monthlyPlan,
+  wealthDirection = { status: "no_direction" },
 }: MobileBudgetProps) {
   const [deeper, setDeeper] = useState<PhoneBudgetDeeper | null>(null);
   const [showDebtChart, setShowDebtChart] = useState(false);
@@ -155,6 +161,19 @@ export function MobileBudget({
                     FINANCIAL_CALENDAR_UNKNOWN
                   )}
                 </p>
+                {wealthDirection.status === "valid_direction" ? (
+                  <p className="mt-1 text-xs leading-relaxed text-slate-500">
+                    {formatDirectionShare(wealthDirection.declaration.basisPoints)} of
+                    new received Wealth Building capacity is intended for the
+                    Emergency Fund. The rest remains Wealth Building. This is
+                    intent, not proof money moved.
+                  </p>
+                ) : null}
+                {wealthDirection.status === "invalid" ? (
+                  <p className="mt-1 text-xs leading-relaxed text-slate-500">
+                    This direction is not stated.
+                  </p>
+                ) : null}
               </li>
               <li>
                 <div className="flex items-baseline justify-between gap-3">

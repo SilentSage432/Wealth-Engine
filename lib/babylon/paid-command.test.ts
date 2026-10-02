@@ -307,6 +307,17 @@ describe("paidDocumentChangeIsBounded", () => {
           },
         ];
       }
+      else if (key === "financialDirections") {
+        changed.financialDirections = [
+          {
+            id: "dir-1",
+            purpose: "emergency_fund",
+            basisPoints: 5000,
+            declaredAt: "2026-10-01T00:00:00.000Z",
+            supersedesId: null,
+          },
+        ];
+      }
       else if (key === "displayName") changed.displayName = "Changed";
       else if (key === "activityLog") {
         changed.activityLog = [
@@ -331,6 +342,30 @@ describe("paidDocumentChangeIsBounded", () => {
     const renamed = structuredClone(result.state);
     renamed.expenses[0] = { ...renamed.expenses[0], name: "Other" };
     expect(paidDocumentChangeIsBounded(state, renamed, "groceries")).toBe(false);
+  });
+
+  it("preserves an existing direction history when marking one occurrence paid", () => {
+    const directions = [
+      {
+        id: "dir-1",
+        purpose: "emergency_fund" as const,
+        basisPoints: 4000,
+        declaredAt: "2026-10-01T00:00:00.000Z",
+        supersedesId: null,
+      },
+    ];
+    const state = richState({ financialDirections: directions });
+    const result = transitionOccurrencePaid({
+      state,
+      occurrenceId: "groceries",
+      preimage: acknowledged(expense()),
+      commitInstant: OCTOBER_FIRST,
+    });
+    expect(result.status).toBe("paid");
+    if (result.status !== "paid") return;
+    expect(result.state.financialDirections).toEqual(directions);
+    expect(result.state.financialDirections?.[0]).toBeDefined();
+    expect(paidDocumentChangeIsBounded(state, result.state, "groceries")).toBe(true);
   });
 });
 

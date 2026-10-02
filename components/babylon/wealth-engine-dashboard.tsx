@@ -18,6 +18,7 @@ import { MobileHeader } from "@/components/babylon/mobile-header";
 import { MobileHome } from "@/components/babylon/mobile-home";
 import { MobileLedger } from "@/components/babylon/mobile-ledger";
 import { MonthlyPlanPanel } from "@/components/babylon/monthly-plan-panel";
+import { WealthDirectionPanel } from "@/components/babylon/wealth-direction";
 import { MobileMore } from "@/components/babylon/mobile-more";
 import { QuickStats } from "@/components/babylon/quick-stats";
 import { SecurityGate } from "@/components/babylon/security-gate.client";
@@ -437,6 +438,7 @@ export function WealthEngineDashboard() {
                 currentMonthRemaining={engine.currentMonthRemaining}
                 calendarKnown={engine.financialCalendarKnown}
                 monthlyPlan={monthlyPlan}
+                wealthDirection={engine.wealthDirection}
                 tributeSnapshot={engine.tributeEngines}
                 desiresPoolRemaining={engine.desiresPoolRemaining}
                 hourlyLaborRate={engine.hourlyLaborRate}
@@ -537,6 +539,16 @@ export function WealthEngineDashboard() {
                         disclosure
                         calendarKnown={engine.financialCalendarKnown}
                         snapshot={engine.tributeEngines}
+                      />
+                      <WealthDirectionPanel
+                        direction={engine.wealthDirection}
+                        authoring
+                        onDeclare={engine.declareWealthDirection}
+                        destinationAmount={
+                          engine.emergencyFundDestination.status === "no_destination"
+                            ? null
+                            : engine.emergencyFundDestination.declaration?.amount ?? null
+                        }
                       />
                       {monthlyPlan}
                       {budgetBlueprint}

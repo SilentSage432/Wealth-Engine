@@ -466,7 +466,7 @@ describe("attention wiring", () => {
     expect(attention).not.toContain("toISOString");
     expect(attention).not.toContain("Date.UTC");
     expect(attention).not.toContain("plaid");
-    expect(LEDGER_BACKUP_VERSION).toBe(12);
+    expect(LEDGER_BACKUP_VERSION).toBe(13);
     expect(CLOUD_VAULT_SCHEMA_VERSION).toBe(6);
   });
 });

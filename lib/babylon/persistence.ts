@@ -19,6 +19,7 @@ import {
 } from "@/lib/babylon/financial-position";
 import { canonicalIanaTimeZone } from "@/lib/babylon/civil-time";
 import { parseFinancialDestinations } from "@/lib/babylon/financial-destination";
+import { parseFinancialDirections } from "@/lib/babylon/financial-direction";
 import { parsePaySchedule } from "@/lib/babylon/pay-schedule";
 import type {
   AllocationEvent,
@@ -36,6 +37,7 @@ import type {
   IncomeStreamKind,
   LedgerBackup,
   FinancialDestinationDeclaration,
+  FinancialDirectionDeclaration,
   MonthlyPlanRevision,
   PaySchedule,
   PeriodArchive,
@@ -44,8 +46,8 @@ import type {
   SurplusDisposition,
 } from "@/types/babylon";
 
-/** Current export version. Version 12 may store financialDestinations. Version 11 may store financialTimeZone. */
-export const LEDGER_BACKUP_VERSION = 12 as const;
+/** Current export version. Version 13 may store financialDirections. Version 12 may store financialDestinations. Version 11 may store financialTimeZone. */
+export const LEDGER_BACKUP_VERSION = 13 as const;
 
 /** Local vault marker. 2 means `isSettled: false` is an Upcoming obligation. */
 export const EXPENSE_SEMANTICS_VERSION = 2 as const;
@@ -573,6 +575,7 @@ export function normalizePersistedState(raw: unknown): PersistedState {
 
   const financialTimeZone = readFinancialTimeZone(raw.financialTimeZone);
   const financialDestinations = readFinancialDestinations(raw.financialDestinations);
+  const financialDirections = readFinancialDirections(raw.financialDirections);
 
   const debtSemanticsVersion = resolveDebtSemanticsVersion(
     raw.debtSemanticsVersion,
@@ -619,6 +622,7 @@ export function normalizePersistedState(raw: unknown): PersistedState {
     paySchedules,
     ...(financialTimeZone ? { financialTimeZone } : {}),
     ...(financialDestinations ? { financialDestinations } : {}),
+    ...(financialDirections ? { financialDirections } : {}),
   };
 }
 
@@ -645,6 +649,15 @@ function readFinancialDestinations(
   return parsed;
 }
 
+function readFinancialDirections(
+  value: unknown
+): FinancialDirectionDeclaration[] | undefined {
+  if (value === undefined) return undefined;
+  const parsed = parseFinancialDirections(value);
+  if (!parsed || parsed.length === 0) return undefined;
+  return parsed;
+}
+
 /**
  * Strict backup validation — rejects the entire payload if any row fails schema.
  * Prevents partial / corrupt imports from crashing the dashboard.
@@ -664,13 +677,21 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
     raw.version !== 9 &&
     raw.version !== 10 &&
     raw.version !== 11 &&
-    raw.version !== 12
+    raw.version !== 12 &&
+    raw.version !== 13
   ) {
     return null;
   }
   if (
     raw.version !== 12 &&
+    raw.version !== 13 &&
     Object.prototype.hasOwnProperty.call(raw, "financialDestinations")
+  ) {
+    return null;
+  }
+  if (
+    raw.version !== 13 &&
+    Object.prototype.hasOwnProperty.call(raw, "financialDirections")
   ) {
     return null;
   }
@@ -694,7 +715,7 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
     raw.version === 9 ||
     raw.version === 10 ||
     raw.version === 11 ||
-    raw.version === 12
+    raw.version === 12 || raw.version === 13
       ? expenses
       : settleLegacyExpenses(expenses);
 
@@ -767,14 +788,14 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
     raw.version === 9 ||
     raw.version === 10 ||
     raw.version === 11 ||
-    raw.version === 12
+    raw.version === 12 || raw.version === 13
   ) {
     if (raw.accounts === undefined) return null;
     const parsed =
       raw.version === 9 ||
       raw.version === 10 ||
       raw.version === 11 ||
-      raw.version === 12
+      raw.version === 12 || raw.version === 13
         ? parseArray(raw.accounts, (row) => parseFinancialAccount(row, "strict"))
         : raw.version === 8
           ? parseArray(raw.accounts, (row) => {
@@ -822,7 +843,7 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
     raw.version === 9 ||
     raw.version === 10 ||
     raw.version === 11 ||
-    raw.version === 12
+    raw.version === 12 || raw.version === 13
   ) {
     const wealth = nonNegativeMoney(raw.openingWealthBuilding);
     const emergency = nonNegativeMoney(raw.openingEmergencyFund);
@@ -844,7 +865,7 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
     raw.version === 9 ||
     raw.version === 10 ||
     raw.version === 11 ||
-    raw.version === 12
+    raw.version === 12 || raw.version === 13
   ) {
     if (raw.recurringObligations === undefined) return null;
     const parsed = parseArray(raw.recurringObligations, parseRecurringObligation);
@@ -864,7 +885,7 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
     raw.version === 9 ||
     raw.version === 10 ||
     raw.version === 11 ||
-    raw.version === 12
+    raw.version === 12 || raw.version === 13
   ) {
     if (raw.monthlyPlans === undefined) return null;
     const parsed = parseArray(raw.monthlyPlans, parseMonthlyPlanRevision);
@@ -884,7 +905,7 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
     raw.version === 9 ||
     raw.version === 10 ||
     raw.version === 11 ||
-    raw.version === 12
+    raw.version === 12 || raw.version === 13
   ) {
     if (
       raw.debtSemanticsVersion !== DEBT_SEMANTICS_LEGACY &&
@@ -921,7 +942,7 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
   // Versions 1–9 have no pay-schedule contract. Force an empty list even if
   // stray schedules are present. Versions 10–12 must include the list.
   let paySchedules: PaySchedule[] = [];
-  if (raw.version === 10 || raw.version === 11 || raw.version === 12) {
+  if (raw.version === 10 || raw.version === 11 || raw.version === 12 || raw.version === 13) {
     if (raw.paySchedules === undefined) return null;
     const parsed = parseArray(raw.paySchedules, parsePaySchedule);
     if (!parsed) return null;
@@ -930,7 +951,7 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
 
   let financialTimeZone: string | undefined;
   if (
-    (raw.version === 11 || raw.version === 12) &&
+    (raw.version === 11 || raw.version === 12 || raw.version === 13) &&
     raw.financialTimeZone !== undefined
   ) {
     if (typeof raw.financialTimeZone !== "string") return null;
@@ -940,10 +961,17 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
   }
 
   let financialDestinations: FinancialDestinationDeclaration[] | undefined;
-  if (raw.version === 12 && raw.financialDestinations !== undefined) {
+  if ((raw.version === 12 || raw.version === 13) && raw.financialDestinations !== undefined) {
     const parsed = parseFinancialDestinations(raw.financialDestinations);
     if (!parsed || parsed.length === 0) return null;
     financialDestinations = parsed;
+  }
+
+  let financialDirections: FinancialDirectionDeclaration[] | undefined;
+  if (raw.version === 13 && raw.financialDirections !== undefined) {
+    const parsed = parseFinancialDirections(raw.financialDirections);
+    if (!parsed || parsed.length === 0) return null;
+    financialDirections = parsed;
   }
 
   return {
@@ -970,12 +998,14 @@ export function validateLedgerBackup(raw: unknown): LedgerBackup | null {
     paySchedules,
     ...(financialTimeZone ? { financialTimeZone } : {}),
     ...(financialDestinations ? { financialDestinations } : {}),
+    ...(financialDirections ? { financialDirections } : {}),
   };
 }
 
 export function buildLedgerBackup(state: PersistedState): LedgerBackup {
   const financialTimeZone = readFinancialTimeZone(state.financialTimeZone);
   const financialDestinations = readFinancialDestinations(state.financialDestinations);
+  const financialDirections = readFinancialDirections(state.financialDirections);
   return {
     version: LEDGER_BACKUP_VERSION,
     exportedAt: new Date().toISOString(),
@@ -1000,6 +1030,7 @@ export function buildLedgerBackup(state: PersistedState): LedgerBackup {
     paySchedules: state.paySchedules ?? [],
     ...(financialTimeZone ? { financialTimeZone } : {}),
     ...(financialDestinations ? { financialDestinations } : {}),
+    ...(financialDirections ? { financialDirections } : {}),
   };
 }
 

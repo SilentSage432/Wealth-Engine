@@ -628,8 +628,8 @@ describe("revision sync", () => {
     expect(readCloudSyncBaseline(store)?.revision).toBe(1);
     expect(CLOUD_SYNC_STORAGE_KEY).not.toBe("wealth-engine-babylon-v2");
     const backup = buildLedgerBackup(local);
-    expect(backup.version).toBe(12);
-    expect(LEDGER_BACKUP_VERSION).toBe(12);
+    expect(backup.version).toBe(13);
+    expect(LEDGER_BACKUP_VERSION).toBe(13);
     expect(backup).not.toHaveProperty("fingerprint");
     expect(backup).not.toHaveProperty("revision");
     expect(CLOUD_VAULT_DATA_KEYS).not.toContain("fingerprint");

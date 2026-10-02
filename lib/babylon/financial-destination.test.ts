@@ -400,8 +400,8 @@ describe("destination persistence", () => {
 });
 
 describe("destination backup", () => {
-  it("exports version 12 and round-trips destination history", () => {
-    expect(LEDGER_BACKUP_VERSION).toBe(12);
+  it("exports the current backup version and round-trips destination history", () => {
+    expect(LEDGER_BACKUP_VERSION).toBe(13);
     const state: PersistedState = {
       ...EMPTY_STATE,
       financialDestinations: [
@@ -415,7 +415,7 @@ describe("destination backup", () => {
       ],
     };
     const backup = buildLedgerBackup(state);
-    expect(backup.version).toBe(12);
+    expect(backup.version).toBe(13);
     expect(backup.financialDestinations).toEqual(state.financialDestinations);
     expect(validateLedgerBackup(backup)?.financialDestinations).toEqual(
       state.financialDestinations
@@ -439,7 +439,7 @@ describe("destination backup", () => {
     ).toBeNull();
   });
 
-  it("rejects a malformed version 12 destination list", () => {
+  it("rejects a malformed destination list on the current backup", () => {
     const current = buildLedgerBackup(EMPTY_STATE);
     expect(
       validateLedgerBackup({

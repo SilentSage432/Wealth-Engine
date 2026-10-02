@@ -378,7 +378,7 @@ describe("restriction removal", () => {
 
 describe("persistence backup v10", () => {
   it("exports version 10 and keeps cloud schema 6 and IC v3", () => {
-    expect(LEDGER_BACKUP_VERSION).toBe(12);
+    expect(LEDGER_BACKUP_VERSION).toBe(13);
     expect(CLOUD_VAULT_SCHEMA_VERSION).toBe(6);
     expect(INTELLIGENCE_CONTRACT_VERSION).toBe("4");
     const backup = buildLedgerBackup({
@@ -391,7 +391,7 @@ describe("persistence backup v10", () => {
         }),
       ],
     });
-    expect(backup.version).toBe(12);
+    expect(backup.version).toBe(13);
     expect(backup.accounts?.[0]?.restrictedAmount).toBe(2000);
   });
 
