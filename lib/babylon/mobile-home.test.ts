@@ -194,7 +194,8 @@ describe("phone Home source boundaries", () => {
     expect(headerSource).toContain("onToggleDiscreetMode");
     expect(desktopBlock).toContain("financialPosition");
     expect(desktopBlock).toContain("upcomingNeedsCard");
-    expect(desktopBlock).toContain("focusCards");
+    expect(desktopBlock).not.toContain("focusCards");
+    expect(desktopBlock).not.toContain("SpendingPowerFocus");
     expect(desktopBlock).toContain("triad");
     expect(desktopBlock).toContain("banksCard");
     expect(desktopBlock).toContain("debtFreedom");

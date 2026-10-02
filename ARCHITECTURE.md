@@ -142,11 +142,11 @@ This is the heart of Wealth Engine.
 - 10 / 20 / 70 allocation
 - Budget variance and planned-cap scaling math
 - Wealth, debt, and expenditure calculations
-- Affordability Anchor computations
+- Wants-pool share of a prospective purchase (`desiresPoolSharePct`, `computeDesiresPoolRemaining`)
 - Tribute engine aggregations rooted in domain classification
 - 10/20/70 financial rules expressed as pure, testable logic
 
-Allocation shares are penny-exact: wealth + debt + expenditure equals the gross deposit, including when the 20% redirects into wealth. `todayIso` is the user's local calendar day. The labor rate used by Affordability Anchor is the latest recurring deposit per income `source`, not the sum of historical deposits.
+Allocation shares are penny-exact: wealth + debt + expenditure equals the gross deposit, including when the 20% redirects into wealth. `todayIso` is the user's local calendar day.
 
 ### Allocation ≠ Execution (WE-ALLOCATION-EXECUTION-002 / 005)
 

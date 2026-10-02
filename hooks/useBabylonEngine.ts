@@ -99,7 +99,6 @@ import {
   markExpensePaid,
   monthKeyFromDate,
   nextMonthKey,
-  primaryHourlyRate,
   resolveSurplusDisposition,
   reverseDebtAllocation,
   roundMoney,
@@ -1240,9 +1239,6 @@ export function useBabylonEngine() {
       essentialPlannedTotal,
     ]
   );
-
-  /** Primary labor hourly rate for Affordability Anchor. */
-  const hourlyLaborRate = useMemo(() => primaryHourlyRate(incomes), [incomes]);
 
   const tributeEngines = useMemo(() => {
     if (!currentMonthKey) {
@@ -2885,7 +2881,6 @@ export function useBabylonEngine() {
     budgetPlannedTotal,
     budgetActualTotal,
     currentMonthExpenditurePool,
-    hourlyLaborRate,
     chartData,
     wealthSpark,
     donutData,

@@ -17,7 +17,7 @@ A personal ledger that splits income 10% to Wealth Building, 20% to Debt Payoff,
 
 ## Phase 2 — Depth (Complete)
 - [x] Ledger export / import
-- [x] Affordability Anchor (money left for wants + labor hours)
+- [x] Affordability Anchor purchase test (share of money left for wants). Labor-hour conversion removed in WE-AFFORDABILITY-ANCHOR-REMOVE-001
 - [x] Expense due dates + due-soon indicator
 - [x] Budget Blueprint (planned caps + Planned vs. Actual within 70%)
 - [x] User-configured budget categories (`addBudgetTarget` via Add)
@@ -89,6 +89,7 @@ A personal ledger that splits income 10% to Wealth Building, 20% to Debt Payoff,
 - [x] WE-IDENTITY-UX-001 — steward name configuration on management surfaces (sidebar / phone More); primary headers present greeting only
 - [x] WE-VISUAL-ICONS-001 — Quick Add used lucide-react vector icons (no emoji application icons); later removed in WE-UX-CLEANUP-001
 - [x] WE-UX-CLEANUP-001 — desktop Overview Quick Add strip removed. Header Add stays. Add income and add expense stay. No financial, sync, or schema change
+- [x] WE-AFFORDABILITY-ANCHOR-REMOVE-001 — unsupported labor-hour claims removed from desktop Overview, phone Budget, and the purchase test. The wants-pool percentage stays. Income history, 10/20/70, Living Budget, cloud schema 6, and backup version 13 stay
 - [x] WE-UX-HIERARCHY-001 — Financial Position explanation starts closed on desktop Overview and phone Home. Readings, shortfall, and non-fresh evidence stay visible. No calculation, sync, or schema change
 - [x] WE-UX-HIERARCHY-002 — Desktop Overview secondary stack starts closed: income breakdown, charts, recent activity, lifetime stats, guidance quote, purchase test, and a healthy bank connection. Summaries stay visible. Repair and empty/signed-out/loading bank states stay open. Phone surfaces unchanged. No calculation, sync, or schema change
 - [x] WE-UX-HIERARCHY-003 — Desktop Overview account machinery starts closed for a known account list. The summary shows account count, Liquid Position, and non-fresh evidence. Restriction, unknown-balance, and negative-reading attention stay visible. Phone More stays open. No calculation, sync, or schema change

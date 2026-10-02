@@ -261,7 +261,6 @@ describe("desktop Overview secondary disclosure", () => {
       createElement(AffordabilityAnchor, {
         disclosure: true,
         desiresPoolRemaining: 50,
-        hourlyLaborRate: 25,
       })
     );
     const control = toggle(/Affordability Anchor/);
@@ -277,7 +276,10 @@ describe("desktop Overview secondary disclosure", () => {
 
     fireEvent.click(control);
     expect(input.value).toBe("42.5");
-    expect(shows("Main income hours")).toBe(true);
+    expect(shows("Of money left for wants")).toBe(true);
+    expect(shows("85%")).toBe(true);
+    expect(shows("Main income hours")).toBe(false);
+    expect(screen.queryByText(/\/hr/)).toBeNull();
     fireEvent.click(control);
     expect(control.getAttribute("aria-expanded")).toBe("false");
     expect(input.value).toBe("42.5");
@@ -379,7 +381,6 @@ describe("desktop Overview composition", () => {
       "{debtRebaseBanner}",
       "{financialPosition}",
       "{upcomingNeedsCard}",
-      "{focusCards}",
       "{triad}",
       "{banksCard}",
       "{debtFreedom}",

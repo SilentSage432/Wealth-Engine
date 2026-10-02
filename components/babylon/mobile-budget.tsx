@@ -10,7 +10,6 @@ import { BudgetBlueprint } from "@/components/dashboard/BudgetBlueprint";
 import { TributeEnginesPanel } from "@/components/dashboard/TributeEnginesPanel";
 import { FINANCIAL_CALENDAR_UNKNOWN } from "@/lib/babylon/civil-time";
 import { formatDiscreetCurrency } from "@/lib/babylon/discreet";
-import { laborHoursForAmount } from "@/lib/babylon/engine";
 import {
   phoneBudgetDebtShareNote,
   type PhoneBudgetDeeper,
@@ -55,7 +54,6 @@ interface MobileBudgetProps {
   currentMonthRemaining: number;
   tributeSnapshot: TributeEngineSnapshot;
   desiresPoolRemaining: number;
-  hourlyLaborRate: number;
   monthlyPlan?: ReactNode;
   wealthDirection?: WealthDirectionState;
 }
@@ -93,7 +91,6 @@ export function MobileBudget({
   currentMonthRemaining,
   tributeSnapshot,
   desiresPoolRemaining,
-  hourlyLaborRate,
   monthlyPlan,
   wealthDirection = { status: "no_direction" },
 }: MobileBudgetProps) {
@@ -101,10 +98,6 @@ export function MobileBudget({
   const [showDebtChart, setShowDebtChart] = useState(false);
   const money = (value: number) =>
     formatDiscreetCurrency(value, discreet, formatCurrency);
-  const laborHours = laborHoursForAmount(
-    expenditureRemaining,
-    hourlyLaborRate
-  );
 
   const toggleDeeper = (panel: PhoneBudgetDeeper) => {
     setDeeper((current) => (current === panel ? null : panel));
@@ -124,11 +117,6 @@ export function MobileBudget({
               {expenditureRemainingPct}% left. {money(totalSpent)} spent of{" "}
               {money(expenditurePool)} this month.
             </p>
-            ) : null}
-            {calendarKnown && laborHours !== null ? (
-              <p className="mt-1 text-xs leading-relaxed text-slate-500">
-                About {laborHours} hours of main income.
-              </p>
             ) : null}
           </CardContent>
         </Card>
@@ -293,7 +281,6 @@ export function MobileBudget({
                 calendarKnown={calendarKnown}
                 discreet={discreet}
                 desiresPoolRemaining={desiresPoolRemaining}
-                hourlyLaborRate={hourlyLaborRate}
               />
             ) : null}
           </CardContent>

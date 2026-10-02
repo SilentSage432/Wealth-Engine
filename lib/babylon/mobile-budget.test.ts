@@ -66,6 +66,8 @@ describe("phone Budget source boundaries", () => {
     expect(budgetSource).not.toContain("overflow-x-auto");
     expect(budgetSource).not.toContain("GoldenTriad");
     expect(budgetSource).not.toContain("SpendingPowerFocus");
+    expect(budgetSource).not.toContain("hours of main income");
+    expect(budgetSource).not.toContain("laborHoursForAmount");
     expect(budgetSource.indexOf('aria-label="Living Budget"')).toBeLessThan(
       budgetSource.indexOf('aria-label="10/20/70"')
     );
@@ -87,7 +89,8 @@ describe("phone Budget source boundaries", () => {
   });
 
   it("keeps the desktop overview composition", () => {
-    expect(desktopBlock).toContain("focusCards");
+    expect(desktopBlock).not.toContain("focusCards");
+    expect(desktopBlock).not.toContain("SpendingPowerFocus");
     expect(desktopBlock).toContain("triad");
     expect(desktopBlock).toContain("budgetBlueprint");
     expect(desktopBlock).toContain("debtFreedom");

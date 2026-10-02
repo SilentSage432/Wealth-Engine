@@ -22,7 +22,6 @@ import { WealthDirectionPanel } from "@/components/babylon/wealth-direction";
 import { MobileMore } from "@/components/babylon/mobile-more";
 import { QuickStats } from "@/components/babylon/quick-stats";
 import { SecurityGate } from "@/components/babylon/security-gate.client";
-import { SpendingPowerFocus } from "@/components/babylon/spending-power-focus";
 import { VaultLoading } from "@/components/babylon/vault-loading";
 import { WisdomBox } from "@/components/babylon/wisdom-box";
 import { BudgetBlueprint } from "@/components/dashboard/BudgetBlueprint";
@@ -221,15 +220,6 @@ export function WealthEngineDashboard() {
       </Button>
     </div>
   ) : null;
-
-  const focusCards = (
-    <SpendingPowerFocus
-      expenditureRemaining={engine.expenditureRemaining}
-      hourlyLaborRate={engine.hourlyLaborRate}
-      discreet={discreet}
-      calendarKnown={engine.financialCalendarKnown}
-    />
-  );
 
   const debtFreedom = (
     <DebtFreedomEngine
@@ -441,7 +431,6 @@ export function WealthEngineDashboard() {
                 wealthDirection={engine.wealthDirection}
                 tributeSnapshot={engine.tributeEngines}
                 desiresPoolRemaining={engine.desiresPoolRemaining}
-                hourlyLaborRate={engine.hourlyLaborRate}
               />
             )}
 
@@ -525,7 +514,6 @@ export function WealthEngineDashboard() {
                       {debtRebaseBanner}
                       {financialPosition}
                       {upcomingNeedsCard}
-                      {focusCards}
                       {triad}
                       {banksCard}
                       {debtFreedom}
@@ -533,7 +521,6 @@ export function WealthEngineDashboard() {
                         disclosure
                         calendarKnown={engine.financialCalendarKnown}
                         desiresPoolRemaining={engine.desiresPoolRemaining}
-                        hourlyLaborRate={engine.hourlyLaborRate}
                       />
                       <TributeEnginesPanel
                         disclosure

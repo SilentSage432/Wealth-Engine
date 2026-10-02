@@ -809,13 +809,6 @@ export interface LedgerBackup {
   financialDirections?: FinancialDirectionDeclaration[];
 }
 
-export interface AffordabilitySnapshot {
-  /** Unspent discretionary slice of the current-month 70% pool. */
-  desiresPoolRemaining: number;
-  /** Effective hourly rate from primary recurring labor streams. */
-  hourlyLaborRate: number;
-}
-
 export interface DebtInput {
   creditor: string;
   totalDebt: number;

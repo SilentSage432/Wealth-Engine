@@ -1,5 +1,14 @@
 # Development Journal
 
+## 2026-10-02 — WE-AFFORDABILITY-ANCHOR-REMOVE-001 Labor-hour claims removed
+
+- Desktop Overview no longer shows the Affordability Anchor hours card. Phone Budget no longer says how many hours of main income the Living Budget remainder represents. The purchase test no longer shows main-income hours.
+- The purchase test still reports what share of the money left for wants a typed amount would be. That percentage was not redesigned.
+- `WORK_HOURS_PER_WEEK`, `effectiveHourlyRate`, `primaryHourlyRate`, `laborHoursForAmount`, `monthlyIncomeEquivalent`, and `latestRecurringBySource` had no remaining caller and were deleted. Income rows, 10/20/70, and Living Budget remaining stay.
+- There was no stored wage. Cloud schema stays 6. Ledger export stays version 13.
+- Full suite: 81 files, 1155 tests passed. `tsc --noEmit` passed. ESLint on the edited files passed. Production build passed. `git diff --check` passed.
+- Not committed.
+
 ## 2026-10-01 — WE-WEALTH-DIRECTION-001 Standing Wealth Direction
 
 - A direction is an append-only steward declaration that a share of new received Wealth Building capacity is intended for the Emergency Fund. The share is integer basis points from 1 through 10000. Wealth Engine does not choose it.

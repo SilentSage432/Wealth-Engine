@@ -4,15 +4,9 @@ import {
   buildBudgetVariances,
   computeDesiresPoolRemaining,
   msUntilNextLocalMidnight,
-  primaryHourlyRate,
-  roundMoney,
   todayIso,
 } from "@/lib/babylon/engine";
-import type {
-  BudgetTarget,
-  ExpenseEntry,
-  IncomeEntry,
-} from "@/types/babylon";
+import type { BudgetTarget, ExpenseEntry } from "@/types/babylon";
 
 function cents(value: number): number {
   return Math.round(value * 100);
@@ -28,22 +22,6 @@ function expectSharesSumToGross(
       cents(split.debtShare) +
       cents(split.expenditureShare)
   ).toBe(cents(gross));
-}
-
-function income(
-  partial: Pick<IncomeEntry, "source" | "amount" | "date"> &
-    Partial<IncomeEntry>
-): IncomeEntry {
-  return {
-    id: partial.id ?? `${partial.source}-${partial.date}`,
-    interval: "monthly",
-    kind: "primary",
-    wealthShare: 0,
-    debtShare: 0,
-    expenditureShare: 0,
-    debtRedirected: false,
-    ...partial,
-  };
 }
 
 function expense(
@@ -170,76 +148,6 @@ describe("computeDesiresPoolRemaining", () => {
   it("floors at zero when desires or essentials consume the pool", () => {
     expect(computeDesiresPoolRemaining(700, 0, 500, 300)).toBe(0);
     expect(computeDesiresPoolRemaining(200, 0, 0, 300)).toBe(0);
-  });
-});
-
-describe("primaryHourlyRate", () => {
-  it("does not raise the wage as more of the same primary paycheck is recorded", () => {
-    const once = primaryHourlyRate([
-      income({ source: "Lowe's", amount: 3000, date: "2026-01-15" }),
-    ]);
-    const year = primaryHourlyRate(
-      Array.from({ length: 12 }, (_, index) =>
-        income({
-          source: "Lowe's",
-          amount: 3000,
-          date: `2026-${String(index + 1).padStart(2, "0")}-15`,
-        })
-      )
-    );
-    expect(year).toBe(once);
-    expect(year).toBeGreaterThan(0);
-  });
-
-  it("follows the latest paycheck when the same source changes amount", () => {
-    const raised = primaryHourlyRate([
-      income({ source: "Lowe's", amount: 3000, date: "2026-01-15" }),
-      income({ source: "Lowe's", amount: 4000, date: "2026-06-15" }),
-    ]);
-    const current = primaryHourlyRate([
-      income({ source: "Lowe's", amount: 4000, date: "2026-06-15" }),
-    ]);
-    expect(raised).toBe(current);
-  });
-
-  it("adds distinct primary sources and ignores one-time and non-primary rows", () => {
-    const lowes = income({
-      source: "Lowe's",
-      amount: 3000,
-      date: "2026-03-01",
-    });
-    const weekend = income({
-      source: "Weekend shift",
-      amount: 400,
-      date: "2026-03-01",
-    });
-    const combined = primaryHourlyRate([
-      lowes,
-      weekend,
-      income({
-        source: "Lowe's",
-        amount: 500,
-        date: "2026-03-20",
-        interval: "one-time",
-      }),
-      income({
-        source: "Etsy",
-        amount: 900,
-        date: "2026-03-01",
-        kind: "side_hustle",
-      }),
-    ]);
-    const expected = primaryHourlyRate([
-      income({ source: "Lowe's", amount: 3000, date: "2026-03-01" }),
-      income({ source: "Weekend shift", amount: 400, date: "2026-03-01" }),
-    ]);
-    expect(combined).toBe(expected);
-    expect(combined).toBe(
-      primaryHourlyRate([
-        income({ source: "Combined", amount: 3400, date: "2026-03-01" }),
-      ])
-    );
-    expect(roundMoney(combined)).toBe(combined);
   });
 });
 

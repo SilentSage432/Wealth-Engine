@@ -4,17 +4,13 @@ import { useMemo, useState } from "react";
 import { OverviewDisclosure } from "@/components/babylon/overview-disclosure";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  desiresPoolSharePct,
-  laborHoursForAmount,
-} from "@/lib/babylon/engine";
+import { desiresPoolSharePct } from "@/lib/babylon/engine";
 import { FINANCIAL_CALENDAR_UNKNOWN } from "@/lib/babylon/civil-time";
 import { formatDiscreetCurrency } from "@/lib/babylon/discreet";
 import { formatCurrency } from "@/lib/utils";
 
 interface AffordabilityAnchorProps {
   desiresPoolRemaining: number;
-  hourlyLaborRate: number;
   discreet?: boolean;
   /** Desktop Overview starts the purchase test closed. Phone analysis stays open. */
   disclosure?: boolean;
@@ -23,7 +19,6 @@ interface AffordabilityAnchorProps {
 
 export function AffordabilityAnchor({
   desiresPoolRemaining,
-  hourlyLaborRate,
   discreet = false,
   disclosure = false,
   calendarKnown = true,
@@ -46,12 +41,6 @@ export function AffordabilityAnchor({
   const money = (value: number) =>
     formatDiscreetCurrency(value, discreet, formatCurrency);
 
-  const laborHours = useMemo(
-    () =>
-      amount === null ? null : laborHoursForAmount(amount, hourlyLaborRate),
-    [amount, hourlyLaborRate]
-  );
-
   if (!calendarKnown) {
     return (
       <section className="animate-fade-up rounded-xl border border-slate-800/80 bg-slate-900/40 px-4 py-4 sm:px-5">
@@ -71,8 +60,7 @@ export function AffordabilityAnchor({
             Affordability Anchor
           </p>
           <p className="text-sm text-slate-400">
-            Test a purchase against the money left for wants and your main
-            income rate.
+            Test a purchase against the money left for wants.
           </p>
         </div>
 
@@ -96,31 +84,16 @@ export function AffordabilityAnchor({
         </div>
       </div>
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        <div className="rounded-lg border border-slate-800/70 bg-slate-950/40 px-3.5 py-3">
-          <p className="text-[10px] uppercase tracking-wider text-slate-500">
-            Of money left for wants
-          </p>
-          <p className="mt-1 font-[family-name:var(--font-display)] text-2xl font-semibold tabular-nums text-slate-100">
-            {poolPct === null ? "—" : `${poolPct}%`}
-          </p>
-          <p className="mt-1 text-xs text-slate-500">
-            Left for wants: {money(desiresPoolRemaining)}
-          </p>
-        </div>
-        <div className="rounded-lg border border-slate-800/70 bg-slate-950/40 px-3.5 py-3">
-          <p className="text-[10px] uppercase tracking-wider text-slate-500">
-            Main income hours
-          </p>
-          <p className="mt-1 font-[family-name:var(--font-display)] text-2xl font-semibold tabular-nums text-slate-100">
-            {laborHours === null ? "—" : `${laborHours}h`}
-          </p>
-          <p className="mt-1 text-xs text-slate-500">
-            {hourlyLaborRate > 0
-              ? `Main income: ${money(hourlyLaborRate)}/hr`
-              : "Add recurring main income to estimate hours"}
-          </p>
-        </div>
+      <div className="mt-4 rounded-lg border border-slate-800/70 bg-slate-950/40 px-3.5 py-3">
+        <p className="text-[10px] uppercase tracking-wider text-slate-500">
+          Of money left for wants
+        </p>
+        <p className="mt-1 font-[family-name:var(--font-display)] text-2xl font-semibold tabular-nums text-slate-100">
+          {poolPct === null ? "—" : `${poolPct}%`}
+        </p>
+        <p className="mt-1 text-xs text-slate-500">
+          Left for wants: {money(desiresPoolRemaining)}
+        </p>
       </div>
     </section>
   );

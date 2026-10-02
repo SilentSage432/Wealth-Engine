@@ -61,7 +61,6 @@ function budgetProps(
       byKind: [],
     },
     desiresPoolRemaining: 0,
-    hourlyLaborRate: 0,
     wealthDirection,
   };
 }
@@ -123,6 +122,9 @@ describe("mobile wealth direction projection", () => {
         }),
       })
     );
+    expect(screen.getByLabelText("Living Budget").textContent).toContain("$700.00");
+    expect(screen.queryByText(/hours of main income/)).toBeNull();
+    expect(screen.queryByText(/\/hr/)).toBeNull();
     expect(screen.getByText(/40% of/)).toBeTruthy();
     expect(screen.getByText(/The rest remains Wealth Building/)).toBeTruthy();
     expect(screen.queryByRole("button", { name: /Declare/ })).toBeNull();

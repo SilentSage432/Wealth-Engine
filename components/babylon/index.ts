@@ -9,7 +9,6 @@ export { MiniSparkline } from "@/components/babylon/mini-sparkline";
 export { QuickStats } from "@/components/babylon/quick-stats";
 export { RecordTributeDialog } from "@/components/babylon/record-tribute-dialog";
 export { RecordTransactionModal } from "@/components/modals/RecordTransactionModal";
-export { SpendingPowerFocus } from "@/components/babylon/spending-power-focus";
 export { PlaidLinkButton } from "@/components/babylon/plaid-link-button";
 export { ConnectedBanksCard } from "@/components/babylon/connected-banks-card";
 export { SecurityGate } from "@/components/babylon/security-gate.client";

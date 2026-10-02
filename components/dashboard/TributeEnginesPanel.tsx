@@ -59,7 +59,7 @@ const KIND_TOOLTIPS: Partial<Record<IncomeStreamKind, string>> = {
   passive:
     "Passive income is money that does not depend on more of your hours. It still splits 10/20/70.",
   primary:
-    "Main income is the recurring paycheck used for affordability hours.",
+    "Main income is the primary paycheck. It still splits 10/20/70.",
   other: "Other income is irregular money that still splits 10/20/70.",
 };
 

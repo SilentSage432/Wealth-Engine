@@ -15,15 +15,11 @@ import type {
   DebtPayoffStrategy,
   ExpenseEntry,
   IncomeEntry,
-  IncomeInterval,
   IncomeStreamKind,
   SurplusDisposition,
   TributeEngineKindRow,
   TributeEngineSnapshot,
 } from "@/types/babylon";
-
-/** Assumed productive hours per week for labor-equivalent math. */
-const WORK_HOURS_PER_WEEK = 40;
 
 export function monthKeyFromDate(isoDate: string): string {
   return isoDate.slice(0, 7);
@@ -259,90 +255,6 @@ export function resolveSurplusDisposition(
       return { ...split, shield: 0, rollover: 0 };
     }
   }
-}
-
-/** Normalize a recurring income amount to a monthly equivalent. One-time excluded. */
-export function monthlyIncomeEquivalent(
-  amount: number,
-  interval: IncomeInterval
-): number {
-  switch (interval) {
-    case "weekly":
-      return roundMoney((amount * 52) / 12);
-    case "biweekly":
-      return roundMoney((amount * 26) / 12);
-    case "monthly":
-      return roundMoney(amount);
-    case "yearly":
-      return roundMoney(amount / 12);
-    case "one-time":
-      return 0;
-  }
-}
-
-/**
- * Current recurring earning rate, grouped by trimmed income `source`.
- *
- * One-time rows are ignored. Each remaining source contributes only its
- * latest dated recurring deposit (the first row wins when dates tie, which
- * matches the newest-first ledger). That single deposit is converted with
- * `monthlyIncomeEquivalent`. Repeated history of the same source does not
- * stack into additional salaries.
- *
- * `source` is the only stream identity on IncomeEntry. Two simultaneous
- * jobs count separately only when their source names differ. A later
- * one-time deposit under the same name does not replace the recurring rate.
- */
-function latestRecurringBySource(incomes: IncomeEntry[]): IncomeEntry[] {
-  const chosen = new Map<string, IncomeEntry>();
-  for (const entry of incomes) {
-    if (entry.interval === "one-time") continue;
-    const key = entry.source.trim();
-    const current = chosen.get(key);
-    if (!current || entry.date > current.date) {
-      chosen.set(key, entry);
-    }
-  }
-  return [...chosen.values()];
-}
-
-/**
- * Hourly rate used to translate spending into labor.
- * Optionally restrict to specific stream kinds (e.g. primary labor only).
- * See `latestRecurringBySource` for how repeated deposits are collapsed.
- */
-export function effectiveHourlyRate(
-  incomes: IncomeEntry[],
-  kinds?: ReadonlyArray<IncomeStreamKind>
-): number {
-  const scoped = kinds
-    ? incomes.filter((entry) => kinds.includes(entry.kind))
-    : incomes;
-  const monthly = roundMoney(
-    latestRecurringBySource(scoped).reduce(
-      (sum, entry) =>
-        sum + monthlyIncomeEquivalent(entry.amount, entry.interval),
-      0
-    )
-  );
-  if (monthly <= 0) return 0;
-  const hoursPerMonth = (WORK_HOURS_PER_WEEK * 52) / 12;
-  return roundMoney(monthly / hoursPerMonth);
-}
-
-/** Primary labor hourly rate — excludes side hustles, passive, and other. */
-export function primaryHourlyRate(incomes: IncomeEntry[]): number {
-  return effectiveHourlyRate(incomes, ["primary"]);
-}
-
-/** Labor hours required to fund an amount at the given hourly rate. */
-export function laborHoursForAmount(
-  amount: number,
-  hourlyRate: number
-): number | null {
-  if (!Number.isFinite(amount) || amount <= 0) return null;
-  if (!Number.isFinite(hourlyRate) || hourlyRate <= 0) return null;
-  return Math.round((amount / hourlyRate) * 10) / 10;
 }
 
 /** Share of remaining desires pool consumed by a prospective purchase. */
